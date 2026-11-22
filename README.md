@@ -13,7 +13,7 @@ Observatorium banjir dan hidrometeorologi seluruh Indonesia yang memisahkan tiga
 ```mermaid
 flowchart LR
     subgraph Upstream["Open Telemetry & RSS Feeds (0 API Keys)"]
-        GL["Open-Meteo Copernicus GloFAS v4\n(50 River Basins · 14d Obs + 7d Forecast)"]
+        GL["Open-Meteo Copernicus GloFAS v4\n(50 River Basins · simulated discharge + 7d ensemble forecast)"]
         WX["Open-Meteo IFS/ERA5\n(Rain 24h/72h & 2-Layer Soil Moisture)"]
         MR["Open-Meteo Marine\n(12 Coastal Rob MSL & Waves)"]
         PB["PetaBencana.id\n(24h Citizen Flood Reports)"]
@@ -40,7 +40,7 @@ flowchart LR
 
 > Live URL: **[https://flood.transbulent.id/](https://flood.transbulent.id/)**
 
-*(Preview screenshots generated via headless Chromium audit in [`docs/`](docs/))*
+*(Tangkapan layar build v2, 22 Nov 2026)*
 
 | Desktop (`1440×900`) | Mobile (`390×844`) |
 |---|---|
@@ -81,7 +81,7 @@ flowchart LR
 | `GET /api/openapi.json` | OpenAPI 3.1 schema for AI agents & tool integrations |
 | `GET /api/flood` | Full snapshot: 50 river stations, 12 coastal Rob corridors, PetaBencana reports, BMKG nowcasts, news |
 | `GET /api/stations.geojson` | Stations with current indication levels as GeoJSON |
-| `GET /api/station/{id}` | 21-day observed + 7-day forecast GloFAS hydrograph & soil telemetry |
+| `GET /api/station/{id}` | Simulated (not gauged) GloFAS hydrograph + 7-day forecast & soil telemetry |
 | `GET /api/ai/briefing?region=&audience=public\|gov\|academia\|ai_agent&format=json\|md` | Deterministic multi-audience SitRep briefing |
 | `GET /api/ai/query?q=...` | Natural-language Indonesian/English river & alert search with map `fly_to` coordinates |
 | `GET /api/alerts.rss?region=...` | Regional/national RSS 2.0 warning feed |

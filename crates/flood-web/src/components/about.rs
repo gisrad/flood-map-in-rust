@@ -3,7 +3,8 @@ use crate::format::{fmt_datetime_short, fmt_relative, parse_utc_ms};
 use flood_shared::model::{FloodSnapshot, IndicatorLevel};
 use leptos::prelude::*;
 
-const METHOD_DOC: &str = "https://github.com/gisrad/flood-map-in-rust/blob/main/docs/METODOLOGI.md";
+/// Salinan `docs/METODOLOGI.md` yang disajikan statis (repo GitHub belum publik).
+const METHOD_DOC: &str = "/metodologi.txt";
 
 #[component]
 pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) -> impl IntoView {
@@ -92,7 +93,7 @@ pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) ->
                     <div><dt><LevelBadge level=IndicatorLevel::Extreme/></dt><dd>"Sungai: ≥ Q20. Hujan lokal: > 150 mm (ekstrem)."</dd></div>
                     <div><dt><LevelBadge level=IndicatorLevel::Unknown/></dt><dd>"Ambang belum tersedia untuk sel model ini; level sungai tidak dinilai."</dd></div>
                 </dl>
-                <p class="fine">"Ambang sungai berasal dari reanalisis GloFAS v4 1991–2020 pada sel model yang sama (maksimum tahunan, distribusi Gumbel). Rob dibandingkan dengan persentil muka laut model setempat. Level ini bukan status peringatan resmi BPBD, BMKG, atau BBWS."</p>
+                <p class="fine">"Ambang sungai berasal dari reanalisis GloFAS v4 1997–2024 pada sel model yang sama (maksimum tahunan, distribusi Gumbel). Rob dibandingkan dengan klimatologi puncak muka laut model 48 jam setempat. Level ini bukan status peringatan resmi BPBD, BMKG, atau BBWS."</p>
                 <p><a href=METHOD_DOC target="_blank" rel="noopener">"Metodologi lengkap"</a></p>
             </section>
 

@@ -390,7 +390,7 @@ pub fn build_llms_txt(base_url: &str) -> String {
 - `level`: unknown (belum terkalibrasi) | normal | high (tinggi) | very_high (sangat tinggi) | extreme (ekstrem).\n\
 - Sungai: debit harian simulasi GloFAS v4 pada sel terkalibrasi; high ≥ Q2, very_high ≥ Q5, extreme ≥ Q20. Q2/Q5/Q20 = periode ulang 2/5/20 tahun dari distribusi Gumbel (L-moment) atas maksimum tahunan reanalisis GloFAS v4 1997–2024 pada sel yang sama.\n\
 - Drainase: hujan model 24 jam terakhir atau 24 jam ke depan; high ≥ 50 mm (lebat, BMKG), very_high ≥ 100 mm (sangat lebat), extreme > 150 mm (ekstrem). Laporan banjir warga PetaBencana ≤ 10 km dalam 24 jam menaikkan minimal ke high.\n\
-- Rob: puncak muka laut model 48 jam (Open-Meteo Marine) terhadap klimatologi setempat sejak 2022; high ≥ p99 per jam, very_high ≥ maksimum periode kalibrasi.\n\
+- Rob: puncak muka laut model 48 jam (Open-Meteo Marine) terhadap klimatologi puncak 48 jam setempat sejak 2022; high ≥ p99, very_high ≥ maksimum periode kalibrasi.\n\
 - `level` stasiun = maksimum level sungai dan drainase; `mechanism` = komponen penentu.\n\
 \n\
 ## Keterbatasan\n\

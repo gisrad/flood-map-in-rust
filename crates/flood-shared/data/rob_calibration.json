@@ -1,8 +1,8 @@
 {
- "generated_at_utc": "2026-11-22T10:44:53Z",
+ "generated_at_utc": "2026-11-22T14:16:34Z",
  "source": "Open-Meteo Marine API, sea_level_height_msl (MeteoFrance SMOC, E.U. Copernicus Marine Service)",
  "period": "2022–2025",
- "method": "Persentil 95 dan 99 serta maksimum muka laut model per jam pada sel laut terdekat; high ≥ p99, very_high ≥ maksimum.",
+ "method": "Persentil 95 dan 99 serta maksimum dari deret puncak muka laut model 48 jam (jendela bergeser per jam) pada sel laut terdekat; high ≥ p99, very_high ≥ maksimum. Setara dengan aturan level yang memakai puncak 48 jam ke depan.",
  "points": [
   {
    "id": "rob-jakarta-muarabaru",
@@ -10,8 +10,8 @@
    "cell_lon": 106.79167,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 1.08,
-    "p99_m": 1.22,
+    "p95_m": 1.28,
+    "p99_m": 1.34,
     "max_m": 1.39,
     "period": "2022–2025"
    },
@@ -23,8 +23,8 @@
    "cell_lon": 107.04167,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 1.08,
-    "p99_m": 1.22,
+    "p95_m": 1.28,
+    "p99_m": 1.36,
     "max_m": 1.39,
     "period": "2022–2025"
    },
@@ -36,8 +36,8 @@
    "cell_lon": 109.70836,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 1.0,
-    "p99_m": 1.13,
+    "p95_m": 1.2,
+    "p99_m": 1.26,
     "max_m": 1.32,
     "period": "2022–2025"
    },
@@ -49,8 +49,8 @@
    "cell_lon": 110.45836,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 1.06,
-    "p99_m": 1.19,
+    "p95_m": 1.25,
+    "p99_m": 1.31,
     "max_m": 1.36,
     "period": "2022–2025"
    },
@@ -62,8 +62,8 @@
    "cell_lon": 112.875015,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 1.5,
-    "p99_m": 1.76,
+    "p95_m": 1.92,
+    "p99_m": 2.03,
     "max_m": 2.09,
     "period": "2022–2025"
    },
@@ -75,8 +75,8 @@
    "cell_lon": 98.79167,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 1.42,
-    "p99_m": 1.67,
+    "p95_m": 1.82,
+    "p99_m": 1.977,
     "max_m": 2.07,
     "period": "2022–2025"
    },
@@ -88,8 +88,8 @@
    "cell_lon": 103.29167,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 2.04,
-    "p99_m": 2.37,
+    "p95_m": 2.55,
+    "p99_m": 2.77,
     "max_m": 2.93,
     "period": "2022–2025"
    },
@@ -101,8 +101,8 @@
    "cell_lon": 109.20836,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 1.61,
-    "p99_m": 1.88,
+    "p95_m": 1.98,
+    "p99_m": 2.17,
     "max_m": 2.32,
     "period": "2022–2025"
    },
@@ -114,8 +114,8 @@
    "cell_lon": 114.45836,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 1.73,
-    "p99_m": 2.0,
+    "p95_m": 2.11,
+    "p99_m": 2.29,
     "max_m": 2.41,
     "period": "2022–2025"
    },
@@ -127,8 +127,8 @@
    "cell_lon": 119.375015,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 1.18,
-    "p99_m": 1.32,
+    "p95_m": 1.38,
+    "p99_m": 1.44,
     "max_m": 1.51,
     "period": "2022–2025"
    },
@@ -140,8 +140,8 @@
    "cell_lon": 124.79167,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 1.6,
-    "p99_m": 1.85,
+    "p95_m": 1.98,
+    "p99_m": 2.13,
     "max_m": 2.16,
     "period": "2022–2025"
    },
@@ -153,8 +153,8 @@
    "cell_lon": 140.37502,
    "n_hours": 26808,
    "thresholds": {
-    "p95_m": 2.3,
-    "p99_m": 2.719,
+    "p95_m": 2.95,
+    "p99_m": 3.16,
     "max_m": 3.5,
     "period": "2022–2025"
    },

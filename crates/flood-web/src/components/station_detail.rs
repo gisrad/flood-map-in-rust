@@ -394,7 +394,7 @@ pub fn RobDetail(
                             <div class="thr-cell thr-very_high"><span>"P99"</span><b>{format!("{} m", fmt_num(t.p99_m, 2))}</b></div>
                             <div class="thr-cell thr-extreme"><span>"Maks"</span><b>{format!("{} m", fmt_num(t.max_m, 2))}</b></div>
                         </div>
-                        <p class="fine">{format!("Persentil muka laut model per jam, periode {}.", t.period)}</p>
+                        <p class="fine">{format!("Persentil puncak muka laut model 48 jam, periode {}.", t.period)}</p>
                     }.into_any(),
                     None => view! { <p class="note-unknown">"Belum terkalibrasi: klimatologi muka laut belum tersedia untuk titik ini."</p> }.into_any(),
                 }}

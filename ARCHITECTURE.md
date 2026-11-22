@@ -18,7 +18,7 @@
 
 3. **`crates/flood-web` (Rust Leptos 0.8 CSR WASM + Minimal MapLibre Bridge)**
    - Compiled via `Trunk` (`--release`, `wasm-opt -Oz`) into static `[assets]`.
-   - Renders full Coastal Editorial UI, scientific SVG hydrographs (observed + 7d forecast + ensemble uncertainty band + Q2/Q5/Q20 return-period thresholds), mobile 3-state snap bottom sheet, news reader, free alert hub (`ntfy.sh` + WhatsApp share + RSS), and AI command bar directly in Rust.
+   - Renders full Coastal Editorial UI, scientific SVG hydrographs (simulated GloFAS discharge + 7d forecast + ensemble uncertainty band + Q2/Q5/Q20 return-period thresholds), mobile 3-state snap bottom sheet, news reader, free alert hub (`ntfy.sh` + WhatsApp share + RSS), and AI command bar directly in Rust.
    - Only ~190 lines of thin ES glue (`assets/map_bridge.js`) connect `wasm-bindgen` to locally bundled `maplibre-gl` v5.
 
 ## 2. Scale-Up Roadmap (When Traffic or Station Count Grows)

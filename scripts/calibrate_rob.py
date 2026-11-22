@@ -87,10 +87,16 @@ def main() -> int:
         th = None
         note = ""
         if n >= MIN_HOURS:
+            # Level dibandingkan dengan puncak 48 jam ke depan, jadi ambang harus dari deret yang
+            # setara: maksimum jendela 48 jam yang bergeser per jam. Ambang per jam membuat
+            # pasang purnama rutin (±13% hari) terbaca "Tinggi".
+            win = np.lib.stride_tricks.sliding_window_view(vals, 48)
+            full = np.isfinite(win).all(axis=1)
+            peak48 = win[full].max(axis=1)
             th = {
-                "p95_m": round(float(np.percentile(valid, 95)), 3),
-                "p99_m": round(float(np.percentile(valid, 99)), 3),
-                "max_m": round(float(valid.max()), 3),
+                "p95_m": round(float(np.percentile(peak48, 95)), 3),
+                "p99_m": round(float(np.percentile(peak48, 99)), 3),
+                "max_m": round(float(peak48.max()), 3),
                 "period": period,
             }
         else:
@@ -111,7 +117,7 @@ def main() -> int:
         "generated_at_utc": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source": "Open-Meteo Marine API, sea_level_height_msl (MeteoFrance SMOC, E.U. Copernicus Marine Service)",
         "period": period,
-        "method": "Persentil 95 dan 99 serta maksimum muka laut model per jam pada sel laut terdekat; high ≥ p99, very_high ≥ maksimum.",
+        "method": "Persentil 95 dan 99 serta maksimum dari deret puncak muka laut model 48 jam (jendela bergeser per jam) pada sel laut terdekat; high ≥ p99, very_high ≥ maksimum. Setara dengan aturan level yang memakai puncak 48 jam ke depan.",
         "points": out_points,
     }
     OUT_JSON.write_text(json.dumps(out, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")

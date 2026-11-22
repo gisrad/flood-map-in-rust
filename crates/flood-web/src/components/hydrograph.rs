@@ -122,7 +122,8 @@ pub fn HydrographChart(station: StationTelemetry) -> impl IntoView {
         .collect();
 
     let first_fc = pts.iter().position(|p| p.is_forecast);
-    let today_idx = first_fc.unwrap_or(n - 1);
+    // Hari ini = titik non-prakiraan terakhir (lihat hub.rs build_hydrograph).
+    let today_idx = first_fc.map(|i| i.saturating_sub(1)).unwrap_or(n - 1);
     let sim: Vec<(f64, f64)> = pts
         .iter()
         .enumerate()

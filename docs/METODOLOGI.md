@@ -72,12 +72,12 @@ Hujan 24 jam = jumlah presipitasi per jam model Open-Meteo di koordinat pos. Bil
 `level = max(level sungai, level drainase)`, dengan satu pengecualian: bila level sungai `unknown` dan level drainase di bawah Tinggi, level stasiun tetap `unknown` (tidak ditampilkan sebagai Normal). `mechanism` = komponen penentu (`fluvial_basin` bila sungai ≥ drainase, selain itu `urban_pluvial`).
 
 ## 5. Indikator rob
-Skrip `scripts/calibrate_rob.py` mengunduh muka laut model per jam (`sea_level_height_msl`, tersedia sejak Januari 2022) di sel laut terdekat tiap titik rob untuk **2022–2025** (26.808 jam) dan menghitung p95, p99, dan maksimum. Bila sel terdekat tidak berdata, dicari sel laut berdata pada cincin 0,1° dan 0,2°.
+Skrip `scripts/calibrate_rob.py` mengunduh muka laut model per jam (`sea_level_height_msl`, tersedia sejak Januari 2022) di sel laut terdekat tiap titik rob untuk **2022–2025** (26.808 jam), membentuk deret **puncak 48 jam** (maksimum jendela 48 jam yang bergeser per jam, setara dengan besaran yang dinilai saat operasi), lalu menghitung p95, p99, dan maksimum deret itu. Ambang per jam tidak dipakai karena puncak 48 jam ke depan melampaui p99 per jam pada 10–18% hari, yakni pasang purnama rutin. Bila sel terdekat tidak berdata, dicari sel laut berdata pada cincin 0,1° dan 0,2°.
 
 | Level | Puncak muka laut model 48 jam ke depan |
 |---|---|
 | Normal | < p99 |
-| Tinggi | ≥ p99 (dilampaui ±88 jam per tahun pada periode kalibrasi) |
+| Tinggi | ≥ p99 puncak 48 jam (±1% jendela pada periode kalibrasi) |
 | Sangat tinggi | ≥ maksimum periode kalibrasi |
 | Belum terkalibrasi | tidak ada ambang atau data |
 
