@@ -1,0 +1,11 @@
+target/
+build/
+dist/
+.wrangler/
+.dev.vars
+.env*
+wrangler.toml
+crates/flood-worker/wrangler.toml
+node_modules/
+docs/qa-*
+*.log

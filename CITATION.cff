@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+title: "Hidrosentinel Nusantara (flood-map-in-rust): All-Rust Indonesian 3D Flood, GloFAS Discharge & Coastal Rob Observatory"
+message: "If you use this software or methodology in your research, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: "Fajrianshah"
+    given-names: "Evans Azka"
+    affiliation: "National Research and Innovation Agency (BRIN); Graduate School, Universitas Gadjah Mada"
+version: 0.1.0
+date-released: "2026-11-22"
+license: MIT
+url: "https://flood.transbulent.id"
+repository-code: "https://github.com/gisrad/flood-map-in-rust"
+abstract: >-
+  Full-stack Rust (Leptos CSR WebAssembly + Cloudflare Workers Rust + SQLite-backed Durable Objects)
+  observatory monitoring 50 major Indonesian river basins and 12 coastal tidal (Rob) corridors.
+  Fuses Copernicus GloFAS v4 river discharge ensembles, Open-Meteo precipitation and 2-layer soil moisture,
+  Open-Meteo Marine sea-level/wave telemetry, PetaBencana.id citizen reports, BMKG CAP nowcast alerts,
+  and regional flood RSS news to distinguish upstream fluvial basin surges, urban pluvial drainage inundation,
+  and coastal subsidence-amplified Rob flooding, alongside deterministic AI SitRep briefings and OpenAPI/llms.txt endpoints.
+keywords:
+  - flood
+  - indonesia
+  - rust
+  - webassembly
+  - leptos
+  - cloudflare-workers
+  - durable-objects
+  - glofas
+  - hydrology
+  - maplibre-gl
+references:
+  - type: article
+    title: "GloFAS-ERA5 operational global river discharge reanalysis 1979–present"
+    authors:
+      - family-names: "Harrigan"
+        given-names: "Shaun"
+    journal: "Earth System Science Data"
+    year: 2020
+    volume: 12
+    pages: "2043–2060"
+    doi: "10.5194/essd-12-2043-2020"

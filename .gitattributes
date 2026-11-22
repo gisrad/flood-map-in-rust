@@ -1,0 +1,4 @@
+crates/flood-web/vendor/** linguist-vendored
+crates/flood-web/public/og-flood.png binary
+docs/*.png binary
+*.woff2 binary

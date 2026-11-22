@@ -1,0 +1,16 @@
+[package]
+name = "flood-worker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+flood-shared = { path = "../flood-shared" }
+worker = "0.9"
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"

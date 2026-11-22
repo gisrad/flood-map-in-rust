@@ -1,0 +1,41 @@
+[package]
+name = "flood-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+flood-shared = { path = "../flood-shared" }
+leptos = { version = "0.8", features = ["csr"] }
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+gloo-net = "0.6"
+gloo-timers = "0.3"
+console_error_panic_hook = "0.1"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "Window",
+  "Document",
+  "Location",
+  "History",
+  "Navigator",
+  "Geolocation",
+  "Position",
+  "Coordinates",
+  "PositionOptions",
+  "Clipboard",
+  "UrlSearchParams",
+  "HtmlInputElement",
+  "KeyboardEvent",
+  "Storage",
+  "Blob",
+  "BlobPropertyBag",
+  "Url",
+  "HtmlAnchorElement",
+  "Element",
+]

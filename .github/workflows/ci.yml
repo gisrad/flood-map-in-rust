@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Security check (no exposed secrets/IDs/paths)
+        shell: pwsh
+        run: ./scripts/security-check.ps1
+      - name: Test flood-shared
+        run: cargo test -p flood-shared --locked
+      - name: Check flood-worker wasm32
+        run: cargo check -p flood-worker --target wasm32-unknown-unknown
+      - name: Check flood-web wasm32
+        run: cargo check -p flood-web --target wasm32-unknown-unknown
