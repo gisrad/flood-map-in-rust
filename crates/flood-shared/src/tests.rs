@@ -1,3 +1,4 @@
+use crate::ai::{execute_ai_query, generate_briefing};
 use crate::calibration::{glofas_calibration, rob_calibration_file};
 use crate::catalog::{COASTAL_ROB_POINTS, RIVER_STATIONS};
 use crate::geo::build_stations_geojson;
@@ -7,8 +8,8 @@ use crate::hydrology::{
     StationInputs,
 };
 use crate::model::{
-    CitizenReport, FloodMechanism, FloodSnapshot, HydrographPoint, IndicatorLevel, RiverThresholds,
-    RobThresholds, UpstreamHealth, METHODOLOGY_VERSION, SCHEMA_VERSION,
+    Audience, CitizenReport, FloodMechanism, FloodSnapshot, HydrographPoint, IndicatorLevel,
+    RiverThresholds, RobThresholds, UpstreamHealth, METHODOLOGY_VERSION, SCHEMA_VERSION,
 };
 use crate::replay::{build_replay_snapshot, list_replay_scenarios};
 use crate::reports::parse_petabencana_geojson;
@@ -486,6 +487,99 @@ fn replay_scenarios_are_baked_from_data() {
         .unwrap();
     assert!(jkt.citation.contains("Halim"));
     assert!(build_replay_snapshot("tidak-ada", 0).is_none());
+}
+
+#[test]
+fn replay_discloses_model_versus_event_and_hides_uncalibrated_discharge() {
+    for sc in list_replay_scenarios() {
+        let snap = build_replay_snapshot(&sc.id, 0).unwrap();
+        assert!(sc.outcome.len() >= 3, "{}: blok hasil kosong", sc.id);
+        assert!(sc.outcome[0].starts_with("Model "), "{}", sc.id);
+        for st in snap.stations.iter().filter(|s| s.thresholds.is_none()) {
+            let quoted = format!("{}: debit model", st.name);
+            assert!(
+                sc.frames.iter().all(|f| !f.narrative.contains(&quoted)),
+                "{}: narasi mengutip debit sel belum terkalibrasi {}",
+                sc.id,
+                st.id
+            );
+            for line in sc.outcome.iter().filter(|l| l.starts_with(&st.name)) {
+                assert!(line.contains("tidak dinilai"), "{line}");
+            }
+        }
+        // Hindcast: tanpa prakiraan dan tanpa saran yang terbaca sebagai kondisi saat ini.
+        for st in &snap.stations {
+            assert!(!st.level_reason.contains("ke depan"), "{}", st.level_reason);
+            assert!(!st.academic_note.contains("puncak 7 hari"));
+            assert!(st.public_advice.contains("replay") || st.public_advice.contains("Replay"));
+        }
+        assert!(snap
+            .replay_note
+            .as_deref()
+            .is_none_or(|n| !n.contains(&sc.provenance)));
+    }
+    let jkt = list_replay_scenarios()
+        .into_iter()
+        .find(|s| s.id == "jabodetabek-2020")
+        .unwrap();
+    assert!(
+        jkt.outcome.iter().any(|l| l.contains("377 mm teramati")),
+        "pembanding hujan teramati hilang: {:?}",
+        jkt.outcome
+    );
+}
+
+#[test]
+fn briefing_never_reassures_without_assessable_points() {
+    let mut snap = build_replay_snapshot("barito-2021", 6).unwrap();
+    snap.is_historical_replay = false;
+
+    let b = generate_briefing(&snap, "<img src=x onerror=alert(1)>", Audience::Public);
+    assert!(
+        b.headline.contains("tidak ada titik pantau"),
+        "{}",
+        b.headline
+    );
+    assert!(!b.sitrep_summary.contains("tidak menunjukkan"));
+    assert!(!b.markdown.contains("<img") && !b.markdown.contains("alert(1)"));
+    assert_eq!(b.region_filter, "img srcx onerroralert1");
+
+    let uncal_region = snap
+        .stations
+        .iter()
+        .find(|s| s.thresholds.is_none())
+        .map(|s| s.province.clone())
+        .unwrap();
+    let b = generate_briefing(&snap, &uncal_region, Audience::Public);
+    assert!(
+        b.sitrep_summary.contains("belum terkalibrasi"),
+        "{}",
+        b.sitrep_summary
+    );
+}
+
+#[test]
+fn ai_query_matches_whole_words_not_substrings() {
+    let mut snap = build_replay_snapshot("barito-2021", 6).unwrap();
+    snap.is_historical_replay = false;
+
+    let r = execute_ai_query(&snap, "apakah aman di surabaya");
+    assert!(
+        r.matched_station_ids.is_empty(),
+        "{:?}",
+        r.matched_station_ids
+    );
+    assert_eq!(r.matched_rob_ids, vec!["rob-surabaya-gresik".to_string()]);
+    assert!(r.answer_id.starts_with("Model tidak dapat menyatakan"));
+
+    let r = execute_ai_query(&snap, "ciliwung manggarai");
+    assert_eq!(
+        r.matched_station_ids,
+        vec!["ciliwung-manggarai".to_string()]
+    );
+
+    let r = execute_ai_query(&snap, "probolinggo");
+    assert!(r.fly_to.is_none(), "{:?}", r.answer_id);
 }
 
 #[test]

@@ -24,13 +24,25 @@ fn sort_stations(v: &mut [&StationTelemetry]) {
     });
 }
 
+/// Wilayah dari parameter pengguna sebelum dicetak ke JSON/Markdown: hanya huruf, angka, spasi,
+/// titik, dan tanda hubung; paling banyak 48 karakter.
+pub fn sanitize_region(raw: &str) -> String {
+    let kept: String = raw
+        .chars()
+        .filter(|c| c.is_alphanumeric() || matches!(c, ' ' | '-' | '.'))
+        .take(48)
+        .collect();
+    kept.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 pub fn generate_briefing(
     snapshot: &FloodSnapshot,
     region_filter: &str,
     audience: Audience,
 ) -> AiBriefing {
-    let rf = region_filter.trim();
+    let rf = sanitize_region(region_filter);
     let rf_low = rf.to_lowercase();
+    let replay = snapshot.is_historical_replay;
 
     let mut stations: Vec<&StationTelemetry> = snapshot
         .stations
@@ -38,38 +50,76 @@ pub fn generate_briefing(
         .filter(|s| region_match(&rf_low, &[&s.province, &s.island, &s.river]))
         .collect();
     sort_stations(&mut stations);
+    let robs: Vec<&CoastalRobTelemetry> = snapshot
+        .coastal_rob
+        .iter()
+        .filter(|r| region_match(&rf_low, &[&r.province, &r.island]))
+        .collect();
 
     let elevated: Vec<&StationTelemetry> = stations
         .iter()
         .copied()
         .filter(|s| s.level.is_elevated())
         .collect();
-    let rob_elevated: Vec<&CoastalRobTelemetry> = snapshot
-        .coastal_rob
+    let rob_elevated: Vec<&CoastalRobTelemetry> = robs
         .iter()
-        .filter(|r| region_match(&rf_low, &[&r.province, &r.island]) && r.level.is_elevated())
+        .copied()
+        .filter(|r| r.level.is_elevated())
         .collect();
     let unknown_n = stations
         .iter()
         .filter(|s| s.level == IndicatorLevel::Unknown)
         .count();
+    // Stasiun tanpa ambang sungai; levelnya bisa tetap naik karena hujan lokal.
+    let uncal_n = stations.iter().filter(|s| s.thresholds.is_none()).count();
+    let rob_unknown_n = robs
+        .iter()
+        .filter(|r| r.level == IndicatorLevel::Unknown)
+        .count();
+    let assessed_n = stations.len() - unknown_n;
+    let rob_assessed_n = robs.len() - rob_unknown_n;
+    let no_points = stations.is_empty() && robs.is_empty();
 
     let scope_label = if rf.is_empty() {
         "Indonesia".to_string()
     } else {
-        rf.to_string()
+        rf.clone()
+    };
+    // Titik yang tidak dapat dinilai selalu disebut, agar "tidak ada indikasi" tidak terbaca
+    // sebagai "aman".
+    let coverage = {
+        let mut parts = Vec::new();
+        if uncal_n > 0 {
+            parts.push(format!(
+                "{uncal_n} dari {} stasiun belum terkalibrasi untuk debit sungai",
+                stations.len()
+            ));
+        }
+        if rob_unknown_n > 0 {
+            parts.push(format!(
+                "{rob_unknown_n} dari {} titik rob belum dapat dinilai",
+                robs.len()
+            ));
+        }
+        if parts.is_empty() {
+            String::new()
+        } else {
+            format!("; {}", parts.join(", "))
+        }
     };
 
-    let headline = if snapshot.is_historical_replay {
+    let headline = if no_points {
+        format!("{scope_label}: tidak ada titik pantau Hidrosentinel di wilayah ini, sehingga model tidak dapat menilai")
+    } else if replay {
         format!(
-            "Replay historis: {} — {} stasiun dan {} titik rob berlevel tinggi ke atas",
+            "Replay historis: {} — {} stasiun dan {} titik rob berlevel tinggi ke atas{coverage}",
             snapshot.replay_label.as_deref().unwrap_or("skenario"),
             elevated.len(),
             rob_elevated.len()
         )
     } else if let Some(t) = elevated.first() {
         format!(
-            "{scope_label}: {} stasiun dan {} titik rob berlevel tinggi ke atas; tertinggi {} ({})",
+            "{scope_label}: {} stasiun dan {} titik rob berlevel tinggi ke atas; tertinggi {} ({}){coverage}",
             elevated.len(),
             rob_elevated.len(),
             t.name,
@@ -77,13 +127,17 @@ pub fn generate_briefing(
         )
     } else if !rob_elevated.is_empty() {
         format!(
-            "{scope_label}: {} titik rob berlevel tinggi ke atas; tidak ada stasiun sungai di atas Q2",
+            "{scope_label}: {} titik rob berlevel tinggi ke atas; tidak ada stasiun berlevel tinggi{coverage}",
             rob_elevated.len()
+        )
+    } else if assessed_n + rob_assessed_n == 0 {
+        format!(
+            "{scope_label}: {} titik pantau belum dapat dinilai model{coverage}",
+            stations.len() + robs.len()
         )
     } else {
         format!(
-            "{scope_label}: tidak ada indikasi model di atas ambang pada {} stasiun yang dipantau",
-            stations.len()
+            "{scope_label}: tidak ada indikasi model di atas ambang pada {assessed_n} stasiun dan {rob_assessed_n} titik rob yang dapat dinilai{coverage}"
         )
     };
 
@@ -94,40 +148,64 @@ pub fn generate_briefing(
         .collect();
 
     let sitrep_summary = match audience {
+        _ if no_points && audience != Audience::AiAgent => format!(
+            "Tidak ada titik pantau Hidrosentinel di {scope_label}, sehingga model tidak dapat menilai wilayah ini. {DISCLAIMER}"
+        ),
         Audience::Public => {
             if elevated.is_empty() && rob_elevated.is_empty() {
-                format!("Saat ini model tidak menunjukkan debit sungai, hujan, atau muka laut di atas ambang untuk {scope_label}. {DISCLAIMER}")
+                let lead = if replay {
+                    "Pada tanggal replay ini, model"
+                } else {
+                    "Model"
+                };
+                format!(
+                    "{lead} tidak menunjukkan debit sungai, hujan, atau muka laut di atas ambang pada {assessed_n} stasiun dan {rob_assessed_n} titik rob yang dapat dinilai di {scope_label}{coverage}. Ini bukan jaminan aman: banjir lokal dapat terjadi di luar titik pantau. {DISCLAIMER}"
+                )
             } else {
                 format!(
-                    "{} stasiun berlevel tinggi ke atas{}, serta {} titik rob. Warga di bantaran dan pesisir rendah sebaiknya memantau kondisi sekitar. {DISCLAIMER}",
+                    "{} stasiun berlevel tinggi ke atas{}, serta {} titik rob{coverage}. Warga di bantaran dan pesisir rendah sebaiknya memantau kondisi sekitar. {DISCLAIMER}",
                     elevated.len(),
                     if names.is_empty() { String::new() } else { format!(": {}", names.join(", ")) },
                     rob_elevated.len()
                 )
             }
         }
-        Audience::Gov => format!(
-            "Ringkasan {scope_label}: {} stasiun sungai/drainase dan {} titik rob berlevel tinggi ke atas; {} stasiun belum terkalibrasi; {} nowcast BMKG; {} laporan banjir warga (24 jam). Pertimbangkan verifikasi ke pos duga air dan BPBD sebelum bertindak. {DISCLAIMER}",
-            elevated.len(),
-            rob_elevated.len(),
-            unknown_n,
-            snapshot.bmkg_nowcasts.len(),
-            snapshot.citizen_reports.len()
-        ),
+        Audience::Gov => {
+            // Nowcast BMKG dan laporan warga tidak dibakukan untuk replay.
+            let live = if replay {
+                String::new()
+            } else {
+                format!(
+                    "; {} nowcast BMKG; {} laporan banjir warga (24 jam)",
+                    snapshot.bmkg_nowcasts.len(),
+                    snapshot.citizen_reports.len()
+                )
+            };
+            format!(
+                "Ringkasan {scope_label}: {} stasiun sungai/drainase dan {} titik rob berlevel tinggi ke atas; {} stasiun belum terkalibrasi{live}. Pertimbangkan verifikasi ke pos duga air dan BPBD sebelum bertindak. {DISCLAIMER}",
+                elevated.len(),
+                rob_elevated.len(),
+                uncal_n
+            )
+        }
         Audience::Academia => format!(
             "Metodologi {METHODOLOGY_VERSION}: debit simulasi GloFAS v4 dibandingkan dengan Q2/Q5/Q20 (Gumbel, L-moment, maksimum tahunan 1997–2024) pada sel terkalibrasi; drainase memakai kategori hujan BMKG; rob memakai persentil muka laut model. {} stasiun dievaluasi, {} belum terkalibrasi; rasio Q/Q2 maksimum {}.",
             stations.len(),
-            unknown_n,
+            uncal_n,
             snapshot.kpis.max_ratio_q2.map(|r| fmt_dec(r, 2)).unwrap_or_else(|| "–".into())
         ),
         Audience::AiAgent => format!(
-            "context scope={scope_label} stations={} elevated={} rob_elevated={} unknown={} citizen_flood_reports_24h={} replay={} methodology={METHODOLOGY_VERSION} disclaimer=\"model indication, not an official warning\"",
+            "context scope={scope_label} stations={} assessed={assessed_n} elevated={} rob_points={} rob_elevated={} unknown={} uncalibrated={uncal_n} citizen_flood_reports_24h={} replay={replay} methodology={METHODOLOGY_VERSION} disclaimer=\"model indication, not an official warning; absence of indication is not a safety statement\"",
             stations.len(),
             elevated.len(),
+            robs.len(),
             rob_elevated.len(),
             unknown_n,
-            snapshot.citizen_reports.len(),
-            snapshot.is_historical_replay
+            if replay {
+                "n/a".to_string()
+            } else {
+                snapshot.citizen_reports.len().to_string()
+            }
         ),
     };
 
@@ -202,76 +280,127 @@ pub fn generate_briefing(
     }
 }
 
-fn wanted_level(ql: &str) -> Option<IndicatorLevel> {
-    if ql.contains("ekstrem") || ql.contains("extreme") {
+/// Kata utuh huruf/angka dalam huruf kecil.
+fn words(text: &str) -> impl Iterator<Item = String> + '_ {
+    text.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+}
+
+fn wanted_level(qwords: &[String]) -> Option<IndicatorLevel> {
+    let has = |w: &str| qwords.iter().any(|x| x == w);
+    if has("ekstrem") || has("extreme") {
         Some(IndicatorLevel::Extreme)
-    } else if ql.contains("sangat tinggi") || ql.contains("very_high") {
+    } else if (has("sangat") && has("tinggi")) || has("very") {
         Some(IndicatorLevel::VeryHigh)
-    } else if ql.contains("tinggi") || ql.contains("high") {
+    } else if has("tinggi") || has("high") {
         Some(IndicatorLevel::High)
     } else {
         None
     }
 }
 
+/// Jumlah token kueri yang cocok dengan kata utuh di `fields`; token ≥ 5 huruf boleh cocok
+/// sebagai awalan kata. Substring tidak dihitung, agar kata umum seperti "aman" tidak
+/// mencocokkan nama sungai yang kebetulan memuatnya.
+fn token_hits(tokens: &[String], fields: &[&str]) -> usize {
+    let hay: Vec<String> = fields.iter().flat_map(|f| words(f)).collect();
+    tokens
+        .iter()
+        .filter(|t| {
+            hay.iter()
+                .any(|w| w == *t || (t.chars().count() >= 5 && w.starts_with(t.as_str())))
+        })
+        .count()
+}
+
 pub fn execute_ai_query(snapshot: &FloodSnapshot, query_str: &str) -> AiQueryResponse {
     let q = query_str.trim();
-    let ql = q.to_lowercase();
-    let level_req = wanted_level(&ql);
+    let qwords: Vec<String> = words(q).collect();
+    let has = |w: &str| qwords.iter().any(|x| x == w);
+    let level_req = wanted_level(&qwords);
 
-    let wanted_mech = if ql.contains("rob") || ql.contains("pasang") || ql.contains("pesisir") {
+    let wanted_mech = if has("rob") || has("pasang") || has("pesisir") {
         Some(FloodMechanism::CoastalRob)
-    } else if ql.contains("drainase")
-        || ql.contains("kota")
-        || ql.contains("hujan")
-        || ql.contains("genangan")
-    {
+    } else if has("drainase") || has("kota") || has("hujan") || has("genangan") {
         Some(FloodMechanism::UrbanPluvial)
-    } else if ql.contains("hulu") || ql.contains("kiriman") || ql.contains("debit") {
+    } else if has("hulu") || has("kiriman") || has("debit") {
         Some(FloodMechanism::FluvialBasin)
     } else {
         None
     };
 
-    let tokens: Vec<&str> = ql
-        .split_whitespace()
+    let tokens: Vec<String> = qwords
+        .iter()
         .filter(|w| w.chars().count() >= 3 && !is_stopword(w))
+        .cloned()
         .collect();
 
-    let mut matched_robs: Vec<&CoastalRobTelemetry> = snapshot
+    // Hanya titik dengan skor tertinggi yang dipakai, agar satu kata yang kebetulan cocok tidak
+    // mengalahkan nama tempat yang cocok lebih lengkap.
+    let rob_scored: Vec<(usize, &CoastalRobTelemetry)> = snapshot
         .coastal_rob
         .iter()
-        .filter(|r| {
-            let text = format!("{} {} {} {}", r.id, r.name, r.province, r.island).to_lowercase();
-            let token_hit = tokens.iter().any(|t| text.contains(t));
-            let level_ok = level_req.is_none_or(|l| r.level >= l);
-            (token_hit || wanted_mech == Some(FloodMechanism::CoastalRob)) && level_ok
+        .map(|r| {
+            (
+                token_hits(&tokens, &[&r.id, &r.name, &r.province, &r.island]),
+                r,
+            )
         })
+        .collect();
+    let station_scored: Vec<(usize, &StationTelemetry)> = snapshot
+        .stations
+        .iter()
+        .map(|s| {
+            let fields = [
+                s.id.as_str(),
+                &s.name,
+                &s.river,
+                &s.ws_code,
+                &s.province,
+                &s.island,
+            ];
+            (token_hits(&tokens, &fields), s)
+        })
+        .collect();
+    let best = rob_scored
+        .iter()
+        .map(|x| x.0)
+        .chain(station_scored.iter().map(|x| x.0))
+        .max()
+        .unwrap_or(0);
+    let text_ok = |score: usize| tokens.is_empty() || (best > 0 && score == best);
+
+    let mut matched_robs: Vec<&CoastalRobTelemetry> = rob_scored
+        .iter()
+        .filter(|(score, r)| {
+            let hit = if tokens.is_empty() {
+                wanted_mech == Some(FloodMechanism::CoastalRob)
+            } else {
+                text_ok(*score)
+            };
+            hit && level_req.is_none_or(|l| r.level >= l)
+        })
+        .map(|(_, r)| *r)
         .collect();
     matched_robs.sort_by_key(|r| std::cmp::Reverse(r.level));
 
-    let mut matched_stations: Vec<&StationTelemetry> = snapshot
-        .stations
+    let mut matched_stations: Vec<&StationTelemetry> = station_scored
         .iter()
-        .filter(|s| {
-            let text = format!(
-                "{} {} {} {} {} {}",
-                s.id, s.name, s.river, s.ws_code, s.province, s.island
-            )
-            .to_lowercase();
-            let text_hit = tokens.is_empty() || tokens.iter().any(|t| text.contains(t));
-            let level_ok = level_req.is_none_or(|l| s.level >= l);
+        .filter(|(score, s)| {
             let mech_ok = match wanted_mech {
                 Some(FloodMechanism::CoastalRob) => false,
-                Some(m) => s.mechanism == m || (!tokens.is_empty() && text_hit),
+                Some(m) => s.mechanism == m || !tokens.is_empty(),
                 None => true,
             };
-            text_hit && level_ok && mech_ok
+            text_ok(*score) && level_req.is_none_or(|l| s.level >= l) && mech_ok
         })
+        .map(|(_, s)| *s)
         .collect();
 
     if matched_stations.is_empty()
-        && (ql.contains("parah") || ql.contains("tertinggi") || ql.contains("kritis"))
+        && matched_robs.is_empty()
+        && (has("parah") || has("tertinggi") || has("kritis"))
     {
         matched_stations = snapshot.stations.iter().collect();
     }
@@ -304,9 +433,15 @@ pub fn execute_ai_query(snapshot: &FloodSnapshot, query_str: &str) -> AiQueryRes
         })
     };
 
+    // Model tidak dapat menyatakan suatu tempat aman; jawab pertanyaan "aman?" dengan level saja.
+    let safety = if has("aman") || has("safe") {
+        "Model tidak dapat menyatakan suatu wilayah aman. "
+    } else {
+        ""
+    };
     let answer_id = if let (false, Some(top)) = (rob_first, matched_stations.first()) {
         format!(
-            "{} stasiun cocok ({} titik rob). Teratas: {} — level {}. {}",
+            "{safety}{} stasiun cocok ({} titik rob). Teratas: {} — level {}. {} {DISCLAIMER}",
             matched_stations.len(),
             matched_robs.len(),
             top.name,
@@ -315,7 +450,7 @@ pub fn execute_ai_query(snapshot: &FloodSnapshot, query_str: &str) -> AiQueryRes
         )
     } else if let Some(r) = matched_robs.first() {
         format!(
-            "{} titik rob cocok. Teratas: {} — level {}. {}",
+            "{safety}{} titik rob cocok. Teratas: {} — level {}. {} {DISCLAIMER}",
             matched_robs.len(),
             r.name,
             r.level.label_id().to_lowercase(),
@@ -323,7 +458,7 @@ pub fn execute_ai_query(snapshot: &FloodSnapshot, query_str: &str) -> AiQueryRes
         )
     } else {
         format!(
-            "Tidak ada stasiun atau titik rob yang cocok dengan \"{q}\". Coba nama sungai, provinsi, atau kata seperti \"tinggi jawa\" dan \"rob semarang\"."
+            "{safety}Tidak ada stasiun atau titik rob yang cocok dengan \"{q}\". Coba nama sungai, provinsi, atau kata seperti \"tinggi jawa\" dan \"rob semarang\"."
         )
     };
 
@@ -350,22 +485,87 @@ fn is_stopword(w: &str) -> bool {
             | "pada"
             | "saat"
             | "ini"
+            | "itu"
             | "mana"
             | "apa"
+            | "apakah"
             | "bagaimana"
+            | "gimana"
+            | "berapa"
+            | "kah"
+            | "ada"
+            | "tidak"
+            | "akan"
+            | "sudah"
+            | "masih"
             | "cek"
             | "lihat"
+            | "info"
+            | "informasi"
+            | "kondisi"
+            | "keadaan"
+            | "hari"
+            | "sekarang"
+            | "kini"
+            | "terkini"
+            | "besok"
+            | "nanti"
+            | "aman"
+            | "bahaya"
+            | "potensi"
+            | "risiko"
+            | "dekat"
+            | "sekitar"
+            | "saya"
+            | "kami"
+            | "kita"
+            | "rumah"
+            | "wilayah"
+            | "daerah"
+            | "kota"
+            | "kabupaten"
+            | "kab"
+            | "provinsi"
+            | "prov"
+            | "kecamatan"
+            | "desa"
             | "banjir"
+            | "air"
             | "status"
             | "sungai"
             | "level"
             | "tinggi"
             | "sangat"
             | "ekstrem"
+            | "parah"
+            | "tertinggi"
+            | "kritis"
             | "rob"
+            | "pasang"
+            | "pesisir"
+            | "laut"
+            | "muka"
+            | "hujan"
+            | "lokal"
+            | "genangan"
+            | "drainase"
+            | "hulu"
+            | "kiriman"
+            | "debit"
+            | "naik"
+            | "surut"
             | "high"
-            | "very_high"
+            | "very"
             | "extreme"
+            | "the"
+            | "flood"
+            | "river"
+            | "safe"
+            | "near"
+            | "now"
+            | "today"
+            | "how"
+            | "what"
     )
 }
 

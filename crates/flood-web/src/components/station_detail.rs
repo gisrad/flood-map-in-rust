@@ -106,6 +106,8 @@ pub fn StationDetail(
     station: StationTelemetry,
     generated_at_utc: String,
     lens: Audience,
+    /// Replay historis: tanpa prakiraan, hujan ERA5, dan tanpa tombol berbagi.
+    replay: bool,
     on_back: Callback<()>,
 ) -> impl IntoView {
     let st = station;
@@ -175,9 +177,11 @@ pub fn StationDetail(
             <section class="block">
                 <h3 class="h-sub">"Untuk BPBD / Pemda"</h3>
                 <dl class="facts">
-                    <div><dt>"Puncak prakiraan"</dt><dd>{format!("{} ({})", fmt_day(&st.peak_forecast_date), lead_label(lead))}</dd></div>
-                    <div><dt>"Level puncak"</dt><dd><LevelBadge level=st.peak_forecast_level/></dd></div>
-                    <div><dt>"Laporan warga ≤10 km, 24 jam"</dt><dd class="num">{st.nearby_reports_24h}</dd></div>
+                    {(!replay).then(|| view! {
+                        <div><dt>"Puncak prakiraan"</dt><dd>{format!("{} ({})", fmt_day(&st.peak_forecast_date), lead_label(lead))}</dd></div>
+                        <div><dt>"Level puncak"</dt><dd><LevelBadge level=st.peak_forecast_level/></dd></div>
+                        <div><dt>"Laporan warga ≤10 km, 24 jam"</dt><dd class="num">{st.nearby_reports_24h}</dd></div>
+                    })}
                     <div><dt>"Zona waktu"</dt><dd>{tz.clone()}</dd></div>
                 </dl>
                 <button type="button" class="btn" on:click=move |_| {
@@ -278,28 +282,57 @@ pub fn StationDetail(
             </div>
             <p class="reason">{st.level_reason.clone()}</p>
 
-            <div class="metrics">
-                <div class="metric">
-                    <span class="m-lbl">"Debit simulasi hari ini"</span>
-                    <b class="m-val">{fmt_q(st.current_discharge_m3s)}<small>" m³/s"</small></b>
-                    <span class="m-sub">{st.ratio_q2.map(|r| format!("{} Q2", fmt_ratio(r))).unwrap_or_else(|| format!("Tren {}", st.trend.label().to_lowercase()))}</span>
-                </div>
-                <div class="metric">
-                    <span class="m-lbl">"Puncak prakiraan 7 hari"</span>
-                    <b class="m-val">{fmt_q(st.peak_forecast_m3s)}<small>" m³/s"</small></b>
-                    <span class="m-sub">{format!("{} · {}", fmt_day(&st.peak_forecast_date), lead_label(lead))}</span>
-                </div>
-                <div class="metric">
-                    <span class="m-lbl">"Hujan 24 jam"</span>
-                    <b class="m-val">{fmt_num(st.rain_24h_mm, 0)}<small>" mm"</small></b>
-                    <span class="m-sub">{format!("72 jam {} mm", fmt_num(st.rain_72h_mm, 0))}</span>
-                </div>
-                <div class="metric">
-                    <span class="m-lbl">"Prakiraan hujan 24 jam"</span>
-                    <b class="m-val">{fmt_num(st.rain_next_24h_mm, 0)}<small>" mm"</small></b>
-                    <span class="m-sub">{format!("Drainase: {}", st.pluvial_level.label_id())}</span>
-                </div>
-            </div>
+            {if replay {
+                view! {
+                    <div class="metrics">
+                        <div class="metric">
+                            <span class="m-lbl">"Debit simulasi"</span>
+                            <b class="m-val">{fmt_q(st.current_discharge_m3s)}<small>" m³/s"</small></b>
+                            <span class="m-sub">{match (st.ratio_q2, st.thresholds.is_some()) {
+                                (Some(r), _) => format!("{} Q2", fmt_ratio(r)),
+                                (None, false) => "Sel belum terkalibrasi".into(),
+                                (None, true) => "Reanalisis GloFAS v4".into(),
+                            }}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="m-lbl">"Hujan ERA5 24 jam"</span>
+                            <b class="m-val">{fmt_num(st.rain_24h_mm, 0)}<small>" mm"</small></b>
+                            <span class="m-sub">{format!("72 jam {} mm", fmt_num(st.rain_72h_mm, 0))}</span>
+                        </div>
+                    </div>
+                }
+                .into_any()
+            } else {
+                view! {
+                    <div class="metrics">
+                        <div class="metric">
+                            <span class="m-lbl">"Debit simulasi hari ini"</span>
+                            <b class="m-val">{fmt_q(st.current_discharge_m3s)}<small>" m³/s"</small></b>
+                            <span class="m-sub">{match (st.ratio_q2, st.thresholds.is_some()) {
+                                (Some(r), _) => format!("{} Q2", fmt_ratio(r)),
+                                (None, false) => "Sel belum terkalibrasi".into(),
+                                (None, true) => format!("Tren {}", st.trend.label().to_lowercase()),
+                            }}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="m-lbl">"Puncak prakiraan 7 hari"</span>
+                            <b class="m-val">{fmt_q(st.peak_forecast_m3s)}<small>" m³/s"</small></b>
+                            <span class="m-sub">{format!("{} · {}", fmt_day(&st.peak_forecast_date), lead_label(lead))}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="m-lbl">"Hujan 24 jam"</span>
+                            <b class="m-val">{fmt_num(st.rain_24h_mm, 0)}<small>" mm"</small></b>
+                            <span class="m-sub">{format!("72 jam {} mm", fmt_num(st.rain_72h_mm, 0))}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="m-lbl">"Prakiraan hujan 24 jam"</span>
+                            <b class="m-val">{fmt_num(st.rain_next_24h_mm, 0)}<small>" mm"</small></b>
+                            <span class="m-sub">{format!("Drainase: {}", st.pluvial_level.label_id())}</span>
+                        </div>
+                    </div>
+                }
+                .into_any()
+            }}
 
             <section class="block">
                 <h3 class="h-sub">"Ambang periode ulang"</h3>
@@ -319,7 +352,7 @@ pub fn StationDetail(
 
             {lens_extra}
 
-            <ShareRow id=id_share whatsapp=wa quote=quote/>
+            {(!replay).then(|| view! { <ShareRow id=id_share.clone() whatsapp=wa.clone() quote=quote.clone()/> })}
             <Disclaimer/>
             <OfficialRefs/>
         </article>
@@ -331,6 +364,8 @@ pub fn RobDetail(
     rob: CoastalRobTelemetry,
     generated_at_utc: String,
     lens: Audience,
+    /// Replay historis: tanpa nilai "kini" dan tanpa tombol berbagi.
+    replay: bool,
     on_back: Callback<()>,
 ) -> impl IntoView {
     let rb = rob;
@@ -369,11 +404,13 @@ pub fn RobDetail(
             </div>
             <p class="reason">{rb.level_reason.clone()}</p>
             <div class="metrics">
-                <div class="metric">
-                    <span class="m-lbl">"Muka laut model kini"</span>
-                    <b class="m-val">{fmt_num(rb.current_msl_m, 2)}<small>" m"</small></b>
-                    <span class="m-sub">"relatif MSL"</span>
-                </div>
+                {(!replay).then(|| view! {
+                    <div class="metric">
+                        <span class="m-lbl">"Muka laut model kini"</span>
+                        <b class="m-val">{fmt_num(rb.current_msl_m, 2)}<small>" m"</small></b>
+                        <span class="m-sub">"relatif MSL"</span>
+                    </div>
+                })}
                 <div class="metric">
                     <span class="m-lbl">"Puncak 48 jam"</span>
                     <b class="m-val">{fmt_num(rb.peak_msl_48h_m, 2)}<small>" m"</small></b>
@@ -390,9 +427,9 @@ pub fn RobDetail(
                 {match thr {
                     Some(t) => view! {
                         <div class="thr-grid">
-                            <div class="thr-cell thr-high"><span>"P95"</span><b>{format!("{} m", fmt_num(t.p95_m, 2))}</b></div>
-                            <div class="thr-cell thr-very_high"><span>"P99"</span><b>{format!("{} m", fmt_num(t.p99_m, 2))}</b></div>
-                            <div class="thr-cell thr-extreme"><span>"Maks"</span><b>{format!("{} m", fmt_num(t.max_m, 2))}</b></div>
+                            <div class="thr-cell"><span>"P95"</span><b>{format!("{} m", fmt_num(t.p95_m, 2))}</b></div>
+                            <div class="thr-cell thr-high"><span>"P99"</span><b>{format!("{} m", fmt_num(t.p99_m, 2))}</b></div>
+                            <div class="thr-cell thr-very_high"><span>"Maks"</span><b>{format!("{} m", fmt_num(t.max_m, 2))}</b></div>
                         </div>
                         <p class="fine">{format!("Persentil puncak muka laut model 48 jam, periode {}.", t.period)}</p>
                     }.into_any(),
@@ -406,7 +443,7 @@ pub fn RobDetail(
             {(lens == Audience::AiAgent).then(|| view! {
                 <pre class="code">{format!("GET /api/flood\n.coastal_rob[] | select(.id == \"{id_ai}\")")}</pre>
             })}
-            <ShareRow id=id_share whatsapp=wa quote=quote/>
+            {(!replay).then(|| view! { <ShareRow id=id_share.clone() whatsapp=wa.clone() quote=quote.clone()/> })}
             <Disclaimer/>
             <OfficialRefs/>
         </article>

@@ -492,6 +492,7 @@ a { color: var(--accent); text-underline-offset: 2px; }
   border: 1px solid var(--line);
   border-radius: var(--r);
 }
+.kpi-strip.is-3 { grid-template-columns: repeat(3, 1fr); }
 .kpi-strip > div { padding: 8px 10px; display: grid; gap: 2px; }
 .kpi-strip > div + div { border-left: 1px solid var(--line); }
 .kpi-strip dt { font-size: 11.5px; line-height: 1.25; color: var(--ink-soft); }
@@ -820,6 +821,10 @@ html[data-theme="dark"] .hg-th-lbl.hg-q20 { fill: #D59BE2; }
 }
 .step[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .replay-narr { margin: 0; font-size: var(--fs-14); }
+.replay-outcome { padding: 8px 10px; border-left: 3px solid var(--ink); background: var(--surface-2); border-radius: 0 var(--r) var(--r) 0; }
+.replay-outcome .h-sub { margin: 0 0 4px; }
+.replay-outcome ul { margin: 0; padding-left: 16px; display: grid; gap: 3px; font-size: 12.5px; line-height: 1.4; }
+.replay-outcome li:first-child { list-style: none; margin-left: -16px; font-weight: 600; font-size: 13px; }
 .replay-prov, .replay-cite { margin: 0; font-size: var(--fs-12); color: var(--ink-soft); }
 
 /* ---------- Pesan ---------- */
@@ -989,6 +994,8 @@ html[data-theme="dark"] .maplibregl-ctrl-attrib-button { filter: invert(1); }
   .kpi-strip { grid-template-columns: repeat(2, 1fr); }
   .kpi-strip > div:nth-child(3) { border-left: 0; }
   .kpi-strip > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+  .kpi-strip.is-3 { grid-template-columns: repeat(3, 1fr); }
+  .kpi-strip.is-3 > div:nth-child(3) { border-left: 1px solid var(--line); border-top: 0; }
   .level-defs > div { grid-template-columns: 1fr; gap: 4px; }
 }
 

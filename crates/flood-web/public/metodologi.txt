@@ -84,7 +84,9 @@ Skrip `scripts/calibrate_rob.py` mengunduh muka laut model per jam (`sea_level_h
 Rob tidak diberi level Ekstrem: model global tidak memuat amblesan tanah, tanggul, atau limpasan lokal sehingga besaran genangan tidak dapat dinilai. Faktor kerentanan amblesan dan `trigger_msl_m` versi lama (diketik tangan) dihapus.
 
 ## 6. Replay kejadian
-`scripts/bake_replays.py` membakukan tiga kejadian ke `crates/flood-shared/data/replays/*.json`: debit GloFAS v4 reanalisis pada sel terkalibrasi, hujan harian dan kelembapan tanah ERA5, serta muka laut model (hanya 2024). Satu bingkai = satu hari GMT; level dihitung dengan aturan yang sama seperti data langsung, tanpa prakiraan dan tanpa laporan warga. Narasi bingkai hanya kutipan bersumber (tautan di `citation`) atau ringkasan angka data.
+`scripts/bake_replays.py` membakukan tiga kejadian ke `crates/flood-shared/data/replays/*.json`: debit GloFAS v4 reanalisis pada sel terkalibrasi, hujan harian dan kelembapan tanah ERA5, serta muka laut model (hanya 2024). Satu bingkai = satu hari GMT; level dihitung dengan aturan yang sama seperti data langsung, tanpa prakiraan dan tanpa laporan warga. Puncak muka laut 48 jam pada replay = maksimum harian hari itu dan hari berikutnya. Narasi bingkai hanya kutipan bersumber (tautan di `citation`) atau ringkasan angka data; debit stasiun kunci yang selnya belum terkalibrasi tidak dikutip.
+
+Setiap replay menampilkan blok **hasil model vs kejadian** yang dihitung `flood-shared/src/replay.rs` dari data yang sama: berapa stasiun kunci (`focus`) yang naik ke Tinggi atau lebih, level maksimum dan tanggalnya per stasiun, level stasiun kunci dalam ±1 hari dari tanggal kejadian bersumber (`observed`), dan pembanding hujan ERA5 terhadap hujan teramati bila sumber menyebutkannya. Pada banjir Jabodetabek 2020, hujan ERA5 harian tertinggi di stasiun kunci hanya sekitar 14% dari 377 mm/hari teramati di Halim, sehingga model tidak menaikkan Ciliwung–Manggarai. Replay menguji model, bukan merekonstruksi kejadian. Laporan warga, nowcast BMKG, dan berita tidak dibakukan untuk replay, sehingga panel tidak menampilkannya.
 
 | Skenario | Fakta bersumber |
 |---|---|

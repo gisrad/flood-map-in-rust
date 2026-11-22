@@ -8,7 +8,9 @@ Sumber per skenario (hari kalender GMT):
 - Muka laut (hanya bila periode ≥ 2022-01-01): Open-Meteo Marine `sea_level_height_msl` + `wave_height`
   pada sel laut dari rob_calibration.json; maksimum harian.
 Narasi bingkai hanya fakta bersumber (EVENT_FACTS, diverifikasi manual dengan tautan) atau ringkasan
-angka dari data di atas.
+angka dari data di atas. Debit stasiun kunci yang selnya belum terkalibrasi tidak dikutip.
+`focus` (stasiun kunci) dan `observed` (fakta kejadian bersumber, opsional dengan hujan teramati) dipakai
+flood-shared untuk menghitung blok "hasil model vs kejadian" dengan aturan level yang sama dengan data live.
 
 Pemakaian:
   python scripts/bake_replays.py --cache-dir <dir>
@@ -45,6 +47,9 @@ SCENARIOS = [
         "start": "2019-12-20",
         "frames": ("2019-12-30", "2020-01-04"),
         "focus": ["ciliwung-manggarai", "bekasi-pondokgede", "cisadane-tangerang"],
+        "observed": [
+            {"date": "2020-01-01", "text": "banjir Jabodetabek; hujan 377 mm/hari di TNI AU Halim (Kepala BNPB, DW 2/1/2020)", "rain_mm": 377},
+        ],
         "citation": (
             "DW Indonesia, 2 Jan 2020 (Kepala BNPB: TNI AU Halim 377 mm/hari, Taman Mini 335 mm/hari, Jatiasih 259 mm/hari) "
             "https://www.dw.com/id/banjir-jakarta-disebabkan-hujan-sangat-ekstrem-20-ribu-orang-mengungsi/a-51851463; "
@@ -66,6 +71,9 @@ SCENARIOS = [
         "start": "2020-12-29",
         "frames": ("2021-01-08", "2021-01-24"),
         "focus": ["barito-banjarmasin", "barito-buntok"],
+        "observed": [
+            {"date": "2021-01-12", "text": "banjir mulai terjadi di Kalimantan Selatan (BNPB)"},
+        ],
         "citation": (
             "BNPB, 17 Jan 2021, [Update] 10 Kabupaten/Kota Terdampak Banjir di Kalimantan Selatan "
             "https://bnpb.go.id/berita/-update-10-kabupaten-kota-terdampak-banjir-di-kalimantan-selatan"
@@ -86,6 +94,10 @@ SCENARIOS = [
         "start": "2024-01-26",
         "frames": ("2024-02-05", "2024-03-22"),
         "focus": ["wulan-demak", "solo-sragen"],
+        "observed": [
+            {"date": "2024-02-09", "text": "tanggul Sungai Wulan jebol di Karanganyar, Demak (Portal Kabupaten Demak)"},
+            {"date": "2024-03-17", "text": "tanggul Sungai Wulan kembali jebol (BNPB)"},
+        ],
         "citation": (
             "Portal Kabupaten Demak, 9 Feb 2024 https://demakkab.go.id/news/banjir-di-karanganyar-demak-memutus-jalur-pantura-ketinggian-hingga-dua-meter; "
             "Kompas.id, 19 Feb 2024 https://www.kompas.id/artikel/banjir-demak-berangsur-surut-warga-yang-mengungsi-mulai-kembali-ke-rumah; "
@@ -240,9 +252,11 @@ def main() -> int:
                 for fid in sc["focus"]:
                     s = by_id[fid]
                     qv, rv = s["q"][i], s["rain"][i]
-                    if qv is None:
-                        continue
-                    parts.append(f"{names[fid]['name']}: debit model {qv:,.0f} m³/s".replace(",", ".") + f", hujan ERA5 {rv or 0:.0f} mm")
+                    rain = f"hujan ERA5 {rv or 0:.0f} mm"
+                    if not cal.get(fid, {}).get("accepted"):
+                        parts.append(f"{names[fid]['name']}: {rain} (debit tidak dinilai, sel model belum terkalibrasi)")
+                    elif qv is not None:
+                        parts.append(f"{names[fid]['name']}: debit model {qv:,.0f} m³/s".replace(",", ".") + f", {rain}")
                 narrative = "; ".join(parts) + "."
             frames.append({
                 "date": d,
@@ -260,6 +274,8 @@ def main() -> int:
             "zoom": sc["zoom"],
             "citation": sc["citation"],
             "provenance": PROVENANCE,
+            "focus": sc["focus"],
+            "observed": sc["observed"],
             "note": "Satu bingkai = satu hari (GMT). Rob hanya tersedia untuk periode sejak 2022." if not rob_out else "Satu bingkai = satu hari (GMT). Muka laut: Open-Meteo Marine (Copernicus Marine), maksimum harian.",
             "generated_at_utc": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "dates": dates,

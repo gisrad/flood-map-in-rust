@@ -185,6 +185,9 @@ pub struct StationInputs {
     pub soil_deep: f64,
     pub nearby_reports_24h: u32,
     pub exceed_prob_7d: Option<ExceedProb>,
+    /// Replay historis: tidak ada prakiraan, hujan dari reanalisis ERA5, dan teks tidak boleh
+    /// terbaca sebagai kondisi atau saran tindakan saat ini.
+    pub hindcast: bool,
 }
 
 pub fn evaluate_station(st: &StationStatic, inp: StationInputs) -> StationTelemetry {
@@ -249,8 +252,15 @@ pub fn evaluate_station(st: &StationStatic, inp: StationInputs) -> StationTeleme
         peak_forecast_level,
         cal.map(|c| c.note.as_str()),
     );
-    let public_advice = station_public_advice(st, level, mechanism);
-    let gov_action = station_gov_action(st, level, mechanism, peak_forecast_level, &peak_date);
+    let public_advice = station_public_advice(st, level, mechanism, inp.hindcast);
+    let gov_action = station_gov_action(
+        st,
+        level,
+        mechanism,
+        peak_forecast_level,
+        &peak_date,
+        inp.hindcast,
+    );
     let academic_note = station_academic_note(
         current,
         peak_q,
@@ -340,6 +350,9 @@ fn station_reason(
                 ));
             }
         }
+        Some(_) if inp.hindcast => {
+            parts.push("Data debit GloFAS tidak tersedia untuk tanggal ini.".to_string())
+        }
         Some(_) => parts.push("Data debit GloFAS tidak tersedia saat ini.".to_string()),
         None => {
             let why = cal_note
@@ -348,7 +361,18 @@ fn station_reason(
             parts.push(format!("Level sungai belum ditetapkan: {why}."));
         }
     }
-    if pluvial.is_elevated() {
+    if inp.hindcast {
+        let r = inp.rain_24h_mm;
+        if rain_level(r).is_elevated() {
+            parts.push(format!(
+                "Hujan ERA5 24 jam {} mm (kategori {} BMKG).",
+                fmt_dec(r, 0),
+                rain_category_id(r)
+            ));
+        } else {
+            parts.push(format!("Hujan ERA5 24 jam {} mm.", fmt_dec(r, 0)));
+        }
+    } else if pluvial.is_elevated() {
         let r = inp.rain_24h_mm.max(inp.rain_next_24h_mm);
         let when = if inp.rain_next_24h_mm > inp.rain_24h_mm {
             "24 jam ke depan"
@@ -382,11 +406,29 @@ fn station_public_advice(
     st: &StationStatic,
     level: IndicatorLevel,
     mech: FloodMechanism,
+    hindcast: bool,
 ) -> String {
     let what = match mech {
         FloodMechanism::UrbanPluvial => "hujan lokal",
         _ => "debit sungai",
     };
+    if hindcast {
+        let body = match level {
+            IndicatorLevel::Unknown => format!("Model belum dapat menilai debit {}.", st.river),
+            IndicatorLevel::Normal => format!(
+                "Pada tanggal ini dalam replay, model tidak menunjukkan indikasi banjir untuk {}.",
+                st.river
+            ),
+            lv => format!(
+                "Pada tanggal ini dalam replay, model menunjukkan {what} di sekitar {} pada level {}.",
+                st.river,
+                lv.label_id().to_lowercase()
+            ),
+        };
+        return format!(
+            "{body} Replay menguji model terhadap kejadian lampau, bukan kondisi saat ini."
+        );
+    }
     let body = match level {
         IndicatorLevel::Extreme => format!(
             "Model menunjukkan {what} di sekitar {} jauh di atas kebiasaan. Bila tinggal di bantaran atau dataran rendah, siapkan tas siaga dan rencana mengungsi.",
@@ -418,7 +460,14 @@ fn station_gov_action(
     mech: FloodMechanism,
     peak_level: IndicatorLevel,
     peak_date: &str,
+    hindcast: bool,
 ) -> String {
+    if hindcast {
+        return format!(
+            "Replay historis: bandingkan level model ini dengan catatan pos duga air {ws} dan laporan BPBD pada tanggal yang sama.",
+            ws = st.ws_code
+        );
+    }
     match (level, mech) {
         (IndicatorLevel::Extreme | IndicatorLevel::VeryHigh, FloodMechanism::FluvialBasin) => format!(
             "Pertimbangkan verifikasi segera ke pos duga air {ws} dan BBWS, kesiapan pompa serta perahu di hilir {river}, dan penyampaian informasi ke kecamatan bantaran.",
@@ -482,12 +531,16 @@ fn station_academic_note(
         ));
     }
     if current.is_finite() {
-        s.push_str(&format!(
-            "Q hari ini {} m³/s; puncak 7 hari {} m³/s ({}). ",
-            fmt_num(current),
-            fmt_num(peak_q),
-            peak_date
-        ));
+        if inp.hindcast {
+            s.push_str(&format!("Q pada tanggal ini {} m³/s. ", fmt_num(current)));
+        } else {
+            s.push_str(&format!(
+                "Q hari ini {} m³/s; puncak 7 hari {} m³/s ({}). ",
+                fmt_num(current),
+                fmt_num(peak_q),
+                peak_date
+            ));
+        }
     }
     if let Some(e) = &inp.exceed_prob_7d {
         s.push_str(&format!(
@@ -498,13 +551,22 @@ fn station_academic_note(
             fmt_pct(e.q20)
         ));
     }
-    s.push_str(&format!(
-        "Hujan model 24/72 jam {}/{} mm, 24 jam ke depan {} mm; kelembapan tanah 0–7 cm {} m³/m³.",
-        fmt_dec(inp.rain_24h_mm, 1),
-        fmt_dec(inp.rain_72h_mm, 1),
-        fmt_dec(inp.rain_next_24h_mm, 1),
-        fmt_dec(inp.soil_top, 2)
-    ));
+    if inp.hindcast {
+        s.push_str(&format!(
+            "Hujan ERA5 24/72 jam {}/{} mm; kelembapan tanah ERA5 0–7 cm {} m³/m³.",
+            fmt_dec(inp.rain_24h_mm, 1),
+            fmt_dec(inp.rain_72h_mm, 1),
+            fmt_dec(inp.soil_top, 2)
+        ));
+    } else {
+        s.push_str(&format!(
+            "Hujan model 24/72 jam {}/{} mm, 24 jam ke depan {} mm; kelembapan tanah 0–7 cm {} m³/m³.",
+            fmt_dec(inp.rain_24h_mm, 1),
+            fmt_dec(inp.rain_72h_mm, 1),
+            fmt_dec(inp.rain_next_24h_mm, 1),
+            fmt_dec(inp.soil_top, 2)
+        ));
+    }
     s
 }
 
@@ -543,7 +605,7 @@ pub fn evaluate_rob(
     let level_reason = match (&thresholds, level) {
         (None, _) => "Ambang muka laut model belum tersedia untuk titik ini.".to_string(),
         (Some(_), IndicatorLevel::Unknown) => {
-            "Data muka laut model tidak tersedia saat ini.".to_string()
+            "Data muka laut model tidak tersedia untuk waktu ini.".to_string()
         }
         (Some(t), IndicatorLevel::VeryHigh) => format!(
             "Puncak muka laut model 48 jam {} m menyamai atau melampaui maksimum {} ({} m).",
@@ -564,7 +626,13 @@ pub fn evaluate_rob(
             t.period
         ),
     };
-    let note = if current_msl_m.is_finite() && peak_msl_48h_m.is_finite() {
+    let note = if peak_msl_48h_m.is_finite() {
+        // Replay hanya punya maksimum harian, jadi nilai "saat ini" boleh tidak ada.
+        let now = if current_msl_m.is_finite() {
+            format!("saat ini {} m, ", fmt_dec(current_msl_m, 2))
+        } else {
+            String::new()
+        };
         let wave = if wave_height_m.is_finite() {
             format!(
                 ", tinggi gelombang maksimum {} m",
@@ -574,8 +642,7 @@ pub fn evaluate_rob(
             String::new()
         };
         format!(
-            "Muka laut model (relatif MSL global; pasang surut + efek barometrik, tanpa amblesan tanah) saat ini {} m, puncak 48 jam {} m ({}){wave}. Akurasi model di pesisir terbatas.",
-            fmt_dec(current_msl_m, 2),
+            "Muka laut model (relatif MSL global; pasang surut + efek barometrik, tanpa amblesan tanah) {now}puncak 48 jam {} m ({}){wave}. Akurasi model di pesisir terbatas.",
             fmt_dec(peak_msl_48h_m, 2),
             local_time_label(&peak_msl_time, rob.tz_offset_hours as i64),
         )

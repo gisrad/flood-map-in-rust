@@ -70,6 +70,14 @@ pub fn ReplayBar(
                         sc.frames.get(idx).map(|fr| format!("{} — {}", fr.timestamp_wib, fr.narrative)).unwrap_or_default()
                     })}
                 </p>
+                {move || current.get().filter(|sc| !sc.outcome.is_empty()).map(|sc| view! {
+                    <section class="replay-outcome" aria-label="Hasil model dibanding kejadian">
+                        <h3 class="h-sub">"Hasil model vs kejadian"</h3>
+                        <ul>
+                            {sc.outcome.into_iter().map(|line| view! { <li>{line}</li> }).collect_view()}
+                        </ul>
+                    </section>
+                })}
                 <p class="replay-prov">
                     {move || current.get().map(|sc| sc.provenance)}
                     {move || snapshot.get().and_then(|s| s.replay_note).map(|n| format!(" {n}"))}

@@ -473,4 +473,8 @@ pub struct ReplayScenarioMeta {
     pub citation: String,
     pub provenance: String,
     pub frames: Vec<ReplayFrame>,
+    /// Hasil model terhadap kejadian: kalimat yang dihitung dari data replay dengan aturan level
+    /// yang sama dengan data live (stasiun kunci, level maksimum, pembanding fakta bersumber).
+    #[serde(default)]
+    pub outcome: Vec<String>,
 }

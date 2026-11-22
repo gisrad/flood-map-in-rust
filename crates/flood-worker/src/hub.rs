@@ -569,6 +569,7 @@ impl FloodHub {
                     soil_deep: w.as_ref().map(|w| w.soil_deep).unwrap_or(f64::NAN),
                     nearby_reports_24h: nearby,
                     exceed_prob_7d: exceed,
+                    hindcast: false,
                 },
             ));
         }

@@ -161,12 +161,16 @@ fn PointList(rows: Vec<PointRow>, on_select: Callback<(String, f64, f64)>) -> im
 
 fn kpi_strip(snap: &FloodSnapshot) -> impl IntoView {
     let k = &snap.kpis;
+    // Laporan warga tidak dibakukan untuk replay; kartu nol akan terbaca sebagai fakta.
+    let replay = snap.is_historical_replay;
     view! {
-        <dl class="kpi-strip">
+        <dl class="kpi-strip" class:is-3=replay>
             <div><dt>"Sungai ≥ Tinggi"</dt><dd class="num">{k.river.elevated()}</dd></div>
             <div><dt>"Hujan lokal ≥ Tinggi"</dt><dd class="num">{k.pluvial.elevated()}</dd></div>
             <div><dt>"Rob ≥ Tinggi"</dt><dd class="num">{k.rob.elevated()}</dd></div>
-            <div><dt>"Laporan warga 24 jam"</dt><dd class="num">{k.citizen_flood_reports_24h}</dd></div>
+            {(!replay).then(|| view! {
+                <div><dt>"Laporan warga 24 jam"</dt><dd class="num">{k.citizen_flood_reports_24h}</dd></div>
+            })}
         </dl>
     }
 }
@@ -222,7 +226,11 @@ fn national_csv(snap: &FloodSnapshot) -> String {
     csv
 }
 
-fn bmkg_block(snap: &FloodSnapshot, limit: usize) -> impl IntoView {
+fn bmkg_block(snap: &FloodSnapshot, limit: usize) -> AnyView {
+    if snap.is_historical_replay {
+        // Nowcast BMKG historis tidak dibakukan untuk replay.
+        return ().into_any();
+    }
     let items: Vec<_> = snap.bmkg_nowcasts.iter().take(limit).cloned().collect();
     let total = snap.bmkg_nowcasts.len();
     view! {
@@ -241,6 +249,7 @@ fn bmkg_block(snap: &FloodSnapshot, limit: usize) -> impl IntoView {
             }}
         </section>
     }
+    .into_any()
 }
 
 #[component]
@@ -352,11 +361,12 @@ pub fn InspectorDrawer(
         let id = selected_id.get()?;
         let snap = snapshot.get()?;
         let gen = snap.generated_at_utc.clone();
+        let replay = snap.is_historical_replay;
         let back = Callback::new(move |_| selected_id.set(None));
         let lens_v = lens.get();
         if let Some(st) = snap.stations.iter().find(|s| s.id == id).cloned() {
             return Some(
-                view! { <StationDetail station=st generated_at_utc=gen lens=lens_v on_back=back/> }
+                view! { <StationDetail station=st generated_at_utc=gen lens=lens_v replay=replay on_back=back/> }
                     .into_any(),
             );
         }
@@ -365,7 +375,7 @@ pub fn InspectorDrawer(
             .find(|r| r.id == id)
             .cloned()
             .map(|rb| {
-                view! { <RobDetail rob=rb generated_at_utc=gen lens=lens_v on_back=back/> }
+                view! { <RobDetail rob=rb generated_at_utc=gen lens=lens_v replay=replay on_back=back/> }
                     .into_any()
             })
     };
@@ -379,6 +389,9 @@ pub fn InspectorDrawer(
             })
         })
     });
+    // Berita, laporan warga, dan notifikasi hanya bermakna untuk data terkini.
+    let is_replay =
+        Memo::new(move |_| snapshot.with(|s| s.as_ref().is_some_and(|s| s.is_historical_replay)));
 
     let tab_btn = move |tab: InspectorTab, label: &'static str| {
         view! {
@@ -400,6 +413,12 @@ pub fn InspectorDrawer(
     let summary_pane = move |snap: FloodSnapshot| {
         let filter = mech_filter.get();
         let rows = point_rows(&snap, filter);
+        let replay = snap.is_historical_replay;
+        let none_elevated = if replay {
+            "Tidak ada titik pada level Tinggi atau lebih pada hari ini di replay."
+        } else {
+            "Tidak ada titik pada level Tinggi atau lebih saat ini."
+        };
         match lens.get() {
             Audience::Public => {
                 let elevated: Vec<_> = rows
@@ -414,7 +433,7 @@ pub fn InspectorDrawer(
                         <section class="block">
                             <h3 class="h-sub">"Perlu diperhatikan"</h3>
                             {if n_el == 0 {
-                                view! { <p class="empty-msg">"Tidak ada titik pada level Tinggi atau lebih saat ini."</p> }.into_any()
+                                view! { <p class="empty-msg">{none_elevated}</p> }.into_any()
                             } else {
                                 view! { <PointList rows=elevated on_select=on_select/> }.into_any()
                             }}
@@ -438,20 +457,26 @@ pub fn InspectorDrawer(
                         Some(FloodMechanism::FluvialBasin) => s.fluvial_level,
                         Some(FloodMechanism::UrbanPluvial) => s.pluvial_level,
                         Some(FloodMechanism::CoastalRob) => continue,
+                        // Replay tidak punya prakiraan: hanya level pada tanggal itu.
+                        None if replay => s.level,
                         None => s.level.max(s.peak_forecast_level),
                     };
-                    if lv.is_elevated() || s.peak_forecast_level.is_elevated() {
+                    if lv.is_elevated() || (!replay && s.peak_forecast_level.is_elevated()) {
                         table.push((
                             s.id.clone(),
                             s.name.clone(),
                             s.province.clone(),
                             s.level,
                             s.peak_forecast_level,
-                            format!(
-                                "{} · {}",
-                                fmt_day(&s.peak_forecast_date),
-                                lead_label(lead_days(s, &gen))
-                            ),
+                            if replay {
+                                String::new()
+                            } else {
+                                format!(
+                                    "{} · {}",
+                                    fmt_day(&s.peak_forecast_date),
+                                    lead_label(lead_days(s, &gen))
+                                )
+                            },
                             s.exceed_prob_7d
                                 .as_ref()
                                 .map(|e| fmt_pct(e.q2))
@@ -479,7 +504,22 @@ pub fn InspectorDrawer(
                         ));
                     }
                 }
-                table.sort_by(|a, b| b.4.cmp(&a.4).then(b.3.cmp(&a.3)));
+                if replay {
+                    table.sort_by_key(|row| std::cmp::Reverse(row.3));
+                } else {
+                    table.sort_by(|a, b| b.4.cmp(&a.4).then(b.3.cmp(&a.3)));
+                }
+                let (heading, empty) = if replay {
+                    (
+                        format!("Titik ≥ Tinggi pada hari replay ({})", table.len()),
+                        "Tidak ada titik pada level Tinggi atau lebih pada hari ini di replay.",
+                    )
+                } else {
+                    (
+                        format!("Titik ≥ Tinggi, kini atau prakiraan ({})", table.len()),
+                        "Tidak ada titik pada level Tinggi atau lebih, kini maupun dalam prakiraan 7 hari.",
+                    )
+                };
                 let snap_csv = snap.clone();
                 let n = table.len();
                 view! {
@@ -487,27 +527,31 @@ pub fn InspectorDrawer(
                         {kpi_strip(&snap)}
                         <section class="block">
                             <div class="block-head">
-                                <h3 class="h-sub">{format!("Titik ≥ Tinggi, kini atau prakiraan ({n})")}</h3>
+                                <h3 class="h-sub">{heading}</h3>
                                 <button type="button" class="btn btn-sm" on:click=move |_| {
                                     download_text_file("hidrosentinel-indonesia.csv", "text/csv", &national_csv(&snap_csv));
                                 }>"Unduh CSV"</button>
                             </div>
                             {if n == 0 {
-                                view! { <p class="empty-msg">"Tidak ada titik pada level Tinggi atau lebih, kini maupun dalam prakiraan 7 hari."</p> }.into_any()
+                                view! { <p class="empty-msg">{empty}</p> }.into_any()
                             } else {
                                 view! {
                                     <div class="table-wrap">
                                         <table class="data-table">
-                                            <thead><tr><th scope="col">"Titik · waktu puncak"</th><th scope="col">"Kini → puncak"</th><th scope="col" class="num">"P(>Q2)"</th></tr></thead>
+                                            <thead><tr>
+                                                <th scope="col">{if replay { "Titik" } else { "Titik · waktu puncak" }}</th>
+                                                <th scope="col">{if replay { "Level" } else { "Kini → puncak" }}</th>
+                                                {(!replay).then(|| view! { <th scope="col" class="num">"P(>Q2)"</th> })}
+                                            </tr></thead>
                                             <tbody>
                                                 {table.into_iter().map(|(id, name, prov, now_l, peak_l, when, p, lon, lat)| view! {
                                                     <tr>
                                                         <th scope="row">
                                                             <button type="button" class="cell-link" on:click=move |_| on_select.run((id.clone(), lon, lat))>{name}</button>
-                                                            <small>{format!("{prov} · {when}")}</small>
+                                                            <small>{if when.is_empty() { prov } else { format!("{prov} · {when}") }}</small>
                                                         </th>
-                                                        <td class="lv-pair"><LevelBadge level=now_l/><LevelBadge level=peak_l/></td>
-                                                        <td class="num">{p}</td>
+                                                        <td class="lv-pair"><LevelBadge level=now_l/>{(!replay).then(|| view! { <LevelBadge level=peak_l/> })}</td>
+                                                        {(!replay).then(|| view! { <td class="num">{p}</td> })}
                                                     </tr>
                                                 }).collect_view()}
                                             </tbody>
@@ -560,7 +604,11 @@ pub fn InspectorDrawer(
                         </div>
                         <div class="table-wrap">
                             <table class="data-table">
-                                <caption>"Debit simulasi hari ini terhadap ambang periode ulang (m³/s)"</caption>
+                                <caption>{if replay {
+                                    "Debit simulasi pada tanggal replay terhadap ambang periode ulang (m³/s)"
+                                } else {
+                                    "Debit simulasi hari ini terhadap ambang periode ulang (m³/s)"
+                                }}</caption>
                                 <thead><tr><th scope="col">"Stasiun"</th><th scope="col" class="num">"Q"</th><th scope="col" class="num">"Q2"</th><th scope="col" class="num">"Q20"</th><th scope="col" class="num">"Q/Q2"</th><th scope="col" class="num">"Sel–pos"</th></tr></thead>
                                 <tbody>
                                     {st.into_iter().map(|s| {
@@ -843,8 +891,10 @@ pub fn InspectorDrawer(
                 <Show when=move || !has_selection.get()>
                     <div class="tabs" role="tablist" aria-label="Bagian panel">
                         {tab_btn(InspectorTab::Summary, "Ringkasan")}
-                        {tab_btn(InspectorTab::News, "Berita")}
-                        {tab_btn(InspectorTab::Notify, "Notifikasi")}
+                        <Show when=move || !is_replay.get()>
+                            {tab_btn(InspectorTab::News, "Berita")}
+                            {tab_btn(InspectorTab::Notify, "Notifikasi")}
+                        </Show>
                         {tab_btn(InspectorTab::About, "Tentang data")}
                     </div>
                     <div class="scroll" role="tabpanel">
@@ -866,6 +916,9 @@ pub fn InspectorDrawer(
                             }
                             let snap = snapshot.get()?;
                             Some(match tab {
+                                InspectorTab::News | InspectorTab::Notify if snap.is_historical_replay => {
+                                    summary_pane(snap)
+                                }
                                 InspectorTab::Summary => summary_pane(snap),
                                 InspectorTab::News => news_pane(snap),
                                 InspectorTab::Notify => notify_pane(snap),
