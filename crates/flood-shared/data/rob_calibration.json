@@ -1,0 +1,164 @@
+{
+ "generated_at_utc": "2026-11-22T10:44:53Z",
+ "source": "Open-Meteo Marine API, sea_level_height_msl (MeteoFrance SMOC, E.U. Copernicus Marine Service)",
+ "period": "2022–2025",
+ "method": "Persentil 95 dan 99 serta maksimum muka laut model per jam pada sel laut terdekat; high ≥ p99, very_high ≥ maksimum.",
+ "points": [
+  {
+   "id": "rob-jakarta-muarabaru",
+   "cell_lat": -5.958336,
+   "cell_lon": 106.79167,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 1.08,
+    "p99_m": 1.22,
+    "max_m": 1.39,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-muara-gembong",
+   "cell_lat": -5.958336,
+   "cell_lon": 107.04167,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 1.08,
+    "p99_m": 1.22,
+    "max_m": 1.39,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-pekalongan",
+   "cell_lat": -6.708336,
+   "cell_lon": 109.70836,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 1.0,
+    "p99_m": 1.13,
+    "max_m": 1.32,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-semarang-sayung",
+   "cell_lat": -6.791664,
+   "cell_lon": 110.45836,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 1.06,
+    "p99_m": 1.19,
+    "max_m": 1.36,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-surabaya-gresik",
+   "cell_lat": -7.208336,
+   "cell_lon": 112.875015,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 1.5,
+    "p99_m": 1.76,
+    "max_m": 2.09,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-belawan-medan",
+   "cell_lat": 3.875,
+   "cell_lon": 98.79167,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 1.42,
+    "p99_m": 1.67,
+    "max_m": 2.07,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-tembilahan",
+   "cell_lat": -0.29166412,
+   "cell_lon": 103.29167,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 2.04,
+    "p99_m": 2.37,
+    "max_m": 2.93,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-pontianak-muara",
+   "cell_lat": 0.041664124,
+   "cell_lon": 109.20836,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 1.61,
+    "p99_m": 1.88,
+    "max_m": 2.32,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-banjarmasin-tabanio",
+   "cell_lat": -3.5416641,
+   "cell_lon": 114.45836,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 1.73,
+    "p99_m": 2.0,
+    "max_m": 2.41,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-makassar-losari",
+   "cell_lat": -5.125,
+   "cell_lon": 119.375015,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 1.18,
+    "p99_m": 1.32,
+    "max_m": 1.51,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-manado-teluk",
+   "cell_lat": 1.5416641,
+   "cell_lon": 124.79167,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 1.6,
+    "p99_m": 1.85,
+    "max_m": 2.16,
+    "period": "2022–2025"
+   },
+   "note": ""
+  },
+  {
+   "id": "rob-merauke",
+   "cell_lat": -8.541664,
+   "cell_lon": 140.37502,
+   "n_hours": 26808,
+   "thresholds": {
+    "p95_m": 2.3,
+    "p99_m": 2.719,
+    "max_m": 3.5,
+    "period": "2022–2025"
+   },
+   "note": ""
+  }
+ ]
+}

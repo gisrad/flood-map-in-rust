@@ -14,3 +14,4 @@ serde.workspace = true
 serde_json.workspace = true
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+sha2 = { version = "0.10", default-features = false }

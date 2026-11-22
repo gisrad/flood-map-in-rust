@@ -385,6 +385,7 @@ dependencies = [
  "flood-shared",
  "serde",
  "serde_json",
+ "sha2",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "worker",

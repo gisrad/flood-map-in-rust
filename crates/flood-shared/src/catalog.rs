@@ -13,8 +13,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 106.837,
         tz_offset_hours: 7,
         basin_area_km2: 152,
-        baseline_q75_hint: 14.0,
-        river_polyline: &[[106.95, -6.70], [106.87, -6.65], [106.837, -6.633], [106.81, -6.54]],
     },
     StationStatic {
         id: "ciliwung-manggarai",
@@ -27,8 +25,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 106.849,
         tz_offset_hours: 7,
         basin_area_km2: 387,
-        baseline_q75_hint: 24.0,
-        river_polyline: &[[106.84, -6.52], [106.85, -6.35], [106.849, -6.208], [106.83, -6.12]],
     },
     StationStatic {
         id: "cisadane-tangerang",
@@ -41,8 +37,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 106.625,
         tz_offset_hours: 7,
         basin_area_km2: 1510,
-        baseline_q75_hint: 85.0,
-        river_polyline: &[[106.72, -6.68], [106.66, -6.42], [106.625, -6.164], [106.61, -6.02]],
     },
     StationStatic {
         id: "bekasi-pondokgede",
@@ -55,8 +49,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 106.971,
         tz_offset_hours: 7,
         basin_area_km2: 1410,
-        baseline_q75_hint: 42.0,
-        river_polyline: &[[106.93, -6.54], [106.97, -6.35], [106.971, -6.305], [107.01, -6.04]],
     },
     StationStatic {
         id: "citarum-nanjung",
@@ -69,8 +61,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 107.535,
         tz_offset_hours: 7,
         basin_area_km2: 1718,
-        baseline_q75_hint: 68.0,
-        river_polyline: &[[107.75, -7.12], [107.64, -7.00], [107.535, -6.942], [107.42, -6.88]],
     },
     StationStatic {
         id: "citarum-karawang",
@@ -83,8 +73,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 107.289,
         tz_offset_hours: 7,
         basin_area_km2: 6614,
-        baseline_q75_hint: 190.0,
-        river_polyline: &[[107.40, -6.56], [107.35, -6.40], [107.289, -6.288], [107.03, -5.98]],
     },
     StationStatic {
         id: "cimanuk-jatigede",
@@ -97,8 +85,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 108.316,
         tz_offset_hours: 7,
         basin_area_km2: 3600,
-        baseline_q75_hint: 110.0,
-        river_polyline: &[[107.98, -7.15], [108.12, -6.84], [108.316, -6.412], [108.35, -6.24]],
     },
     StationStatic {
         id: "citanduy-banjar",
@@ -111,8 +97,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 108.538,
         tz_offset_hours: 7,
         basin_area_km2: 3500,
-        baseline_q75_hint: 125.0,
-        river_polyline: &[[108.22, -7.18], [108.40, -7.33], [108.538, -7.372], [108.76, -7.65]],
     },
     StationStatic {
         id: "serayu-banyumas",
@@ -125,8 +109,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 109.205,
         tz_offset_hours: 7,
         basin_area_km2: 3700,
-        baseline_q75_hint: 165.0,
-        river_polyline: &[[109.90, -7.28], [109.56, -7.42], [109.205, -7.523], [109.10, -7.69]],
     },
     StationStatic {
         id: "progo-bantul",
@@ -139,8 +121,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 110.275,
         tz_offset_hours: 7,
         basin_area_km2: 2470,
-        baseline_q75_hint: 95.0,
-        river_polyline: &[[110.20, -7.46], [110.25, -7.68], [110.275, -7.878], [110.22, -7.98]],
     },
     StationStatic {
         id: "wulan-demak",
@@ -153,8 +133,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 110.678,
         tz_offset_hours: 7,
         basin_area_km2: 2150,
-        baseline_q75_hint: 78.0,
-        river_polyline: &[[110.92, -7.02], [110.78, -6.90], [110.678, -6.814], [110.55, -6.77]],
     },
     StationStatic {
         id: "solo-sragen",
@@ -167,8 +145,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 111.015,
         tz_offset_hours: 7,
         basin_area_km2: 6072,
-        baseline_q75_hint: 145.0,
-        river_polyline: &[[110.90, -7.84], [110.86, -7.56], [111.015, -7.425], [111.42, -7.36]],
     },
     StationStatic {
         id: "solo-bojonegoro",
@@ -181,8 +157,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 111.882,
         tz_offset_hours: 7,
         basin_area_km2: 15800,
-        baseline_q75_hint: 390.0,
-        river_polyline: &[[111.45, -7.35], [111.65, -7.18], [111.882, -7.145], [112.56, -6.99]],
     },
     StationStatic {
         id: "brantas-mojokerto",
@@ -195,8 +169,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 112.468,
         tz_offset_hours: 7,
         basin_area_km2: 11800,
-        baseline_q75_hint: 260.0,
-        river_polyline: &[[112.62, -7.98], [112.01, -7.82], [112.468, -7.456], [112.75, -7.23]],
     },
     StationStatic {
         id: "sampean-situbondo",
@@ -209,10 +181,7 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 114.006,
         tz_offset_hours: 7,
         basin_area_km2: 1245,
-        baseline_q75_hint: 42.0,
-        river_polyline: &[[113.82, -7.95], [113.94, -7.82], [114.006, -7.706], [114.02, -7.65]],
     },
-
     // --- SUMATERA (WIB +7) ---
     StationStatic {
         id: "krueng-aceh",
@@ -225,8 +194,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 95.335,
         tz_offset_hours: 7,
         basin_area_km2: 1775,
-        baseline_q75_hint: 62.0,
-        river_polyline: &[[95.62, 5.28], [95.44, 5.45], [95.335, 5.534], [95.31, 5.59]],
     },
     StationStatic {
         id: "deli-medan",
@@ -239,8 +206,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 98.678,
         tz_offset_hours: 7,
         basin_area_km2: 482,
-        baseline_q75_hint: 28.0,
-        river_polyline: &[[98.58, 3.24], [98.66, 3.46], [98.678, 3.588], [98.69, 3.79]],
     },
     StationStatic {
         id: "asahan-tanjungbalai",
@@ -253,8 +218,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 99.800,
         tz_offset_hours: 7,
         basin_area_km2: 7420,
-        baseline_q75_hint: 185.0,
-        river_polyline: &[[99.18, 2.48], [99.55, 2.78], [99.800, 2.966], [99.85, 3.04]],
     },
     StationStatic {
         id: "rokan-bagansiapiapi",
@@ -267,8 +230,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 100.916,
         tz_offset_hours: 7,
         basin_area_km2: 19250,
-        baseline_q75_hint: 520.0,
-        river_polyline: &[[100.32, 0.90], [100.68, 1.48], [100.916, 1.883], [100.78, 2.18]],
     },
     StationStatic {
         id: "siak-pekanbaru",
@@ -281,8 +242,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 101.448,
         tz_offset_hours: 7,
         basin_area_km2: 11200,
-        baseline_q75_hint: 360.0,
-        river_polyline: &[[101.10, 0.58], [101.448, 0.545], [102.04, 0.80], [102.22, 1.24]],
     },
     StationStatic {
         id: "kampar-pelalawan",
@@ -295,8 +254,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 101.855,
         tz_offset_hours: 7,
         basin_area_km2: 24500,
-        baseline_q75_hint: 710.0,
-        river_polyline: &[[100.88, 0.32], [101.46, 0.34], [101.855, 0.367], [102.82, 0.45]],
     },
     StationStatic {
         id: "indragiri-rengat",
@@ -309,8 +266,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 102.546,
         tz_offset_hours: 7,
         basin_area_km2: 22700,
-        baseline_q75_hint: 640.0,
-        river_polyline: &[[101.55, -0.52], [102.18, -0.45], [102.546, -0.371], [103.32, -0.30]],
     },
     StationStatic {
         id: "batanghari-jambi",
@@ -323,8 +278,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 103.614,
         tz_offset_hours: 7,
         basin_area_km2: 44800,
-        baseline_q75_hint: 1420.0,
-        river_polyline: &[[102.10, -1.48], [102.98, -1.56], [103.614, -1.590], [104.22, -1.24]],
     },
     StationStatic {
         id: "musi-palembang",
@@ -337,8 +290,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 104.763,
         tz_offset_hours: 7,
         basin_area_km2: 59900,
-        baseline_q75_hint: 2250.0,
-        river_polyline: &[[103.28, -3.32], [104.05, -3.15], [104.763, -2.992], [104.92, -2.35]],
     },
     StationStatic {
         id: "ogan-baturaja",
@@ -351,8 +302,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 104.828,
         tz_offset_hours: 7,
         basin_area_km2: 9850,
-        baseline_q75_hint: 340.0,
-        river_polyline: &[[104.20, -4.12], [104.64, -3.72], [104.828, -3.389], [104.88, -3.02]],
     },
     StationStatic {
         id: "batang-anai-padang",
@@ -365,8 +314,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 100.289,
         tz_offset_hours: 7,
         basin_area_km2: 590,
-        baseline_q75_hint: 44.0,
-        river_polyline: &[[100.38, -0.46], [100.33, -0.64], [100.289, -0.788], [100.24, -0.82]],
     },
     StationStatic {
         id: "air-bengkulu",
@@ -379,8 +326,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 102.288,
         tz_offset_hours: 7,
         basin_area_km2: 515,
-        baseline_q75_hint: 36.0,
-        river_polyline: &[[102.52, -3.62], [102.38, -3.72], [102.288, -3.776], [102.24, -3.79]],
     },
     StationStatic {
         id: "way-sekampung",
@@ -393,10 +338,7 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 105.512,
         tz_offset_hours: 7,
         basin_area_km2: 4795,
-        baseline_q75_hint: 155.0,
-        river_polyline: &[[104.85, -5.28], [105.18, -5.31], [105.512, -5.348], [105.84, -5.58]],
     },
-
     // --- KALIMANTAN (WIB +7 / WITA +8) ---
     StationStatic {
         id: "sambas-kalbar",
@@ -409,8 +351,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 109.298,
         tz_offset_hours: 7,
         basin_area_km2: 7500,
-        baseline_q75_hint: 290.0,
-        river_polyline: &[[109.72, 1.34], [109.48, 1.36], [109.298, 1.363], [109.02, 1.22]],
     },
     StationStatic {
         id: "kapuas-sintang",
@@ -423,8 +363,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 111.498,
         tz_offset_hours: 7,
         basin_area_km2: 45200,
-        baseline_q75_hint: 2100.0,
-        river_polyline: &[[112.92, 0.86], [112.18, 0.38], [111.498, 0.072], [110.62, 0.14]],
     },
     StationStatic {
         id: "kapuas-pontianak",
@@ -437,8 +375,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 109.342,
         tz_offset_hours: 7,
         basin_area_km2: 98749,
-        baseline_q75_hint: 4800.0,
-        river_polyline: &[[110.58, 0.12], [109.88, -0.04], [109.342, -0.020], [109.16, 0.04]],
     },
     StationStatic {
         id: "sampit-mentaya",
@@ -451,8 +387,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 112.957,
         tz_offset_hours: 7,
         basin_area_km2: 14700,
-        baseline_q75_hint: 580.0,
-        river_polyline: &[[112.68, -1.62], [112.82, -2.08], [112.957, -2.536], [113.02, -2.98]],
     },
     StationStatic {
         id: "kahayan-palangkaraya",
@@ -465,8 +399,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 113.922,
         tz_offset_hours: 7,
         basin_area_km2: 15500,
-        baseline_q75_hint: 640.0,
-        river_polyline: &[[113.78, -1.24], [113.86, -1.78], [113.922, -2.208], [114.08, -3.28]],
     },
     StationStatic {
         id: "barito-buntok",
@@ -479,8 +411,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 114.842,
         tz_offset_hours: 7,
         basin_area_km2: 49500,
-        baseline_q75_hint: 2350.0,
-        river_polyline: &[[114.88, -0.58], [114.90, -1.12], [114.842, -1.720], [114.78, -2.42]],
     },
     StationStatic {
         id: "barito-banjarmasin",
@@ -493,8 +423,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 114.588,
         tz_offset_hours: 8,
         basin_area_km2: 81675,
-        baseline_q75_hint: 3900.0,
-        river_polyline: &[[114.76, -2.45], [114.66, -2.94], [114.588, -3.319], [114.48, -3.54]],
     },
     StationStatic {
         id: "mahakam-samarinda",
@@ -507,8 +435,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 117.147,
         tz_offset_hours: 8,
         basin_area_km2: 77100,
-        baseline_q75_hint: 3650.0,
-        river_polyline: &[[115.62, -0.05], [116.58, -0.26], [117.147, -0.506], [117.45, -0.62]],
     },
     StationStatic {
         id: "kayan-tanjungselor",
@@ -521,10 +447,7 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 117.365,
         tz_offset_hours: 8,
         basin_area_km2: 36993,
-        baseline_q75_hint: 1950.0,
-        river_polyline: &[[116.42, 2.52], [116.95, 2.72], [117.365, 2.838], [117.75, 2.94]],
     },
-
     // --- BALI & NUSA TENGGARA (WITA +8) ---
     StationStatic {
         id: "tukad-unda",
@@ -537,8 +460,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 115.412,
         tz_offset_hours: 8,
         basin_area_km2: 230,
-        baseline_q75_hint: 18.0,
-        river_polyline: &[[115.46, -8.38], [115.43, -8.47], [115.412, -8.536], [115.42, -8.57]],
     },
     StationStatic {
         id: "dodokan-lombok",
@@ -551,8 +472,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 116.122,
         tz_offset_hours: 8,
         basin_area_km2: 575,
-        baseline_q75_hint: 26.0,
-        river_polyline: &[[116.32, -8.68], [116.21, -8.67], [116.122, -8.665], [116.06, -8.66]],
     },
     StationStatic {
         id: "benanain-malaka",
@@ -565,10 +484,7 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 124.892,
         tz_offset_hours: 8,
         basin_area_km2: 3158,
-        baseline_q75_hint: 65.0,
-        river_polyline: &[[124.58, -9.28], [124.75, -9.44], [124.892, -9.574], [124.96, -9.67]],
     },
-
     // --- SULAWESI (WITA +8) ---
     StationStatic {
         id: "saddang-pinrang",
@@ -581,8 +497,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 119.654,
         tz_offset_hours: 8,
         basin_area_km2: 6600,
-        baseline_q75_hint: 280.0,
-        river_polyline: &[[119.86, -3.10], [119.75, -3.40], [119.654, -3.655], [119.47, -3.80]],
     },
     StationStatic {
         id: "jeneberang-bili",
@@ -595,8 +509,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 119.578,
         tz_offset_hours: 8,
         basin_area_km2: 727,
-        baseline_q75_hint: 48.0,
-        river_polyline: &[[119.84, -5.28], [119.68, -5.28], [119.578, -5.276], [119.38, -5.19]],
     },
     StationStatic {
         id: "walanae-wajo",
@@ -609,8 +521,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 120.036,
         tz_offset_hours: 8,
         basin_area_km2: 7380,
-        baseline_q75_hint: 265.0,
-        river_polyline: &[[119.95, -4.68], [120.00, -4.34], [120.036, -4.118], [120.36, -4.32]],
     },
     StationStatic {
         id: "konaweha-kendari",
@@ -623,8 +533,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 122.148,
         tz_offset_hours: 8,
         basin_area_km2: 7010,
-        baseline_q75_hint: 240.0,
-        river_polyline: &[[121.62, -3.72], [121.92, -3.81], [122.148, -3.862], [122.46, -3.88]],
     },
     StationStatic {
         id: "palu-sigi",
@@ -637,8 +545,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 119.865,
         tz_offset_hours: 8,
         basin_area_km2: 3040,
-        baseline_q75_hint: 92.0,
-        river_polyline: &[[119.96, -1.42], [119.90, -1.16], [119.865, -0.922], [119.85, -0.88]],
     },
     StationStatic {
         id: "limboto-gorontalo",
@@ -651,8 +557,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 123.063,
         tz_offset_hours: 8,
         basin_area_km2: 1410,
-        baseline_q75_hint: 64.0,
-        river_polyline: &[[123.38, 0.56], [123.19, 0.55], [123.063, 0.541], [123.05, 0.50]],
     },
     StationStatic {
         id: "tondano-manado",
@@ -665,10 +569,7 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 124.847,
         tz_offset_hours: 8,
         basin_area_km2: 540,
-        baseline_q75_hint: 28.0,
-        river_polyline: &[[124.91, 1.31], [124.88, 1.41], [124.847, 1.488], [124.83, 1.50]],
     },
-
     // --- MALUKU & PAPUA (WIT +9) ---
     StationStatic {
         id: "batumerah-ambon",
@@ -681,8 +582,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 128.187,
         tz_offset_hours: 9,
         basin_area_km2: 45,
-        baseline_q75_hint: 8.5,
-        river_polyline: &[[128.22, -3.70], [128.20, -3.69], [128.187, -3.686], [128.18, -3.68]],
     },
     StationStatic {
         id: "mamberamo-papua",
@@ -695,8 +594,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 138.015,
         tz_offset_hours: 9,
         basin_area_km2: 78992,
-        baseline_q75_hint: 5400.0,
-        river_polyline: &[[138.45, -2.98], [138.22, -2.62], [138.015, -2.295], [137.88, -1.46]],
     },
     StationStatic {
         id: "digul-tanahmerah",
@@ -709,8 +606,6 @@ pub const RIVER_STATIONS: &[StationStatic] = &[
         lon: 140.298,
         tz_offset_hours: 9,
         basin_area_km2: 45900,
-        baseline_q75_hint: 3100.0,
-        river_polyline: &[[140.42, -5.32], [140.36, -5.72], [140.298, -6.098], [138.82, -7.12]],
     },
 ];
 
@@ -723,8 +618,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: -6.102,
         lon: 106.805,
         tz_offset_hours: 7,
-        sensitivity: 1.40,
-        trigger_msl_m: 0.55,
     },
     CoastalRobStatic {
         id: "rob-muara-gembong",
@@ -734,8 +627,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: -5.995,
         lon: 107.035,
         tz_offset_hours: 7,
-        sensitivity: 1.32,
-        trigger_msl_m: 0.58,
     },
     CoastalRobStatic {
         id: "rob-pekalongan",
@@ -745,8 +636,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: -6.855,
         lon: 109.675,
         tz_offset_hours: 7,
-        sensitivity: 1.45,
-        trigger_msl_m: 0.50,
     },
     CoastalRobStatic {
         id: "rob-semarang-sayung",
@@ -756,8 +645,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: -6.942,
         lon: 110.452,
         tz_offset_hours: 7,
-        sensitivity: 1.48,
-        trigger_msl_m: 0.50,
     },
     CoastalRobStatic {
         id: "rob-surabaya-gresik",
@@ -767,8 +654,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: -7.185,
         lon: 112.715,
         tz_offset_hours: 7,
-        sensitivity: 1.18,
-        trigger_msl_m: 0.72,
     },
     CoastalRobStatic {
         id: "rob-belawan-medan",
@@ -778,8 +663,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: 3.785,
         lon: 98.692,
         tz_offset_hours: 7,
-        sensitivity: 1.24,
-        trigger_msl_m: 0.68,
     },
     CoastalRobStatic {
         id: "rob-tembilahan",
@@ -789,8 +672,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: -0.320,
         lon: 103.165,
         tz_offset_hours: 7,
-        sensitivity: 1.22,
-        trigger_msl_m: 0.70,
     },
     CoastalRobStatic {
         id: "rob-pontianak-muara",
@@ -800,8 +681,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: 0.045,
         lon: 109.185,
         tz_offset_hours: 7,
-        sensitivity: 1.25,
-        trigger_msl_m: 0.68,
     },
     CoastalRobStatic {
         id: "rob-banjarmasin-tabanio",
@@ -811,8 +690,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: -3.545,
         lon: 114.485,
         tz_offset_hours: 8,
-        sensitivity: 1.20,
-        trigger_msl_m: 0.70,
     },
     CoastalRobStatic {
         id: "rob-makassar-losari",
@@ -822,8 +699,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: -5.138,
         lon: 119.392,
         tz_offset_hours: 8,
-        sensitivity: 1.15,
-        trigger_msl_m: 0.72,
     },
     CoastalRobStatic {
         id: "rob-manado-teluk",
@@ -833,8 +708,6 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: 1.502,
         lon: 124.835,
         tz_offset_hours: 8,
-        sensitivity: 1.12,
-        trigger_msl_m: 0.75,
     },
     CoastalRobStatic {
         id: "rob-merauke",
@@ -844,7 +717,5 @@ pub const COASTAL_ROB_POINTS: &[CoastalRobStatic] = &[
         lat: -8.485,
         lon: 140.375,
         tz_offset_hours: 9,
-        sensitivity: 1.26,
-        trigger_msl_m: 0.85,
     },
 ];

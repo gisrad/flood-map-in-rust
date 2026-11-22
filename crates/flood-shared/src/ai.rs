@@ -1,7 +1,28 @@
+use crate::hydrology::{fmt_dec, fmt_num};
 use crate::model::{
-    AiBriefing, AiFlyTarget, AiQueryResponse, AlertLevel, Audience, FloodMechanism, FloodSnapshot,
-    StationTelemetry,
+    AiBriefing, AiFlyTarget, AiQueryResponse, Audience, CoastalRobTelemetry, FloodMechanism,
+    FloodSnapshot, IndicatorLevel, StationTelemetry, METHODOLOGY_VERSION,
 };
+
+const DISCLAIMER: &str =
+    "Indikasi model, bukan peringatan resmi. Ikuti informasi BPBD, BMKG, dan BBWS setempat.";
+
+fn region_match(rf_low: &str, fields: &[&str]) -> bool {
+    rf_low.is_empty()
+        || rf_low == "indonesia"
+        || rf_low == "nasional"
+        || fields.iter().any(|f| f.to_lowercase().contains(rf_low))
+}
+
+fn sort_stations(v: &mut [&StationTelemetry]) {
+    v.sort_by(|a, b| {
+        b.level.cmp(&a.level).then_with(|| {
+            b.ratio_q2
+                .unwrap_or(0.0)
+                .total_cmp(&a.ratio_q2.unwrap_or(0.0))
+        })
+    });
+}
 
 pub fn generate_briefing(
     snapshot: &FloodSnapshot,
@@ -9,127 +30,102 @@ pub fn generate_briefing(
     audience: Audience,
 ) -> AiBriefing {
     let rf = region_filter.trim();
-    let rf_low = rf.to_ascii_lowercase();
+    let rf_low = rf.to_lowercase();
 
     let mut stations: Vec<&StationTelemetry> = snapshot
         .stations
         .iter()
-        .filter(|s| {
-            rf_low.is_empty()
-                || rf_low == "indonesia"
-                || rf_low == "nasional"
-                || s.province.to_ascii_lowercase().contains(&rf_low)
-                || s.island.to_ascii_lowercase().contains(&rf_low)
-                || s.river.to_ascii_lowercase().contains(&rf_low)
-        })
+        .filter(|s| region_match(&rf_low, &[&s.province, &s.island, &s.river]))
         .collect();
-
-    stations.sort_by(|a, b| {
-        b.alert_level
-            .rank()
-            .cmp(&a.alert_level.rank())
-            .then_with(|| {
-                b.anomaly_ratio
-                    .partial_cmp(&a.anomaly_ratio)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-    });
+    sort_stations(&mut stations);
 
     let elevated: Vec<&StationTelemetry> = stations
         .iter()
         .copied()
-        .filter(|s| s.alert_level != AlertLevel::Normal)
+        .filter(|s| s.level.is_elevated())
         .collect();
-
-    let rob_elevated: Vec<_> = snapshot
+    let rob_elevated: Vec<&CoastalRobTelemetry> = snapshot
         .coastal_rob
         .iter()
-        .filter(|r| {
-            (rf_low.is_empty()
-                || rf_low == "indonesia"
-                || rf_low == "nasional"
-                || r.province.to_ascii_lowercase().contains(&rf_low)
-                || r.island.to_ascii_lowercase().contains(&rf_low))
-                && r.alert_level != AlertLevel::Normal
-        })
+        .filter(|r| region_match(&rf_low, &[&r.province, &r.island]) && r.level.is_elevated())
         .collect();
+    let unknown_n = stations
+        .iter()
+        .filter(|s| s.level == IndicatorLevel::Unknown)
+        .count();
 
     let scope_label = if rf.is_empty() {
-        "Nasional Indonesia".to_string()
+        "Indonesia".to_string()
     } else {
         rf.to_string()
     };
 
-    let top = stations.first().copied();
     let headline = if snapshot.is_historical_replay {
         format!(
-            "[REPLAY HISTORIS] {} — {} DAS & {} koridor rob berstatus waspada–awas",
-            snapshot
-                .replay_label
-                .as_deref()
-                .unwrap_or("Skenario Historis"),
+            "Replay historis: {} — {} stasiun dan {} titik rob berlevel tinggi ke atas",
+            snapshot.replay_label.as_deref().unwrap_or("skenario"),
             elevated.len(),
             rob_elevated.len()
         )
-    } else if let Some(t) = top.filter(|s| s.alert_level != AlertLevel::Normal) {
+    } else if let Some(t) = elevated.first() {
         format!(
-            "{}: {} stasiun DAS & {} pesisir meningkat · Puncak di {} ({:.2}× Q75)",
-            scope_label,
+            "{scope_label}: {} stasiun dan {} titik rob berlevel tinggi ke atas; tertinggi {} ({})",
             elevated.len(),
             rob_elevated.len(),
             t.name,
-            t.anomaly_ratio
+            t.level.label_id().to_lowercase()
+        )
+    } else if !rob_elevated.is_empty() {
+        format!(
+            "{scope_label}: {} titik rob berlevel tinggi ke atas; tidak ada stasiun sungai di atas Q2",
+            rob_elevated.len()
         )
     } else {
         format!(
-            "{}: Seluruh {} stasiun sungai pantau berada dalam rentang Normal (< T2)",
-            scope_label,
+            "{scope_label}: tidak ada indikasi model di atas ambang pada {} stasiun yang dipantau",
             stations.len()
         )
     };
 
+    let names: Vec<String> = elevated
+        .iter()
+        .take(3)
+        .map(|s| format!("{} ({})", s.name, s.level.label_id().to_lowercase()))
+        .collect();
+
     let sitrep_summary = match audience {
         Audience::Public => {
             if elevated.is_empty() && rob_elevated.is_empty() {
-                format!(
-                    "Pantauan saat ini ({scope_label}) relatif tenang. Tetap perhatikan prakiraan hujan lokal 24–72 jam dan kebersihan drainase lingkungan."
-                )
+                format!("Saat ini model tidak menunjukkan debit sungai, hujan, atau muka laut di atas ambang untuk {scope_label}. {DISCLAIMER}")
             } else {
-                let names: Vec<String> = elevated
-                    .iter()
-                    .take(3)
-                    .map(|s| format!("{} ({})", s.river, s.alert_level.label()))
-                    .collect();
                 format!(
-                    "Terdapat {} titik sungai berstatus Waspada–Awas ({}) serta {} zona pasang rob meningkat. Warga di bantaran rendah dan pesisir diimbau memantau pembaruan berkala.",
+                    "{} stasiun berlevel tinggi ke atas{}, serta {} titik rob. Warga di bantaran dan pesisir rendah sebaiknya memantau kondisi sekitar. {DISCLAIMER}",
                     elevated.len(),
-                    if names.is_empty() {
-                        "pemantauan lokal".to_string()
-                    } else {
-                        names.join(", ")
-                    },
+                    if names.is_empty() { String::new() } else { format!(": {}", names.join(", ")) },
                     rob_elevated.len()
                 )
             }
         }
         Audience::Gov => format!(
-            "SitRep BPBD/Pemda [{scope_label}]: {} stasiun DAS Waspada–Awas, {} koridor Rob Waspada–Awas, {} nowcast cuaca ekstrem BMKG, {} berita banjir terkini, {} laporan warga PetaBencana 24j. Prioritaskan kesiapan pompa drainase, pintu air hulu, dan posko kecamatan rawan.",
+            "Ringkasan {scope_label}: {} stasiun sungai/drainase dan {} titik rob berlevel tinggi ke atas; {} stasiun belum terkalibrasi; {} nowcast BMKG; {} laporan banjir warga (24 jam). Pertimbangkan verifikasi ke pos duga air dan BPBD sebelum bertindak. {DISCLAIMER}",
             elevated.len(),
             rob_elevated.len(),
+            unknown_n,
             snapshot.bmkg_nowcasts.len(),
-            snapshot.news.len(),
             snapshot.citizen_reports.len()
         ),
         Audience::Academia => format!(
-            "Ringkasan Hidrologi [{scope_label}]: {} sel sungai GloFAS v4 dievaluasi terhadap baseline Q75 & ambang Q95; rasio anomali maksimum {:.2}×. Pemisahan mekanisme membedakan limpasan hulu (fluvial), jenuh tanah/hujan lokal (pluvial), dan faktor pasang-amblesan (rob).",
+            "Metodologi {METHODOLOGY_VERSION}: debit simulasi GloFAS v4 dibandingkan dengan Q2/Q5/Q20 (Gumbel, L-moment, maksimum tahunan 1997–2024) pada sel terkalibrasi; drainase memakai kategori hujan BMKG; rob memakai persentil muka laut model. {} stasiun dievaluasi, {} belum terkalibrasi; rasio Q/Q2 maksimum {}.",
             stations.len(),
-            top.map(|s| s.anomaly_ratio).unwrap_or(0.0)
+            unknown_n,
+            snapshot.kpis.max_ratio_q2.map(|r| fmt_dec(r, 2)).unwrap_or_else(|| "–".into())
         ),
         Audience::AiAgent => format!(
-            "Deterministic Telemetry Context [{scope_label}]: stations_evaluated={}, elevated_fluvial_or_pluvial={}, elevated_rob={}, citizen_reports_24h={}, replay={}.",
+            "context scope={scope_label} stations={} elevated={} rob_elevated={} unknown={} citizen_flood_reports_24h={} replay={} methodology={METHODOLOGY_VERSION} disclaimer=\"model indication, not an official warning\"",
             stations.len(),
             elevated.len(),
             rob_elevated.len(),
+            unknown_n,
             snapshot.citizen_reports.len(),
             snapshot.is_historical_replay
         ),
@@ -144,57 +140,46 @@ pub fn generate_briefing(
         .filter(|s| s.mechanism == FloodMechanism::UrbanPluvial)
         .count();
     let mechanism_breakdown = format!(
-        "Klasifikasi Mekanisme: Kiriman Hulu DAS = {} · Drainase/Hujan Lokal = {} · Pasang Rob Pesisir = {}",
-        fluvial_n,
-        pluvial_n,
+        "Kiriman hulu {fluvial_n} · Hujan lokal {pluvial_n} · Rob {}",
         rob_elevated.len()
     );
 
     let mut priority_actions = Vec::new();
     for st in elevated.iter().take(4) {
-        let msg = match audience {
+        priority_actions.push(match audience {
             Audience::Public => format!("{} — {}", st.name, st.public_advice),
             Audience::Gov => format!("{} — {}", st.name, st.gov_action),
             Audience::Academia => format!("{} — {}", st.name, st.academic_note),
             Audience::AiAgent => format!(
-                "{} | alert={} | mech={} | Q={:.1}m3/s | ratio={:.2}x | rain72h={:.1}mm",
+                "{} | level={} | mechanism={} | q={} | ratio_q2={} | rain24={}",
                 st.id,
-                st.alert_level.label(),
+                st.level.slug(),
                 st.mechanism.slug(),
                 st.current_discharge_m3s,
-                st.anomaly_ratio,
-                st.rain_72h_mm
+                st.ratio_q2
+                    .map(|r| r.to_string())
+                    .unwrap_or_else(|| "null".into()),
+                st.rain_24h_mm
             ),
-        };
-        priority_actions.push(msg);
+        });
     }
     for r in rob_elevated.iter().take(2) {
-        priority_actions.push(format!(
-            "Rob {}: {} (Indeks {:.2}× · {})",
-            r.alert_level.label(),
-            r.name,
-            r.rob_index,
-            r.note
-        ));
+        priority_actions.push(format!("Rob {} — {}", r.name, r.level_reason));
     }
     if priority_actions.is_empty() {
-        if let Some(t) = top {
+        if let Some(t) = stations.iter().find(|s| s.ratio_q2.is_some()) {
             priority_actions.push(format!(
-                "Debit tertinggi sementara: {} ({:.1} m³/s · {:.2}× Q75 · tren {}).",
+                "Rasio Q/Q2 tertinggi: {} ({} m³/s, {}× Q2, tren {}).",
                 t.name,
-                t.current_discharge_m3s,
-                t.anomaly_ratio,
-                t.trend.label()
+                fmt_num(t.current_discharge_m3s),
+                fmt_dec(t.ratio_q2.unwrap_or(0.0), 2),
+                t.trend.label().to_lowercase()
             ));
         }
-        priority_actions.push(
-            "Gunakan Mode Replay (Jabodetabek 2020, Barito 2021, Wulan 2024) untuk simulasi respons ekstrem."
-                .to_string(),
-        );
     }
 
     let mut md = format!(
-        "# Hidrosentinel SitRep — {scope_label}\n\n**{headline}**\n\n- **Waktu UTC:** `{}`\n- **Perspektif:** `{}`\n- **Mekanisme:** {}\n\n{}\n\n## Poin Prioritas\n",
+        "# Ringkasan banjir — {scope_label}\n\n**{headline}**\n\n- Waktu data (UTC): `{}`\n- Pembaca: {}\n- Mekanisme: {}\n\n{}\n\n## Poin utama\n",
         snapshot.generated_at_utc,
         audience.label(),
         mechanism_breakdown,
@@ -203,6 +188,7 @@ pub fn generate_briefing(
     for act in &priority_actions {
         md.push_str(&format!("- {act}\n"));
     }
+    md.push_str(&format!("\n_{DISCLAIMER}_\n"));
 
     AiBriefing {
         generated_at_utc: snapshot.generated_at_utc.clone(),
@@ -216,55 +202,53 @@ pub fn generate_briefing(
     }
 }
 
-pub fn execute_ai_query(snapshot: &FloodSnapshot, query_str: &str) -> AiQueryResponse {
-    let q = query_str.trim();
-    let ql = q.to_ascii_lowercase();
-
-    let wanted_alert: Option<AlertLevel> = if ql.contains("awas") {
-        Some(AlertLevel::Awas)
-    } else if ql.contains("siaga") {
-        Some(AlertLevel::Siaga)
-    } else if ql.contains("waspada") {
-        Some(AlertLevel::Waspada)
+fn wanted_level(ql: &str) -> Option<IndicatorLevel> {
+    if ql.contains("ekstrem") || ql.contains("extreme") {
+        Some(IndicatorLevel::Extreme)
+    } else if ql.contains("sangat tinggi") || ql.contains("very_high") {
+        Some(IndicatorLevel::VeryHigh)
+    } else if ql.contains("tinggi") || ql.contains("high") {
+        Some(IndicatorLevel::High)
     } else {
         None
-    };
+    }
+}
 
-    let wanted_mech: Option<FloodMechanism> = if ql.contains("rob") || ql.contains("pasang") || ql.contains("pesisir") {
+pub fn execute_ai_query(snapshot: &FloodSnapshot, query_str: &str) -> AiQueryResponse {
+    let q = query_str.trim();
+    let ql = q.to_lowercase();
+    let level_req = wanted_level(&ql);
+
+    let wanted_mech = if ql.contains("rob") || ql.contains("pasang") || ql.contains("pesisir") {
         Some(FloodMechanism::CoastalRob)
-    } else if ql.contains("drainase") || ql.contains("kota") || ql.contains("hujan") || ql.contains("genangan") {
+    } else if ql.contains("drainase")
+        || ql.contains("kota")
+        || ql.contains("hujan")
+        || ql.contains("genangan")
+    {
         Some(FloodMechanism::UrbanPluvial)
-    } else if ql.contains("hulu") || ql.contains("kiriman") || ql.contains("debit") || ql.contains("sungai") {
+    } else if ql.contains("hulu") || ql.contains("kiriman") || ql.contains("debit") {
         Some(FloodMechanism::FluvialBasin)
     } else {
         None
     };
 
-    // Match coastal rob corridors
-    let mut matched_robs: Vec<_> = snapshot
+    let tokens: Vec<&str> = ql
+        .split_whitespace()
+        .filter(|w| w.chars().count() >= 3 && !is_stopword(w))
+        .collect();
+
+    let mut matched_robs: Vec<&CoastalRobTelemetry> = snapshot
         .coastal_rob
         .iter()
         .filter(|r| {
-            let text = format!("{} {} {}", r.name, r.province, r.island).to_ascii_lowercase();
-            let token_hit = ql
-                .split_whitespace()
-                .filter(|w| w.len() >= 3 && !is_stopword(w))
-                .any(|w| text.contains(w));
-            let alert_ok = wanted_alert.map(|a| r.alert_level >= a).unwrap_or(true);
-            (token_hit || wanted_mech == Some(FloodMechanism::CoastalRob)) && alert_ok
+            let text = format!("{} {} {} {}", r.id, r.name, r.province, r.island).to_lowercase();
+            let token_hit = tokens.iter().any(|t| text.contains(t));
+            let level_ok = level_req.is_none_or(|l| r.level >= l);
+            (token_hit || wanted_mech == Some(FloodMechanism::CoastalRob)) && level_ok
         })
         .collect();
-    matched_robs.sort_by(|a, b| {
-        b.rob_index
-            .partial_cmp(&a.rob_index)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    // Match river stations
-    let tokens: Vec<&str> = ql
-        .split_whitespace()
-        .filter(|w| w.len() >= 3 && !is_stopword(w))
-        .collect();
+    matched_robs.sort_by_key(|r| std::cmp::Reverse(r.level));
 
     let mut matched_stations: Vec<&StationTelemetry> = snapshot
         .stations
@@ -274,46 +258,35 @@ pub fn execute_ai_query(snapshot: &FloodSnapshot, query_str: &str) -> AiQueryRes
                 "{} {} {} {} {} {}",
                 s.id, s.name, s.river, s.ws_code, s.province, s.island
             )
-            .to_ascii_lowercase();
-            let text_hit = if tokens.is_empty() {
-                true
-            } else {
-                tokens.iter().any(|t| text.contains(t))
-            };
-            let alert_ok = wanted_alert
-                .map(|a| s.alert_level >= a)
-                .unwrap_or(true);
+            .to_lowercase();
+            let text_hit = tokens.is_empty() || tokens.iter().any(|t| text.contains(t));
+            let level_ok = level_req.is_none_or(|l| s.level >= l);
             let mech_ok = match wanted_mech {
                 Some(FloodMechanism::CoastalRob) => false,
-                Some(m) => s.mechanism == m || text_hit,
+                Some(m) => s.mechanism == m || (!tokens.is_empty() && text_hit),
                 None => true,
             };
-            text_hit && alert_ok && mech_ok
+            text_hit && level_ok && mech_ok
         })
         .collect();
 
-    // Fallback to highest-risk stations if query asked for "terparah"/"tertinggi"/"top"
     if matched_stations.is_empty()
-        && (ql.contains("parah") || ql.contains("tinggi") || ql.contains("top") || ql.contains("kritis"))
+        && (ql.contains("parah") || ql.contains("tertinggi") || ql.contains("kritis"))
     {
         matched_stations = snapshot.stations.iter().collect();
     }
+    sort_stations(&mut matched_stations);
 
-    matched_stations.sort_by(|a, b| {
-        b.alert_level
-            .rank()
-            .cmp(&a.alert_level.rank())
-            .then_with(|| {
-                b.anomaly_ratio
-                    .partial_cmp(&a.anomaly_ratio)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-    });
-
-    let matched_station_ids: Vec<String> = matched_stations.iter().take(8).map(|s| s.id.clone()).collect();
+    let matched_station_ids: Vec<String> = matched_stations
+        .iter()
+        .take(8)
+        .map(|s| s.id.clone())
+        .collect();
     let matched_rob_ids: Vec<String> = matched_robs.iter().take(6).map(|r| r.id.clone()).collect();
 
-    let fly_to = if wanted_mech == Some(FloodMechanism::CoastalRob) || (matched_stations.is_empty() && !matched_robs.is_empty()) {
+    let rob_first = wanted_mech == Some(FloodMechanism::CoastalRob)
+        || (matched_stations.is_empty() && !matched_robs.is_empty());
+    let fly_to = if rob_first {
         matched_robs.first().map(|r| AiFlyTarget {
             label: r.name.clone(),
             lon: r.lon,
@@ -331,30 +304,26 @@ pub fn execute_ai_query(snapshot: &FloodSnapshot, query_str: &str) -> AiQueryRes
         })
     };
 
-    let answer_id = if let Some(top) = matched_stations.first() {
+    let answer_id = if let (false, Some(top)) = (rob_first, matched_stations.first()) {
         format!(
-            "Ditemukan {} stasiun sungai relevan (dan {} koridor rob). Prioritas utama: {} ({}, debit {:.1} m³/s · {:.2}× Q75 · tren {}). {}",
+            "{} stasiun cocok ({} titik rob). Teratas: {} — level {}. {}",
             matched_stations.len(),
             matched_robs.len(),
             top.name,
-            top.alert_level.label(),
-            top.current_discharge_m3s,
-            top.anomaly_ratio,
-            top.trend.label(),
-            top.public_advice
+            top.level.label_id().to_lowercase(),
+            top.level_reason
         )
-    } else if let Some(rob) = matched_robs.first() {
+    } else if let Some(r) = matched_robs.first() {
         format!(
-            "Ditemukan {} koridor pasang rob relevan. Prioritas: {} (status {}, indeks {:.2}×). {}",
+            "{} titik rob cocok. Teratas: {} — level {}. {}",
             matched_robs.len(),
-            rob.name,
-            rob.alert_level.label(),
-            rob.rob_index,
-            rob.note
+            r.name,
+            r.level.label_id().to_lowercase(),
+            r.level_reason
         )
     } else {
         format!(
-            "Tidak ada stasiun atau koridor rob yang cocok dengan \"{q}\". Coba nama sungai (Ciliwung, Citarum, Barito, Kapuas, Mahakam, Bengawan Solo), provinsi, atau kata kunci seperti \"siaga jawa\" / \"rob semarang\"."
+            "Tidak ada stasiun atau titik rob yang cocok dengan \"{q}\". Coba nama sungai, provinsi, atau kata seperti \"tinggi jawa\" dan \"rob semarang\"."
         )
     };
 
@@ -389,102 +358,131 @@ fn is_stopword(w: &str) -> bool {
             | "banjir"
             | "status"
             | "sungai"
-            | "siaga"
-            | "waspada"
-            | "awas"
+            | "level"
+            | "tinggi"
+            | "sangat"
+            | "ekstrem"
             | "rob"
+            | "high"
+            | "very_high"
+            | "extreme"
     )
 }
 
 pub fn build_llms_txt(base_url: &str) -> String {
     format!(
-        "# Hidrosentinel Nusantara ({base_url})\n\
-        \n\
-        > Indonesian 3D Flood, River Discharge (Copernicus GloFAS v4), Urban Pluvial & Coastal Rob Observatory written 100% in Rust on Cloudflare Workers + SQLite Durable Objects.\n\
-        \n\
-        ## Machine-Readable Endpoints\n\
-        - `GET {base_url}/api/openapi.json` — OpenAPI 3.1 specification for AI agents & tool callers\n\
-        - `GET {base_url}/api/flood` — Live Indonesian national snapshot (50 river stations, 12 coastal rob corridors, PetaBencana citizen reports)\n\
-        - `GET {base_url}/api/station/{{id}}` — 21-day observed + 7-day forecast GloFAS hydrograph & soil moisture for a station\n\
-        - `GET {base_url}/api/ai/briefing?region=&audience=public|gov|academia|ai_agent&format=json|md` — Deterministic SitRep briefing\n\
-        - `GET {base_url}/api/ai/query?q=...` — Natural-language hydrological query & map fly-to directive\n\
-        - `GET {base_url}/api/alerts.rss?region=...` — Regional & national flood warning RSS 2.0 feed (for Telegram/n8n/RSS readers)\n\
-        - `POST {base_url}/api/alerts/subscribe` — Register free ntfy.sh push notification topic (no phone number/PII required)\n\
-        - `GET {base_url}/api/health` — Durable Object SQLite freshness & upstream health\n\
-        \n\
-        ## Scientific Caveats\n\
-        - Discharge metrics are Copernicus GloFAS v4 5 km grid estimates compared against local Q75/Q95 thresholds, not direct physical staff-gauge telemetry.\n\
-        - Replay scenarios (`jabodetabek-2020`, `barito-2021`, `pantura-wulan-2024`) are explicitly flagged `is_historical_replay: true`.\n"
+        "# Hidrosentinel Nusantara — {base_url}\n\
+\n\
+> Indikasi model banjir sungai, genangan hujan lokal, dan rob untuk 50 stasiun sungai dan 12 titik pesisir di Indonesia. Indikasi model, BUKAN peringatan resmi; peringatan resmi berasal dari BNPB/BPBD, BMKG, dan BBWS.\n\
+\n\
+## Endpoint\n\
+- `GET {base_url}/api/flood` — snapshot nasional (JSON, schema_version 2)\n\
+- `GET {base_url}/api/stations.geojson` — titik stasiun, rob, dan laporan warga (GeoJSON, CORS terbuka)\n\
+- `GET {base_url}/api/station/{{id}}` — satu stasiun atau titik rob\n\
+- `GET {base_url}/api/ai/briefing?region=&audience=public|gov|academia|ai_agent&format=json|md`\n\
+- `GET {base_url}/api/ai/query?q=...`\n\
+- `GET {base_url}/api/alerts.rss?region=...` — RSS level tinggi ke atas\n\
+- `POST {base_url}/api/alerts/subscribe` — notifikasi ntfy.sh (topik tanpa data pribadi)\n\
+- `GET {base_url}/api/health` — kesegaran tiap sumber data\n\
+- `GET {base_url}/api/openapi.json`\n\
+\n\
+## Level indikasi (metodologi {METHODOLOGY_VERSION})\n\
+- `level`: unknown (belum terkalibrasi) | normal | high (tinggi) | very_high (sangat tinggi) | extreme (ekstrem).\n\
+- Sungai: debit harian simulasi GloFAS v4 pada sel terkalibrasi; high ≥ Q2, very_high ≥ Q5, extreme ≥ Q20. Q2/Q5/Q20 = periode ulang 2/5/20 tahun dari distribusi Gumbel (L-moment) atas maksimum tahunan reanalisis GloFAS v4 1997–2024 pada sel yang sama.\n\
+- Drainase: hujan model 24 jam terakhir atau 24 jam ke depan; high ≥ 50 mm (lebat, BMKG), very_high ≥ 100 mm (sangat lebat), extreme > 150 mm (ekstrem). Laporan banjir warga PetaBencana ≤ 10 km dalam 24 jam menaikkan minimal ke high.\n\
+- Rob: puncak muka laut model 48 jam (Open-Meteo Marine) terhadap klimatologi setempat sejak 2022; high ≥ p99 per jam, very_high ≥ maksimum periode kalibrasi.\n\
+- `level` stasiun = maksimum level sungai dan drainase; `mechanism` = komponen penentu.\n\
+\n\
+## Keterbatasan\n\
+- Debit adalah simulasi model global 5 km, bukan pengukuran pos duga air. Sel model dapat jatuh di sungai lain; stasiun yang selnya tidak meyakinkan berlevel unknown.\n\
+- Muka laut model tidak memuat amblesan tanah, tanggul, atau limpasan lokal.\n\
+- Replay historis (`is_historical_replay: true`) memakai reanalisis GloFAS v4 dan hujan ERA5, bukan pengukuran.\n\
+\n\
+## Atribusi\n\
+GloFAS (Copernicus Emergency Management Service) dan ERA5 (Copernicus Climate Change Service) melalui Open-Meteo (CC BY 4.0); Copernicus Marine Service melalui Open-Meteo; PetaBencana.id; BMKG.\n"
     )
 }
 
 pub fn build_openapi_spec(base_url: &str) -> serde_json::Value {
+    let level_enum = serde_json::json!(["unknown", "normal", "high", "very_high", "extreme"]);
     serde_json::json!({
         "openapi": "3.1.0",
         "info": {
             "title": "Hidrosentinel Nusantara API",
-            "version": "0.1.0",
-            "description": "All-Rust Indonesian flood, river discharge (GloFAS v4), urban drainage, and coastal rob telemetry API backed by Cloudflare SQLite Durable Objects."
+            "version": format!("2.0.0+{METHODOLOGY_VERSION}"),
+            "description": "Indikasi model banjir sungai (GloFAS v4), genangan hujan lokal, dan rob. Indikasi model, bukan peringatan resmi."
         },
         "servers": [{ "url": base_url }],
-        "paths": {
-            "/api/flood": {
-                "get": {
-                    "operationId": "getFloodSnapshot",
-                    "summary": "Get live national flood telemetry snapshot",
-                    "responses": { "200": { "description": "JSON FloodSnapshot" } }
-                }
-            },
-            "/api/station/{id}": {
-                "get": {
-                    "operationId": "getStationHydrograph",
-                    "summary": "Get 21-day hydrograph and meteorological details for one river station",
-                    "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
-                    "responses": { "200": { "description": "StationTelemetry JSON" }, "404": { "description": "Station not found" } }
-                }
-            },
-            "/api/ai/briefing": {
-                "get": {
-                    "operationId": "getAiBriefing",
-                    "summary": "Generate deterministic multi-audience SitRep briefing",
-                    "parameters": [
-                        { "name": "region", "in": "query", "required": false, "schema": { "type": "string" } },
-                        { "name": "audience", "in": "query", "required": false, "schema": { "type": "string", "enum": ["public", "gov", "academia", "ai_agent"] } },
-                        { "name": "format", "in": "query", "required": false, "schema": { "type": "string", "enum": ["json", "md"] } }
-                    ],
-                    "responses": { "200": { "description": "AiBriefing JSON or Markdown" } }
-                }
-            },
-            "/api/ai/query": {
-                "get": {
-                    "operationId": "queryHydrologyNaturalLanguage",
-                    "summary": "Query Indonesian rivers, provinces, alerts, or coastal rob in natural language",
-                    "parameters": [{ "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }],
-                    "responses": { "200": { "description": "AiQueryResponse with matched IDs and map fly_to target" } }
-                }
-            },
-            "/api/alerts.rss": {
-                "get": {
-                    "operationId": "getFloodAlertsRss",
-                    "summary": "RSS 2.0 feed of elevated flood basins, coastal rob, and BMKG nowcasts",
-                    "parameters": [{ "name": "region", "in": "query", "required": false, "schema": { "type": "string" } }],
-                    "responses": { "200": { "description": "application/rss+xml feed" } }
-                }
-            },
-            "/api/alerts/subscribe": {
-                "post": {
-                    "operationId": "subscribeNtfyPush",
-                    "summary": "Register a free ntfy.sh push topic for automated flood alerts without phone number PII",
-                    "responses": { "200": { "description": "Subscription status JSON" } }
-                }
-            },
-            "/api/health": {
-                "get": {
-                    "operationId": "getHealth",
-                    "summary": "Durable Object SQLite storage freshness and upstream health",
-                    "responses": { "200": { "description": "Health JSON" } }
-                }
+        "components": {
+            "schemas": {
+                "IndicatorLevel": { "type": "string", "enum": level_enum },
+                "FloodMechanism": { "type": "string", "enum": ["fluvial_basin", "urban_pluvial", "coastal_rob"] }
             }
+        },
+        "paths": {
+            "/api/flood": { "get": {
+                "operationId": "getFloodSnapshot",
+                "summary": "Snapshot nasional (schema_version 2)",
+                "responses": { "200": { "description": "FloodSnapshot JSON" } }
+            }},
+            "/api/stations.geojson": { "get": {
+                "operationId": "getStationsGeoJson",
+                "summary": "FeatureCollection titik: kind river|rob|report, level, level_label, mechanism, metrik kunci",
+                "responses": { "200": { "description": "application/geo+json" } }
+            }},
+            "/api/station/{id}": { "get": {
+                "operationId": "getStation",
+                "summary": "Satu stasiun sungai (StationTelemetry) atau titik rob (CoastalRobTelemetry)",
+                "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+                "responses": { "200": { "description": "JSON" }, "404": { "description": "Tidak ditemukan" } }
+            }},
+            "/api/ai/briefing": { "get": {
+                "operationId": "getBriefing",
+                "summary": "Ringkasan deterministik per pembaca",
+                "parameters": [
+                    { "name": "region", "in": "query", "required": false, "schema": { "type": "string" } },
+                    { "name": "audience", "in": "query", "required": false, "schema": { "type": "string", "enum": ["public", "gov", "academia", "ai_agent"] } },
+                    { "name": "format", "in": "query", "required": false, "schema": { "type": "string", "enum": ["json", "md"] } }
+                ],
+                "responses": { "200": { "description": "AiBriefing JSON atau Markdown" } }
+            }},
+            "/api/ai/query": { "get": {
+                "operationId": "query",
+                "summary": "Pencarian bahasa alami atas stasiun dan titik rob",
+                "parameters": [{ "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }],
+                "responses": { "200": { "description": "AiQueryResponse" } }
+            }},
+            "/api/alerts.rss": { "get": {
+                "operationId": "getAlertsRss",
+                "summary": "RSS 2.0 stasiun dan titik rob berlevel tinggi ke atas, plus nowcast BMKG",
+                "parameters": [{ "name": "region", "in": "query", "required": false, "schema": { "type": "string" } }],
+                "responses": { "200": { "description": "application/rss+xml" } }
+            }},
+            "/api/alerts/subscribe": { "post": {
+                "operationId": "subscribeNtfy",
+                "summary": "Daftarkan topik ntfy.sh",
+                "requestBody": { "required": true, "content": { "application/json": { "schema": {
+                    "type": "object",
+                    "required": ["topic"],
+                    "properties": {
+                        "topic": { "type": "string", "pattern": "^[A-Za-z0-9_-]{8,64}$" },
+                        "region": { "type": "string", "maxLength": 48 },
+                        "min_level": { "$ref": "#/components/schemas/IndicatorLevel" },
+                        "send_test": { "type": "boolean" }
+                    }
+                }}}},
+                "responses": {
+                    "200": { "description": "Langganan tersimpan" },
+                    "400": { "description": "Topik tidak valid" },
+                    "429": { "description": "Batas permintaan per IP terlampaui" },
+                    "503": { "description": "Kuota langganan penuh" }
+                }
+            }},
+            "/api/health": { "get": {
+                "operationId": "getHealth",
+                "summary": "Kesegaran snapshot dan waktu ambil tiap sumber",
+                "responses": { "200": { "description": "JSON" } }
+            }}
         }
     })
 }

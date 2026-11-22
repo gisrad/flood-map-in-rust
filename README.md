@@ -2,7 +2,9 @@
 
 **100% Rust Full-Stack (`Leptos` CSR WebAssembly + `workers-rs` + Cloudflare SQLite Durable Objects + MapLibre GL v5 3D)**
 
-Observatorium banjir dan hidrometeorologi *real-time* seluruh Indonesia yang memisahkan tiga mekanisme utama banjir — **Banjir Kiriman Hulu DAS**, **Genangan Drainase Kota**, dan **Banjir Rob Pesisir** — dengan hidrograf ensemble 21 hari, berita banjir regional RSS, peringatan dini BMKG Nowcast, kanal notifikasi gratis (`ntfy.sh` + WhatsApp Share + RSS), serta API ramah *AI Agent* (`/llms.txt` & `/api/openapi.json`).
+Observatorium banjir dan hidrometeorologi seluruh Indonesia yang memisahkan tiga mekanisme banjir — **sungai (kiriman hulu DAS)**, **hujan lokal (drainase kota)**, dan **rob pesisir** — dengan hidrograf ensemble, berita banjir regional RSS, peringatan dini BMKG Nowcast, kanal notifikasi gratis (`ntfy.sh` + WhatsApp Share + RSS), serta API ramah *AI Agent* (`/llms.txt` & `/api/openapi.json`).
+
+> **Indikasi model, bukan peringatan resmi.** Peringatan dini resmi berasal dari BNPB/BPBD, BMKG, dan Balai (Besar) Wilayah Sungai. Situs ini tidak memakai status Waspada/Siaga/Awas. Metodologi lengkap: [`docs/METODOLOGI.md`](docs/METODOLOGI.md); kontrak API: [`docs/API.md`](docs/API.md).
 
 ---
 
@@ -16,7 +18,7 @@ flowchart LR
         MR["Open-Meteo Marine\n(12 Coastal Rob MSL & Waves)"]
         PB["PetaBencana.id\n(24h Citizen Flood Reports)"]
         BM["BMKG CAP Nowcast RSS"]
-        NW["Indonesian National & Regional RSS\n(CNN Indonesia, Tempo.co, Republika)"]
+        NW["Indonesian National & Regional RSS\n(Antara, detikNews, CNN Indonesia, Tempo.co, Republika)"]
     end
 
     subgraph Edge["Cloudflare Workers Free Plan ($0/mo)"]
@@ -51,10 +53,11 @@ flowchart LR
 **Hidrosentinel Nusantara** dibangun seluruhnya dalam bahasa **Rust** dari *backend* Cloudflare Worker hingga antarmuka *frontend* WebAssembly (hanya menjembatani kanvas WebGL **MapLibre GL v5** melalui modul ES tipis).
 
 ### Keunggulan Utama
-1. **Pemisahan 3 Mekanisme Banjir (Ilmiah & Deterministik)**
-   * **Banjir Kiriman Hulu DAS**: rasio debit $Q / Q_{75}$, estimasi ambang $Q_{95}$, tren 24 jam, dan prakiraan lonjakan 7 hari (*lead-time watch*) berbasis **Copernicus GloFAS v4**.
-   * **Drainase & Genangan Kota**: kombinasi curah hujan 24j/72j, kejenuhan air tanah 2 lapis (`0–7 cm` dan `28–100 cm`), serta laporan warga *real-time* dari **PetaBencana.id**.
-   * **Banjir Rob Pesisir**: pemantauan *mean sea level* (MSL) + tinggi gelombang di **12 koridor pesisir rawan amblesan** (Jakarta Utara, Muara Gembong, Pekalongan, Semarang–Sayung, Belawan, Pontianak, Banjarmasin, Makassar, Merauke, dll.).
+1. **Pemisahan 3 Mekanisme Banjir dengan Level Indikasi Terkalibrasi**
+   * **Sungai**: debit harian simulasi **Copernicus GloFAS v4** pada sel yang dikalibrasi terhadap pos (44/50 diterima; 6 sel ditolak tampil "Belum terkalibrasi"). Level *Tinggi / Sangat tinggi / Ekstrem* = melampaui **Q2 / Q5 / Q20** (Gumbel, L-moment, maksimum tahunan reanalisis **1997–2024**), plus peluang lampau ambang dari 51 anggota ensemble 7 hari.
+   * **Hujan lokal (drainase)**: hujan model 24 jam terakhir/ke depan terhadap kategori BMKG (lebat ≥ 50 mm, sangat lebat ≥ 100 mm, ekstrem > 150 mm), lengas tanah 2 lapis, dan laporan warga **PetaBencana.id** ≤ 10 km.
+   * **Rob pesisir**: puncak muka laut model 48 jam (Open-Meteo Marine) terhadap persentil klimatologi setempat di **12 koridor pesisir** (Jakarta Utara, Muara Gembong, Pekalongan, Semarang–Sayung, Belawan, Pontianak, Banjarmasin, Makassar, Merauke, dll.).
+   * **Sungai riil berkelok**: garis sungai diambil dari geometri OpenStreetMap (dua tingkat detail, arah ke hilir), bukan garis lurus antartitik. Tautan "Bandingkan di Google Flood Hub" di setiap detail stasiun.
 2. **All-Rust + SQLite Durable Object (`FloodHub`)**
    * Data disimpan di **Cloudflare Durable Object SQLite** (`new_sqlite_classes = ["FloodHub"]`) — aktif otomatis di paket gratis Cloudflare Workers tanpa server terpisah.
    * Berbagi tipe data & logika hidrologi antara server dan klien lewat crate `flood-shared`.
@@ -63,10 +66,10 @@ flowchart LR
    * **Kanal Berita Banjir**: agregasi otomatis berita banjir nasional/regional + peringatan dini cuaca ekstrem **BMKG Nowcast CAP**.
    * **Peringatan Gratis Tanpa Biaya SMS/WA Gateway**: langganan notifikasi push HP gratis via **`ntfy.sh`** (tanpa menyimpan nomor HP/PII), tombol **Bagikan WhatsApp 1-Klik**, dan **RSS Feed Wilayah (`/api/alerts.rss`)** siap sambung ke bot Telegram/n8n.
 4. **Mode Replay Historis (Terpisah Jelas dari Data Live)**
-   * Putar ulang skenario **Jabodetabek 1 Jan 2020 (377 mm/hari)**, **DAS Barito Kalsel Jan 2021**, dan **Tanggul Wulan–Demak 2024** dengan label `DATA REPLAY HISTORIS`.
+   * Putar ulang skenario **Jabodetabek 1 Jan 2020**, **DAS Barito Kalsel Jan 2021**, dan **Tanggul Wulan–Demak 2024** (GloFAS v4 reanalisis + ERA5) dengan label `DATA REPLAY HISTORIS`, beserta render relief 3D (forge3D, DEM Google GEM-15 15 m dan Terrain Tiles).
 5. **AI-Driven & Ramah Agen Eksternal**
    * Kolom **AI Tanya Data** di aplikasi (`GET /api/ai/query?q=...`) mengarahkan kamera peta & filter secara otomatis.
-   * Mendukung discovery agen eksternal lewat **`/llms.txt`**, **`/api/openapi.json`**, dan **`/api/ai/briefing`**.
+   * Mendukung discovery agen eksternal lewat **`/llms.txt`**, **`/api/openapi.json`**, dan **`/api/ai/briefing`**; lensa Riset menyediakan unduhan GeoJSON, tautan **GeoLibre**, dan DTM **GEM-15** per stasiun.
 
 ---
 
@@ -77,6 +80,7 @@ flowchart LR
 | `GET /llms.txt` | Concise LLM discovery manifest with hydrological caveats |
 | `GET /api/openapi.json` | OpenAPI 3.1 schema for AI agents & tool integrations |
 | `GET /api/flood` | Full snapshot: 50 river stations, 12 coastal Rob corridors, PetaBencana reports, BMKG nowcasts, news |
+| `GET /api/stations.geojson` | Stations with current indication levels as GeoJSON |
 | `GET /api/station/{id}` | 21-day observed + 7-day forecast GloFAS hydrograph & soil telemetry |
 | `GET /api/ai/briefing?region=&audience=public\|gov\|academia\|ai_agent&format=json\|md` | Deterministic multi-audience SitRep briefing |
 | `GET /api/ai/query?q=...` | Natural-language Indonesian/English river & alert search with map `fly_to` coordinates |

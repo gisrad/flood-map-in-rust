@@ -1,92 +1,80 @@
-use flood_shared::replay::list_replay_scenarios;
+use flood_shared::model::{FloodSnapshot, ReplayScenarioMeta};
 use leptos::prelude::*;
 
 #[component]
 pub fn ReplayBar(
+    scenarios: StoredValue<Vec<ReplayScenarioMeta>>,
+    snapshot: Signal<Option<FloodSnapshot>>,
     replay_active: RwSignal<bool>,
     scenario_id: RwSignal<String>,
     frame_idx: RwSignal<usize>,
     playing: RwSignal<bool>,
-    on_exit_replay: Callback<()>,
+    on_pick: Callback<String>,
+    on_exit: Callback<()>,
 ) -> impl IntoView {
-    let scenarios = list_replay_scenarios();
-
-    let current_meta = Signal::derive(move || {
+    let current = Signal::derive(move || {
         let id = scenario_id.get();
-        list_replay_scenarios()
-            .into_iter()
-            .find(|s| s.id == id)
-            .unwrap_or_else(|| list_replay_scenarios().remove(0))
+        scenarios.with_value(|all| {
+            all.iter()
+                .find(|s| s.id == id)
+                .cloned()
+                .or_else(|| all.first().cloned())
+        })
     });
 
     view! {
         <Show when=move || replay_active.get()>
-            <section class="replay-dock" aria-label="Kontrol Mode Replay Historis">
-                <div class="replay-banner">
-                    <span class="replay-badge">"DATA REPLAY HISTORIS"</span>
-                    <span class="replay-period">{move || current_meta.get().period}</span>
-                    <button type="button" class="replay-close" on:click=move |_| on_exit_replay.run(())>
-                        "Kembali Live"
-                    </button>
-                </div>
+            <section class="replay" aria-label="Replay kejadian historis">
+                <header class="replay-head">
+                    <span class="replay-tag">"Replay historis"</span>
+                    <span class="replay-period">{move || current.get().map(|s| s.period).unwrap_or_default()}</span>
+                    <button type="button" class="btn btn-sm" on:click=move |_| on_exit.run(())>"Kembali ke data terkini"</button>
+                </header>
 
-                <div class="replay-scenarios">
-                    {scenarios.iter().map(|sc| {
-                        let id = sc.id;
-                        let title = sc.title;
+                <div class="replay-cards" role="group" aria-label="Pilih kejadian">
+                    {scenarios.get_value().into_iter().map(|sc| {
+                        let id = sc.id.clone();
+                        let id_p = sc.id.clone();
+                        let src = format!("/art/replay-{}.webp", sc.id);
+                        let img_hidden = RwSignal::new(false);
                         view! {
-                            <button
-                                type="button"
-                                class="sc-btn"
-                                aria-pressed=move || (scenario_id.get() == id).to_string()
-                                on:click=move |_| {
-                                    playing.set(false);
-                                    scenario_id.set(id.to_string());
-                                    frame_idx.set(0);
-                                }
-                            >{title}</button>
+                            <button type="button" class="replay-card"
+                                aria-pressed=move || (scenario_id.get() == id_p).to_string()
+                                on:click=move |_| on_pick.run(id.clone())>
+                                <Show when=move || !img_hidden.get()>
+                                    <img src=src.clone() alt="" loading="lazy" width="120" height="68"
+                                        on:error=move |_| img_hidden.set(true)/>
+                                </Show>
+                                <span class="rc-title">{sc.title.clone()}</span>
+                            </button>
                         }
                     }).collect_view()}
                 </div>
 
-                <div class="replay-controls">
-                    <button
-                        type="button"
-                        class="play-btn"
-                        on:click=move |_| playing.update(|p| *p = !*p)
-                    >
+                <div class="replay-steps">
+                    <button type="button" class="btn btn-solid btn-sm play" on:click=move |_| playing.update(|p| *p = !*p)
+                        aria-label=move || if playing.get() { "Jeda" } else { "Putar" }>
                         {move || if playing.get() { "Jeda" } else { "Putar" }}
                     </button>
-
-                    <div class="frame-steps">
-                        {move || {
-                            let sc = current_meta.get();
-                            sc.frames.into_iter().enumerate().map(|(i, fr)| {
-                                let lbl = fr.step_label.clone();
-                                view! {
-                                    <button
-                                        type="button"
-                                        class="step-btn"
-                                        aria-pressed=move || (frame_idx.get() == i).to_string()
-                                        on:click=move |_| {
-                                            playing.set(false);
-                                            frame_idx.set(i);
-                                        }
-                                    >{lbl}</button>
-                                }
-                            }).collect_view()
-                        }}
+                    <div class="steps" role="group" aria-label="Hari">
+                        {move || current.get().map(|sc| sc.frames.into_iter().enumerate().map(|(i, fr)| view! {
+                            <button type="button" class="step" aria-pressed=move || (frame_idx.get() == i).to_string()
+                                on:click=move |_| { playing.set(false); frame_idx.set(i); }>{fr.step_label}</button>
+                        }).collect_view())}
                     </div>
                 </div>
 
-                <p class="replay-narrative">
-                    {move || {
-                        let sc = current_meta.get();
+                <p class="replay-narr">
+                    {move || current.get().map(|sc| {
                         let idx = frame_idx.get().min(sc.frames.len().saturating_sub(1));
-                        let fr = &sc.frames[idx];
-                        format!("{} — {} ({})", fr.timestamp_wib, fr.narrative, sc.citation)
-                    }}
+                        sc.frames.get(idx).map(|fr| format!("{} — {}", fr.timestamp_wib, fr.narrative)).unwrap_or_default()
+                    })}
                 </p>
+                <p class="replay-prov">
+                    {move || current.get().map(|sc| sc.provenance)}
+                    {move || snapshot.get().and_then(|s| s.replay_note).map(|n| format!(" {n}"))}
+                </p>
+                <p class="replay-cite">{move || current.get().map(|sc| format!("Rujukan kejadian: {}", sc.citation))}</p>
             </section>
         </Show>
     }

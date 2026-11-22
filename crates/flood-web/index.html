@@ -3,36 +3,49 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Hidrosentinel Nusantara · Peta Banjir, Debit Sungai &amp; Rob Indonesia 3D (Rust + WASM)</title>
-    <meta name="description" content="Observatorium hidrometeorologi dan banjir real-time seluruh Indonesia berbasis Rust WebAssembly dan Cloudflare Durable Objects. Memisahkan banjir kiriman hulu DAS (Copernicus GloFAS v4), genangan drainase kota (PetaBencana), dan banjir rob pesisir." />
-    <meta name="keywords" content="peta banjir indonesia, debit sungai glofas, banjir rob pantura, petabencana, pemantau banjir real time, rust webassembly maplibre, cloudflare durable objects" />
+    <title>Hidrosentinel Nusantara — Peta Indikasi Banjir Sungai, Hujan &amp; Rob Indonesia</title>
+    <meta name="description" content="Peta indikasi banjir Indonesia: debit sungai dari prakiraan GloFAS dibandingkan ambang periode ulang 2, 5, dan 20 tahun, hujan lebat menurut kategori BMKG, muka laut pesisir, dan laporan warga. Indikasi model, bukan peringatan resmi; ikuti BPBD, BMKG, dan BBWS setempat." />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
     <link rel="canonical" href="https://flood.transbulent.id/" />
-    <meta name="theme-color" content="#0e7490" />
+    <meta name="theme-color" content="#F5F3EE" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B1820" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
 
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="id_ID" />
-    <meta property="og:site_name" content="Hidrosentinel Nusantara · Transbulent" />
+    <meta property="og:site_name" content="Hidrosentinel Nusantara" />
     <meta property="og:url" content="https://flood.transbulent.id/" />
-    <meta property="og:title" content="Hidrosentinel Nusantara · Peta Banjir, Debit Sungai &amp; Rob Indonesia 3D" />
-    <meta property="og:description" content="Pemisahan banjir kiriman hulu DAS, drainase kota, dan rob pesisir seluruh Indonesia dengan hidrograf 21 hari &amp; AI SitRep — 100% Rust." />
-    <meta property="og:image" content="https://flood.transbulent.id/og-flood.png" />
+    <meta property="og:title" content="Hidrosentinel Nusantara — Peta Indikasi Banjir Indonesia" />
+    <meta property="og:description" content="Debit sungai terhadap ambang periode ulang, hujan lebat, rob pesisir, dan laporan warga dalam satu peta. Indikasi model, bukan peringatan resmi." />
+    <meta property="og:image" content="https://flood.transbulent.id/art/og-flood.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Peta banjir dan debit sungai 3D Indonesia Hidrosentinel Nusantara" />
+    <meta property="og:image:alt" content="Relief Indonesia dengan sungai utama berwarna menurut level indikasi banjir" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Hidrosentinel Nusantara · Peta Banjir &amp; Debit Sungai 3D" />
-    <meta name="twitter:description" content="Observatorium banjir Indonesia: GloFAS v4 + Open-Meteo + Marine Rob + PetaBencana dalam Rust &amp; Durable Objects." />
-    <meta name="twitter:image" content="https://flood.transbulent.id/og-flood.png" />
+    <meta name="twitter:title" content="Hidrosentinel Nusantara — Peta Indikasi Banjir Indonesia" />
+    <meta name="twitter:description" content="Debit sungai, hujan lebat, rob, dan laporan warga. Indikasi model, bukan peringatan resmi." />
+    <meta name="twitter:image" content="https://flood.transbulent.id/art/og-flood.jpg" />
+    <meta name="twitter:image:alt" content="Relief Indonesia dengan sungai utama berwarna menurut level indikasi banjir" />
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/assets/fonts/SchibstedGrotesk-wght.woff2" as="font" type="font/woff2" crossorigin />
     <link data-trunk rel="copy-dir" href="public" data-target-path="." />
     <link data-trunk rel="copy-dir" href="vendor" />
     <link data-trunk rel="copy-dir" href="assets" />
     <link rel="stylesheet" href="/vendor/maplibre-gl.css" />
     <link data-trunk rel="css" href="styles/main.css" />
     <link data-trunk rel="rust" data-wasm-opt="z" data-bindgen-target="web" />
+
+    <script>
+      (function () {
+        var p = new URLSearchParams(location.search).get('theme');
+        var dark = p ? p === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      })();
+    </script>
+    <noscript><style>.splash { display: none; }</style></noscript>
 
     <script type="application/ld+json">
     {
@@ -41,30 +54,33 @@
         {
           "@type": "WebApplication",
           "name": "Hidrosentinel Nusantara",
-          "alternateName": "Indonesia Flood Map in Rust",
           "url": "https://flood.transbulent.id/",
           "applicationCategory": "UtilitiesApplication",
           "operatingSystem": "Web",
-          "inLanguage": ["id", "en"],
+          "inLanguage": "id",
           "isAccessibleForFree": true,
-          "screenshot": "https://flood.transbulent.id/og-flood.png",
+          "description": "Peta indikasi banjir sungai, hujan lebat, dan rob untuk Indonesia. Indikasi model, bukan peringatan resmi.",
+          "screenshot": "https://flood.transbulent.id/art/og-flood.jpg",
           "spatialCoverage": {
             "@type": "Place",
             "name": "Indonesia",
-            "geo": { "@type": "GeoShape", "box": "-11.5 94.5 6.5 141.5" }
+            "geo": { "@type": "GeoShape", "box": "-11.5 94.0 6.5 141.5" }
           }
         },
         {
           "@type": "Dataset",
-          "name": "Indonesia 50-Basin GloFAS v4 River Discharge, Soil Moisture & 12-Corridor Coastal Rob Telemetry",
-          "description": "Near-real-time hydrological classification separating upstream fluvial basin surges, urban pluvial drainage inundation, and coastal tidal rob across Indonesia.",
+          "name": "Indikasi banjir sungai, hujan, dan rob Indonesia (Hidrosentinel Nusantara)",
+          "description": "Debit sungai prakiraan GloFAS v4 (via Open-Meteo) dibandingkan ambang periode ulang dari reanalisis 1997–2024, hujan 24 jam terhadap kategori BMKG, muka laut model pesisir, dan laporan banjir warga PetaBencana.",
           "url": "https://flood.transbulent.id/",
           "isAccessibleForFree": true,
-          "keywords": ["flood indonesia", "glofas", "river discharge", "coastal rob", "petabencana", "rust wasm"],
+          "distribution": [
+            { "@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://flood.transbulent.id/api/flood" },
+            { "@type": "DataDownload", "encodingFormat": "application/geo+json", "contentUrl": "https://flood.transbulent.id/api/stations.geojson" }
+          ],
           "spatialCoverage": {
             "@type": "Place",
             "name": "Indonesia",
-            "geo": { "@type": "GeoShape", "box": "-11.5 94.5 6.5 141.5" }
+            "geo": { "@type": "GeoShape", "box": "-11.5 94.0 6.5 141.5" }
           }
         }
       ]
@@ -72,12 +88,19 @@
     </script>
   </head>
   <body>
+    <div id="splash" class="splash" aria-hidden="true">
+      <div class="splash-inner">
+        <span class="splash-mark"></span>
+        <span class="splash-word">Hidrosentinel <em>Nusantara</em></span>
+        <span class="splash-note">Memuat peta indikasi banjir…</span>
+      </div>
+    </div>
     <script src="/vendor/maplibre-gl.js"></script>
     <noscript>
       <main style="padding:32px;font-family:system-ui,sans-serif;max-width:720px;margin:auto">
-        <h1>Hidrosentinel Nusantara · Peta Banjir Indonesia 3D</h1>
-        <p>Observatorium hidrometeorologi berbasis Rust WebAssembly dan Cloudflare Durable Objects yang memantau 50 DAS sungai utama dan 12 koridor rob pesisir Indonesia.</p>
-        <p>Aktifkan JavaScript/WebAssembly untuk memuat peta interaktif 3D MapLibre GL dan hidrograf 21 hari.</p>
+        <h1>Hidrosentinel Nusantara</h1>
+        <p>Peta indikasi banjir sungai, hujan lebat, dan rob untuk Indonesia. Indikasi model, bukan peringatan resmi.</p>
+        <p>Aktifkan JavaScript untuk memuat peta. Data mentah tersedia di <a href="/api/flood">/api/flood</a> dan <a href="/api/stations.geojson">/api/stations.geojson</a>.</p>
       </main>
     </noscript>
   </body>

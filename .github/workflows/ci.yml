@@ -14,12 +14,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
       - name: Security check (no exposed secrets/IDs/paths)
         shell: pwsh
         run: ./scripts/security-check.ps1
-      - name: Test flood-shared
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Test flood-shared (ambang, kategori hujan, filter, replay, data kalibrasi)
         run: cargo test -p flood-shared --locked
-      - name: Check flood-worker wasm32
-        run: cargo check -p flood-worker --target wasm32-unknown-unknown
+      - name: Clippy flood-shared + flood-worker (wasm32)
+        run: cargo clippy -p flood-shared -p flood-worker --target wasm32-unknown-unknown --locked -- -D warnings
       - name: Check flood-web wasm32
-        run: cargo check -p flood-web --target wasm32-unknown-unknown
+        run: cargo check -p flood-web --target wasm32-unknown-unknown --locked

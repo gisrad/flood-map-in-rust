@@ -1,0 +1,49 @@
+{
+  "version": 8,
+  "name": "Hidrosentinel Nusantara: indikasi level model",
+  "sources": {},
+  "layers": [
+    {
+      "id": "stasiun-level",
+      "type": "circle",
+      "paint": {
+        "circle-color": [
+          "match",
+          ["get", "level"],
+          "normal", "#7C8F99",
+          "high", "#E0A100",
+          "very_high", "#D4471F",
+          "extreme", "#7B2A8C",
+          "#B8C0C4"
+        ],
+        "circle-radius": [
+          "match",
+          ["get", "kind"],
+          "river", 8,
+          "rob", 7,
+          "report", 5,
+          6
+        ],
+        "circle-opacity": 0.95,
+        "circle-stroke-color": "#F5F3EE",
+        "circle-stroke-width": 1.5
+      }
+    },
+    {
+      "id": "stasiun-nama",
+      "type": "symbol",
+      "layout": {
+        "text-field": ["to-string", ["get", "name"]],
+        "text-size": 11,
+        "text-offset": [0, 1.3],
+        "text-anchor": "top",
+        "text-optional": true
+      },
+      "paint": {
+        "text-color": "#0E1C24",
+        "text-halo-color": "#F5F3EE",
+        "text-halo-width": 1.6
+      }
+    }
+  ]
+}

@@ -1,0 +1,602 @@
+{
+ "ciliwung-katulampa": {
+  "cell_id": "gem-15_w106sm7",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w106sm7/w106sm7.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w106sm7/dtm/zall/mosaic.tif",
+  "bbox": [
+   106.0,
+   -7.0,
+   107.0,
+   -6.0
+  ],
+  "epsg": 32748
+ },
+ "ciliwung-manggarai": {
+  "cell_id": "gem-15_w106sm7",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w106sm7/w106sm7.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w106sm7/dtm/zall/mosaic.tif",
+  "bbox": [
+   106.0,
+   -7.0,
+   107.0,
+   -6.0
+  ],
+  "epsg": 32748
+ },
+ "cisadane-tangerang": {
+  "cell_id": "gem-15_w106sm7",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w106sm7/w106sm7.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w106sm7/dtm/zall/mosaic.tif",
+  "bbox": [
+   106.0,
+   -7.0,
+   107.0,
+   -6.0
+  ],
+  "epsg": 32748
+ },
+ "bekasi-pondokgede": {
+  "cell_id": "gem-15_w106sm7",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w106sm7/w106sm7.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w106sm7/dtm/zall/mosaic.tif",
+  "bbox": [
+   106.0,
+   -7.0,
+   107.0,
+   -6.0
+  ],
+  "epsg": 32748
+ },
+ "citarum-nanjung": {
+  "cell_id": "gem-15_w107sm7",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w107sm7/w107sm7.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w107sm7/dtm/zall/mosaic.tif",
+  "bbox": [
+   107.0,
+   -7.0,
+   108.0,
+   -6.0
+  ],
+  "epsg": 32748
+ },
+ "citarum-karawang": {
+  "cell_id": "gem-15_w107sm7",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w107sm7/w107sm7.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w107sm7/dtm/zall/mosaic.tif",
+  "bbox": [
+   107.0,
+   -7.0,
+   108.0,
+   -6.0
+  ],
+  "epsg": 32748
+ },
+ "cimanuk-jatigede": {
+  "cell_id": "gem-15_w108sm7",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w108sm7/w108sm7.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w108sm7/dtm/zall/mosaic.tif",
+  "bbox": [
+   108.0,
+   -7.0,
+   109.0,
+   -6.0
+  ],
+  "epsg": 32749
+ },
+ "citanduy-banjar": {
+  "cell_id": "gem-15_w108sm8",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w108sm8/w108sm8.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w108sm8/dtm/zall/mosaic.tif",
+  "bbox": [
+   108.0,
+   -8.0,
+   109.0,
+   -7.0
+  ],
+  "epsg": 32749
+ },
+ "serayu-banyumas": {
+  "cell_id": "gem-15_w109sm8",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w109sm8/w109sm8.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w109sm8/dtm/zall/mosaic.tif",
+  "bbox": [
+   109.0,
+   -8.0,
+   110.0,
+   -7.0
+  ],
+  "epsg": 32749
+ },
+ "progo-bantul": {
+  "cell_id": "gem-15_w110sm8",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w110sm8/w110sm8.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w110sm8/dtm/zall/mosaic.tif",
+  "bbox": [
+   110.0,
+   -8.0,
+   111.0,
+   -7.0
+  ],
+  "epsg": 32749
+ },
+ "wulan-demak": {
+  "cell_id": "gem-15_w110sm7",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w110sm7/w110sm7.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w110sm7/dtm/zall/mosaic.tif",
+  "bbox": [
+   110.0,
+   -7.0,
+   111.0,
+   -6.0
+  ],
+  "epsg": 32749
+ },
+ "solo-sragen": {
+  "cell_id": "gem-15_w111sm8",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w111sm8/w111sm8.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w111sm8/dtm/zall/mosaic.tif",
+  "bbox": [
+   111.0,
+   -8.0,
+   112.0,
+   -7.0
+  ],
+  "epsg": 32749
+ },
+ "solo-bojonegoro": {
+  "cell_id": "gem-15_w111sm8",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w111sm8/w111sm8.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w111sm8/dtm/zall/mosaic.tif",
+  "bbox": [
+   111.0,
+   -8.0,
+   112.0,
+   -7.0
+  ],
+  "epsg": 32749
+ },
+ "brantas-mojokerto": {
+  "cell_id": "gem-15_w112sm8",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w112sm8/w112sm8.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w112sm8/dtm/zall/mosaic.tif",
+  "bbox": [
+   112.0,
+   -8.0,
+   113.0,
+   -7.0
+  ],
+  "epsg": 32749
+ },
+ "sampean-situbondo": {
+  "cell_id": "gem-15_w114sm8",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w114sm8/w114sm8.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w114sm8/dtm/zall/mosaic.tif",
+  "bbox": [
+   114.0,
+   -8.0,
+   115.0,
+   -7.0
+  ],
+  "epsg": 32750
+ },
+ "krueng-aceh": {
+  "cell_id": "gem-15_w95s5",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p90/w95s5/w95s5.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p90/w95s5/dtm/zall/mosaic.tif",
+  "bbox": [
+   95.0,
+   5.0,
+   96.0,
+   6.0
+  ],
+  "epsg": 32646
+ },
+ "deli-medan": {
+  "cell_id": "gem-15_w98s3",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p90/w98s3/w98s3.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p90/w98s3/dtm/zall/mosaic.tif",
+  "bbox": [
+   98.0,
+   3.0,
+   99.0,
+   4.0
+  ],
+  "epsg": 32647
+ },
+ "asahan-tanjungbalai": {
+  "cell_id": "gem-15_w99s2",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p90/w99s2/w99s2.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p90/w99s2/dtm/zall/mosaic.tif",
+  "bbox": [
+   99.0,
+   2.0,
+   100.0,
+   3.0
+  ],
+  "epsg": 32647
+ },
+ "rokan-bagansiapiapi": {
+  "cell_id": "gem-15_w100s1",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p100/w100s1/w100s1.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p100/w100s1/dtm/zall/mosaic.tif",
+  "bbox": [
+   100.0,
+   1.0,
+   101.0,
+   2.0
+  ],
+  "epsg": 32647
+ },
+ "siak-pekanbaru": {
+  "cell_id": "gem-15_w101s0",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p100/w101s0/w101s0.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p100/w101s0/dtm/zall/mosaic.tif",
+  "bbox": [
+   101.0,
+   0.0,
+   102.0,
+   1.0
+  ],
+  "epsg": 32647
+ },
+ "kampar-pelalawan": {
+  "cell_id": "gem-15_w101s0",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p100/w101s0/w101s0.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p100/w101s0/dtm/zall/mosaic.tif",
+  "bbox": [
+   101.0,
+   0.0,
+   102.0,
+   1.0
+  ],
+  "epsg": 32647
+ },
+ "indragiri-rengat": {
+  "cell_id": "gem-15_w102sm1",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w102sm1/w102sm1.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w102sm1/dtm/zall/mosaic.tif",
+  "bbox": [
+   102.0,
+   -1.0,
+   103.0,
+   0.0
+  ],
+  "epsg": 32748
+ },
+ "batanghari-jambi": {
+  "cell_id": "gem-15_w103sm2",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w103sm2/w103sm2.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w103sm2/dtm/zall/mosaic.tif",
+  "bbox": [
+   103.0,
+   -2.0,
+   104.0,
+   -1.0
+  ],
+  "epsg": 32748
+ },
+ "musi-palembang": {
+  "cell_id": "gem-15_w104sm3",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w104sm3/w104sm3.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w104sm3/dtm/zall/mosaic.tif",
+  "bbox": [
+   104.0,
+   -3.0,
+   105.0,
+   -2.0
+  ],
+  "epsg": 32748
+ },
+ "ogan-baturaja": {
+  "cell_id": "gem-15_w104sm4",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w104sm4/w104sm4.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w104sm4/dtm/zall/mosaic.tif",
+  "bbox": [
+   104.0,
+   -4.0,
+   105.0,
+   -3.0
+  ],
+  "epsg": 32748
+ },
+ "batang-anai-padang": {
+  "cell_id": "gem-15_w100sm1",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w100sm1/w100sm1.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w100sm1/dtm/zall/mosaic.tif",
+  "bbox": [
+   100.0,
+   -1.0,
+   101.0,
+   0.0
+  ],
+  "epsg": 32747
+ },
+ "air-bengkulu": {
+  "cell_id": "gem-15_w102sm4",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w102sm4/w102sm4.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w102sm4/dtm/zall/mosaic.tif",
+  "bbox": [
+   102.0,
+   -4.0,
+   103.0,
+   -3.0
+  ],
+  "epsg": 32748
+ },
+ "way-sekampung": {
+  "cell_id": "gem-15_w105sm6",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w105sm6/w105sm6.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w105sm6/dtm/zall/mosaic.tif",
+  "bbox": [
+   105.0,
+   -6.0,
+   106.0,
+   -5.0
+  ],
+  "epsg": 32748
+ },
+ "sambas-kalbar": {
+  "cell_id": "gem-15_w109s1",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p100/w109s1/w109s1.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p100/w109s1/dtm/zall/mosaic.tif",
+  "bbox": [
+   109.0,
+   1.0,
+   110.0,
+   2.0
+  ],
+  "epsg": 32649
+ },
+ "kapuas-sintang": {
+  "cell_id": "gem-15_w111s0",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p110/w111s0/w111s0.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p110/w111s0/dtm/zall/mosaic.tif",
+  "bbox": [
+   111.0,
+   0.0,
+   112.0,
+   1.0
+  ],
+  "epsg": 32649
+ },
+ "kapuas-pontianak": {
+  "cell_id": "gem-15_w109sm1",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p100/w109sm1/w109sm1.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p100/w109sm1/dtm/zall/mosaic.tif",
+  "bbox": [
+   109.0,
+   -1.0,
+   110.0,
+   0.0
+  ],
+  "epsg": 32749
+ },
+ "sampit-mentaya": {
+  "cell_id": "gem-15_w112sm3",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w112sm3/w112sm3.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w112sm3/dtm/zall/mosaic.tif",
+  "bbox": [
+   112.0,
+   -3.0,
+   113.0,
+   -2.0
+  ],
+  "epsg": 32749
+ },
+ "kahayan-palangkaraya": {
+  "cell_id": "gem-15_w113sm3",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w113sm3/w113sm3.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w113sm3/dtm/zall/mosaic.tif",
+  "bbox": [
+   113.0,
+   -3.0,
+   114.0,
+   -2.0
+  ],
+  "epsg": 32749
+ },
+ "barito-buntok": {
+  "cell_id": "gem-15_w114sm2",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w114sm2/w114sm2.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w114sm2/dtm/zall/mosaic.tif",
+  "bbox": [
+   114.0,
+   -2.0,
+   115.0,
+   -1.0
+  ],
+  "epsg": 32750
+ },
+ "barito-banjarmasin": {
+  "cell_id": "gem-15_w114sm4",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w114sm4/w114sm4.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w114sm4/dtm/zall/mosaic.tif",
+  "bbox": [
+   114.0,
+   -4.0,
+   115.0,
+   -3.0
+  ],
+  "epsg": 32750
+ },
+ "mahakam-samarinda": {
+  "cell_id": "gem-15_w117sm1",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w117sm1/w117sm1.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w117sm1/dtm/zall/mosaic.tif",
+  "bbox": [
+   117.0,
+   -1.0,
+   118.0,
+   0.0
+  ],
+  "epsg": 32750
+ },
+ "kayan-tanjungselor": {
+  "cell_id": "gem-15_w117s2",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p110/w117s2/w117s2.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p110/w117s2/dtm/zall/mosaic.tif",
+  "bbox": [
+   117.0,
+   2.0,
+   118.0,
+   3.0
+  ],
+  "epsg": 32650
+ },
+ "tukad-unda": {
+  "cell_id": "gem-15_w115sm9",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w115sm9/w115sm9.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w115sm9/dtm/zall/mosaic.tif",
+  "bbox": [
+   115.0,
+   -9.0,
+   116.0,
+   -8.0
+  ],
+  "epsg": 32750
+ },
+ "dodokan-lombok": {
+  "cell_id": "gem-15_w116sm9",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w116sm9/w116sm9.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w116sm9/dtm/zall/mosaic.tif",
+  "bbox": [
+   116.0,
+   -9.0,
+   117.0,
+   -8.0
+  ],
+  "epsg": 32750
+ },
+ "benanain-malaka": {
+  "cell_id": "gem-15_w124sm10",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p120/w124sm10/w124sm10.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p120/w124sm10/dtm/zall/mosaic.tif",
+  "bbox": [
+   124.0,
+   -10.0,
+   125.0,
+   -9.0
+  ],
+  "epsg": 32751
+ },
+ "saddang-pinrang": {
+  "cell_id": "gem-15_w119sm4",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w119sm4/w119sm4.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w119sm4/dtm/zall/mosaic.tif",
+  "bbox": [
+   119.0,
+   -4.0,
+   120.0,
+   -3.0
+  ],
+  "epsg": 32750
+ },
+ "jeneberang-bili": {
+  "cell_id": "gem-15_w119sm6",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w119sm6/w119sm6.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w119sm6/dtm/zall/mosaic.tif",
+  "bbox": [
+   119.0,
+   -6.0,
+   120.0,
+   -5.0
+  ],
+  "epsg": 32750
+ },
+ "walanae-wajo": {
+  "cell_id": "gem-15_w120sm5",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p120/w120sm5/w120sm5.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p120/w120sm5/dtm/zall/mosaic.tif",
+  "bbox": [
+   120.0,
+   -5.0,
+   121.0,
+   -4.0
+  ],
+  "epsg": 32751
+ },
+ "konaweha-kendari": {
+  "cell_id": "gem-15_w122sm4",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p120/w122sm4/w122sm4.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p120/w122sm4/dtm/zall/mosaic.tif",
+  "bbox": [
+   122.0,
+   -4.0,
+   123.0,
+   -3.0
+  ],
+  "epsg": 32751
+ },
+ "palu-sigi": {
+  "cell_id": "gem-15_w119sm1",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p110/w119sm1/w119sm1.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p110/w119sm1/dtm/zall/mosaic.tif",
+  "bbox": [
+   119.0,
+   -1.0,
+   120.0,
+   0.0
+  ],
+  "epsg": 32750
+ },
+ "limboto-gorontalo": {
+  "cell_id": "gem-15_w123s0",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p120/w123s0/w123s0.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p120/w123s0/dtm/zall/mosaic.tif",
+  "bbox": [
+   123.0,
+   0.0,
+   124.0,
+   1.0
+  ],
+  "epsg": 32651
+ },
+ "tondano-manado": {
+  "cell_id": "gem-15_w124s1",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/p0_p120/w124s1/w124s1.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/p0_p120/w124s1/dtm/zall/mosaic.tif",
+  "bbox": [
+   124.0,
+   1.0,
+   125.0,
+   2.0
+  ],
+  "epsg": 32651
+ },
+ "batumerah-ambon": {
+  "cell_id": "gem-15_w128sm4",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p120/w128sm4/w128sm4.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p120/w128sm4/dtm/zall/mosaic.tif",
+  "bbox": [
+   128.0,
+   -4.0,
+   129.0,
+   -3.0
+  ],
+  "epsg": 32752
+ },
+ "mamberamo-papua": {
+  "cell_id": "gem-15_w138sm3",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p130/w138sm3/w138sm3.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p130/w138sm3/dtm/zall/mosaic.tif",
+  "bbox": [
+   138.0,
+   -3.0,
+   139.0,
+   -2.0
+  ],
+  "epsg": 32754
+ },
+ "digul-tanahmerah": {
+  "cell_id": "gem-15_w140sm7",
+  "item_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/stac/gem-15/m10_p140/w140sm7/w140sm7.json",
+  "dtm_url": "https://storage.googleapis.com/climate-and-sustainability/gem-15/m10_p140/w140sm7/dtm/zall/mosaic.tif",
+  "bbox": [
+   140.0,
+   -7.0,
+   141.0,
+   -6.0
+  ],
+  "epsg": 32754
+ }
+}

@@ -1,11 +1,16 @@
-use crate::bridge::{
-    copy_text, download_text_file, js_fly_to_point, open_whatsapp_text,
+use crate::bridge::{copy_text, download_text_file, js_fly_to_point, open_whatsapp_text};
+use crate::components::about::AboutPane;
+use crate::components::station_detail::{
+    geolibre_url, lead_days, lead_label, RobDetail, StationDetail,
 };
-use crate::components::hydrograph::HydrographChart;
+use crate::components::ui::{use_toast, Disclaimer, LevelBadge, OfficialRefs, Shape, ShapeGlyph};
+use crate::format::{
+    fmt_datetime_short, fmt_day, fmt_num, fmt_pct, fmt_q, fmt_ratio, fmt_relative, parse_utc_ms,
+};
+use crate::status::{status_body, status_stamp};
 use flood_shared::ai::generate_briefing;
 use flood_shared::model::{
-    AiQueryResponse, AlertLevel, AlertSubscriptionReq, Audience, CoastalRobTelemetry,
-    FloodMechanism, FloodSnapshot, StationTelemetry,
+    AiQueryResponse, AlertSubscriptionReq, Audience, FloodMechanism, FloodSnapshot, IndicatorLevel,
 };
 use gloo_net::http::Request;
 use leptos::prelude::*;
@@ -15,8 +20,8 @@ use wasm_bindgen_futures::spawn_local;
 pub enum InspectorTab {
     Summary,
     News,
-    Alerts,
-    AiData,
+    Notify,
+    About,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,6 +49,200 @@ impl SheetSnap {
     }
 }
 
+pub fn lens_slug(a: Audience) -> &'static str {
+    match a {
+        Audience::Public => "publik",
+        Audience::Gov => "bpbd",
+        Audience::Academia => "riset",
+        Audience::AiAgent => "ai",
+    }
+}
+
+fn lens_label(a: Audience) -> &'static str {
+    match a {
+        Audience::Public => "Publik",
+        Audience::Gov => "BPBD/Pemda",
+        Audience::Academia => "Riset",
+        Audience::AiAgent => "AI",
+    }
+}
+
+/// Satu baris titik pantau (sungai atau rob) untuk daftar dan tabel.
+#[derive(Clone)]
+struct PointRow {
+    id: String,
+    name: String,
+    sub: String,
+    level: IndicatorLevel,
+    shape: Shape,
+    lon: f64,
+    lat: f64,
+    sort: f64,
+}
+
+fn point_rows(snap: &FloodSnapshot, filter: Option<FloodMechanism>) -> Vec<PointRow> {
+    let mut rows = Vec::new();
+    if filter != Some(FloodMechanism::CoastalRob) {
+        for s in &snap.stations {
+            let (level, shape) = match filter {
+                Some(FloodMechanism::FluvialBasin) => (s.fluvial_level, Shape::Circle),
+                Some(FloodMechanism::UrbanPluvial) => (s.pluvial_level, Shape::Square),
+                _ => (
+                    s.level,
+                    if s.mechanism == FloodMechanism::UrbanPluvial {
+                        Shape::Square
+                    } else {
+                        Shape::Circle
+                    },
+                ),
+            };
+            rows.push(PointRow {
+                id: s.id.clone(),
+                name: s.name.clone(),
+                sub: format!("{} · {}", s.province, s.mechanism.label_id()),
+                level,
+                shape,
+                lon: s.lon,
+                lat: s.lat,
+                sort: s.ratio_q2.unwrap_or(0.0),
+            });
+        }
+    }
+    if matches!(filter, None | Some(FloodMechanism::CoastalRob)) {
+        for r in &snap.coastal_rob {
+            rows.push(PointRow {
+                id: r.id.clone(),
+                name: r.name.clone(),
+                sub: format!("{} · Rob pesisir", r.province),
+                level: r.level,
+                shape: Shape::Diamond,
+                lon: r.lon,
+                lat: r.lat,
+                sort: 0.0,
+            });
+        }
+    }
+    rows.sort_by(|a, b| {
+        b.level
+            .rank()
+            .cmp(&a.level.rank())
+            .then(
+                b.sort
+                    .partial_cmp(&a.sort)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
+            .then(a.name.cmp(&b.name))
+    });
+    rows
+}
+
+#[component]
+fn PointList(rows: Vec<PointRow>, on_select: Callback<(String, f64, f64)>) -> impl IntoView {
+    view! {
+        <ul class="point-list">
+            {rows.into_iter().map(|r| {
+                let PointRow { id, name, sub, level, shape, lon, lat, .. } = r;
+                view! {
+                    <li>
+                        <button type="button" class="point-row" on:click=move |_| on_select.run((id.clone(), lon, lat))>
+                            <ShapeGlyph shape=shape level=level/>
+                            <span class="pr-main">
+                                <b>{name}</b>
+                                <small>{sub}</small>
+                            </span>
+                            <LevelBadge level=level/>
+                        </button>
+                    </li>
+                }
+            }).collect_view()}
+        </ul>
+    }
+}
+
+fn kpi_strip(snap: &FloodSnapshot) -> impl IntoView {
+    let k = &snap.kpis;
+    view! {
+        <dl class="kpi-strip">
+            <div><dt>"Sungai ≥ Tinggi"</dt><dd class="num">{k.river.elevated()}</dd></div>
+            <div><dt>"Hujan lokal ≥ Tinggi"</dt><dd class="num">{k.pluvial.elevated()}</dd></div>
+            <div><dt>"Rob ≥ Tinggi"</dt><dd class="num">{k.rob.elevated()}</dd></div>
+            <div><dt>"Laporan warga 24 jam"</dt><dd class="num">{k.citizen_flood_reports_24h}</dd></div>
+        </dl>
+    }
+}
+
+fn csv_escape(s: &str) -> String {
+    format!("\"{}\"", s.replace('"', "\"\""))
+}
+
+fn national_csv(snap: &FloodSnapshot) -> String {
+    let o = |v: Option<f64>| v.map(|x| format!("{x:.3}")).unwrap_or_default();
+    let mut csv = String::from(
+        "kind,id,name,province,lat,lon,level,fluvial_level,pluvial_level,discharge_m3s,q2_m3s,q5_m3s,q20_m3s,ratio_q2,peak_m3s,peak_date,p_exceed_q2_7d,rain_24h_mm,rain_72h_mm,generated_at_utc\n",
+    );
+    for s in &snap.stations {
+        let t = s.thresholds.as_ref();
+        csv.push_str(&format!(
+            "river,{},{},{},{:.5},{:.5},{},{},{},{:.3},{},{},{},{},{:.3},{},{},{:.1},{:.1},{}\n",
+            s.id,
+            csv_escape(&s.name),
+            csv_escape(&s.province),
+            s.lat,
+            s.lon,
+            s.level.slug(),
+            s.fluvial_level.slug(),
+            s.pluvial_level.slug(),
+            s.current_discharge_m3s,
+            o(t.map(|t| t.q2_m3s)),
+            o(t.map(|t| t.q5_m3s)),
+            o(t.map(|t| t.q20_m3s)),
+            o(s.ratio_q2),
+            s.peak_forecast_m3s,
+            s.peak_forecast_date,
+            o(s.exceed_prob_7d.as_ref().map(|e| e.q2)),
+            s.rain_24h_mm,
+            s.rain_72h_mm,
+            snap.generated_at_utc
+        ));
+    }
+    for r in &snap.coastal_rob {
+        csv.push_str(&format!(
+            "rob,{},{},{},{:.5},{:.5},{},,,,,,,,{:.3},{},,,,{}\n",
+            r.id,
+            csv_escape(&r.name),
+            csv_escape(&r.province),
+            r.lat,
+            r.lon,
+            r.level.slug(),
+            r.peak_msl_48h_m,
+            r.peak_msl_time,
+            snap.generated_at_utc
+        ));
+    }
+    csv
+}
+
+fn bmkg_block(snap: &FloodSnapshot, limit: usize) -> impl IntoView {
+    let items: Vec<_> = snap.bmkg_nowcasts.iter().take(limit).cloned().collect();
+    let total = snap.bmkg_nowcasts.len();
+    view! {
+        <section class="block">
+            <h3 class="h-sub">{format!("Peringatan dini cuaca BMKG ({total})")}</h3>
+            {if items.is_empty() {
+                view! { <p class="empty-msg">"Tidak ada peringatan dini cuaca BMKG yang aktif."</p> }.into_any()
+            } else {
+                view! {
+                    <div class="chip-wrap">
+                        {items.into_iter().map(|nc| view! {
+                            <a class="bmkg-chip" href=nc.link target="_blank" rel="noopener" title=nc.summary>{nc.province}</a>
+                        }).collect_view()}
+                    </div>
+                }.into_any()
+            }}
+        </section>
+    }
+}
+
 #[component]
 pub fn InspectorDrawer(
     snapshot: Signal<Option<FloodSnapshot>>,
@@ -51,42 +250,31 @@ pub fn InspectorDrawer(
     error_msg: RwSignal<Option<String>>,
     selected_id: RwSignal<Option<String>>,
     mech_filter: RwSignal<Option<FloodMechanism>>,
-    audience: RwSignal<Audience>,
+    lens: RwSignal<Audience>,
     active_tab: RwSignal<InspectorTab>,
     drawer_open: RwSignal<bool>,
     mobile_snap: RwSignal<SheetSnap>,
-    ai_focus_tick: RwSignal<u32>,
+    now: RwSignal<f64>,
+    on_select: Callback<(String, f64, f64)>,
 ) -> impl IntoView {
+    let toast = use_toast();
     let news_region = RwSignal::new("Semua".to_string());
 
-    // Free ntfy.sh subscription state
-    let ntfy_topic = RwSignal::new("hidrosentinel-id-waspada".to_string());
+    // Notifikasi ntfy
+    let ntfy_topic = RwSignal::new(String::new());
     let ntfy_region = RwSignal::new("Nasional".to_string());
-    let ntfy_level = RwSignal::new("Waspada".to_string());
+    let ntfy_level = RwSignal::new(IndicatorLevel::High);
     let ntfy_test = RwSignal::new(true);
     let ntfy_busy = RwSignal::new(false);
     let ntfy_feedback = RwSignal::new(Option::<String>::None);
-    let rss_copied = RwSignal::new(false);
 
-    // AI Query state
+    // Tanya data
     let ai_query_text = RwSignal::new(String::new());
     let ai_busy = RwSignal::new(false);
     let ai_result = RwSignal::new(Option::<AiQueryResponse>::None);
-    let md_copied = RwSignal::new(false);
-
-    // Jump to AI tab when requested from top bar
-    Effect::new(move |_| {
-        let tick = ai_focus_tick.get();
-        if tick > 0 {
-            selected_id.set(None);
-            active_tab.set(InspectorTab::AiData);
-            drawer_open.set(true);
-            mobile_snap.set(SheetSnap::Half);
-        }
-    });
 
     let run_ai_search = move |q_override: Option<String>| {
-        let q = q_override.unwrap_or_else(|| ai_query_text.get());
+        let q = q_override.unwrap_or_else(|| ai_query_text.get_untracked());
         if q.trim().is_empty() {
             return;
         }
@@ -95,852 +283,607 @@ pub fn InspectorDrawer(
         spawn_local(async move {
             let encoded: String = js_sys::encode_uri_component(&q).into();
             let url = format!("/api/ai/query?q={encoded}");
-            match Request::get(&url).send().await {
-                Ok(resp) if resp.ok() => {
-                    if let Ok(parsed) = resp.json::<AiQueryResponse>().await {
-                        if let Some(m) = parsed.recommended_mechanism {
-                            mech_filter.set(Some(m));
-                        }
-                        if let Some(fly) = &parsed.fly_to {
-                            js_fly_to_point(fly.lon, fly.lat, fly.zoom);
-                        }
-                        ai_result.set(Some(parsed));
-                    }
+            let remote = match Request::get(&url).send().await {
+                Ok(resp) if resp.ok() => resp.json::<AiQueryResponse>().await.ok(),
+                _ => None,
+            };
+            let parsed = remote.or_else(|| {
+                snapshot
+                    .get_untracked()
+                    .map(|snap| flood_shared::ai::execute_ai_query(&snap, &q))
+            });
+            if let Some(parsed) = parsed {
+                if let Some(m) = parsed.recommended_mechanism {
+                    mech_filter.set(Some(m));
                 }
-                _ => {
-                    // Fallback to client-side Rust query when offline/replay
-                    if let Some(snap) = snapshot.get_untracked() {
-                        let parsed = flood_shared::ai::execute_ai_query(&snap, &q);
-                        if let Some(fly) = &parsed.fly_to {
-                            js_fly_to_point(fly.lon, fly.lat, fly.zoom);
-                        }
-                        ai_result.set(Some(parsed));
-                    }
+                if let Some(fly) = &parsed.fly_to {
+                    js_fly_to_point(fly.lon, fly.lat, fly.zoom);
                 }
+                ai_result.set(Some(parsed));
             }
             ai_busy.set(false);
         });
     };
 
     let submit_ntfy = move |_| {
-        let topic = ntfy_topic.get();
-        let region = ntfy_region.get();
-        let min_level = match ntfy_level.get().as_str() {
-            "Awas" => AlertLevel::Awas,
-            "Siaga" => AlertLevel::Siaga,
-            _ => AlertLevel::Waspada,
+        let topic = ntfy_topic.get_untracked().trim().to_string();
+        if topic.len() < 4 {
+            ntfy_feedback.set(Some(
+                "Nama topik minimal 4 karakter (huruf, angka, - atau _).".into(),
+            ));
+            return;
+        }
+        let payload = AlertSubscriptionReq {
+            topic: topic.clone(),
+            region: ntfy_region.get_untracked(),
+            min_level: ntfy_level.get_untracked(),
+            send_test: ntfy_test.get_untracked(),
         };
-        let send_test = ntfy_test.get();
         ntfy_busy.set(true);
         ntfy_feedback.set(None);
         spawn_local(async move {
-            let payload = AlertSubscriptionReq {
-                topic: topic.clone(),
-                region,
-                min_level,
-                send_test,
-            };
-            match Request::post("/api/alerts/subscribe").json(&payload) {
+            let msg = match Request::post("/api/alerts/subscribe").json(&payload) {
                 Ok(req) => match req.send().await {
                     Ok(resp) if resp.ok() => {
                         let txt = resp.text().await.unwrap_or_default();
-                        let pushed = txt.contains("\"test_pushed\":true");
-                        let msg = if pushed {
-                            format!("Aktif! Tes push sudah dikirim ke https://ntfy.sh/{topic}")
+                        if txt.contains("\"test_pushed\":true") {
+                            format!("Tersimpan. Notifikasi uji dikirim ke ntfy.sh/{topic}.")
                         } else {
-                            format!("Tersimpan di SQLite Durable Object. Buka aplikasi/web ntfy.sh dan subscribe topik: {topic}")
-                        };
-                        ntfy_feedback.set(Some(msg));
+                            format!("Tersimpan. Berlangganan topik {topic} di aplikasi ntfy.")
+                        }
+                    }
+                    Ok(resp) if resp.status() == 429 => {
+                        "Terlalu banyak permintaan. Coba lagi nanti.".into()
                     }
                     Ok(resp) => {
-                        let err = resp.text().await.unwrap_or_else(|_| "Gagal menyimpan".into());
-                        ntfy_feedback.set(Some(format!("Ditolak: {err}")));
+                        let err = resp.text().await.unwrap_or_default();
+                        format!("Ditolak ({}): {err}", resp.status())
                     }
-                    Err(e) => {
-                        ntfy_feedback.set(Some(format!("Gagal menghubungi worker: {e}")));
-                    }
+                    Err(_) => "Gagal menghubungi server.".into(),
                 },
-                Err(e) => {
-                    ntfy_feedback.set(Some(format!("Error JSON: {e}")));
-                }
-            }
+                Err(_) => "Gagal menyiapkan permintaan.".into(),
+            };
+            ntfy_feedback.set(Some(msg));
             ntfy_busy.set(false);
         });
     };
 
-    let selected_station = Signal::derive(move || -> Option<StationTelemetry> {
+    let selected_view = move || {
         let id = selected_id.get()?;
         let snap = snapshot.get()?;
-        snap.stations.into_iter().find(|s| s.id == id)
+        let gen = snap.generated_at_utc.clone();
+        let back = Callback::new(move |_| selected_id.set(None));
+        let lens_v = lens.get();
+        if let Some(st) = snap.stations.iter().find(|s| s.id == id).cloned() {
+            return Some(
+                view! { <StationDetail station=st generated_at_utc=gen lens=lens_v on_back=back/> }
+                    .into_any(),
+            );
+        }
+        snap.coastal_rob
+            .iter()
+            .find(|r| r.id == id)
+            .cloned()
+            .map(|rb| {
+                view! { <RobDetail rob=rb generated_at_utc=gen lens=lens_v on_back=back/> }
+                    .into_any()
+            })
+    };
+    let has_selection = Memo::new(move |_| {
+        let Some(id) = selected_id.get() else {
+            return false;
+        };
+        snapshot.with(|s| {
+            s.as_ref().is_some_and(|s| {
+                s.stations.iter().any(|x| x.id == id) || s.coastal_rob.iter().any(|x| x.id == id)
+            })
+        })
     });
 
-    let selected_rob = Signal::derive(move || -> Option<CoastalRobTelemetry> {
-        let id = selected_id.get()?;
-        let snap = snapshot.get()?;
-        snap.coastal_rob.into_iter().find(|r| r.id == id)
-    });
+    let tab_btn = move |tab: InspectorTab, label: &'static str| {
+        view! {
+            <button
+                type="button"
+                role="tab"
+                class="tab"
+                aria-selected=move || (active_tab.get() == tab).to_string()
+                on:click=move |_| {
+                    active_tab.set(tab);
+                    if mobile_snap.get_untracked() == SheetSnap::Peek {
+                        mobile_snap.set(SheetSnap::Half);
+                    }
+                }
+            >{label}</button>
+        }
+    };
 
-    let select_station = move |id: String, lon: f64, lat: f64| {
-        selected_id.set(Some(id));
-        drawer_open.set(true);
-        mobile_snap.set(SheetSnap::Half);
-        js_fly_to_point(lon, lat, 9.0);
+    let summary_pane = move |snap: FloodSnapshot| {
+        let filter = mech_filter.get();
+        let rows = point_rows(&snap, filter);
+        match lens.get() {
+            Audience::Public => {
+                let elevated: Vec<_> = rows
+                    .iter()
+                    .filter(|r| r.level.is_elevated())
+                    .cloned()
+                    .collect();
+                let n_el = elevated.len();
+                view! {
+                    <div class="pane">
+                        {kpi_strip(&snap)}
+                        <section class="block">
+                            <h3 class="h-sub">"Perlu diperhatikan"</h3>
+                            {if n_el == 0 {
+                                view! { <p class="empty-msg">"Tidak ada titik pada level Tinggi atau lebih saat ini."</p> }.into_any()
+                            } else {
+                                view! { <PointList rows=elevated on_select=on_select/> }.into_any()
+                            }}
+                        </section>
+                        {bmkg_block(&snap, 12)}
+                        <Disclaimer/>
+                        <OfficialRefs/>
+                        <section class="block">
+                            <h3 class="h-sub">{format!("Semua titik pantau ({})", rows.len())}</h3>
+                            <PointList rows=rows on_select=on_select/>
+                        </section>
+                    </div>
+                }
+                .into_any()
+            }
+            Audience::Gov => {
+                let gen = snap.generated_at_utc.clone();
+                let mut table: Vec<_> = Vec::new();
+                for s in &snap.stations {
+                    let lv = match filter {
+                        Some(FloodMechanism::FluvialBasin) => s.fluvial_level,
+                        Some(FloodMechanism::UrbanPluvial) => s.pluvial_level,
+                        Some(FloodMechanism::CoastalRob) => continue,
+                        None => s.level.max(s.peak_forecast_level),
+                    };
+                    if lv.is_elevated() || s.peak_forecast_level.is_elevated() {
+                        table.push((
+                            s.id.clone(),
+                            s.name.clone(),
+                            s.province.clone(),
+                            s.level,
+                            s.peak_forecast_level,
+                            format!(
+                                "{} · {}",
+                                fmt_day(&s.peak_forecast_date),
+                                lead_label(lead_days(s, &gen))
+                            ),
+                            s.exceed_prob_7d
+                                .as_ref()
+                                .map(|e| fmt_pct(e.q2))
+                                .unwrap_or_else(|| "–".into()),
+                            s.lon,
+                            s.lat,
+                        ));
+                    }
+                }
+                if matches!(filter, None | Some(FloodMechanism::CoastalRob)) {
+                    for r in snap.coastal_rob.iter().filter(|r| r.level.is_elevated()) {
+                        let when = parse_utc_ms(&r.peak_msl_time)
+                            .map(|ms| fmt_datetime_short(ms, r.tz_offset_hours))
+                            .unwrap_or_else(|| r.peak_msl_time.clone());
+                        table.push((
+                            r.id.clone(),
+                            r.name.clone(),
+                            r.province.clone(),
+                            r.level,
+                            r.level,
+                            when,
+                            "–".into(),
+                            r.lon,
+                            r.lat,
+                        ));
+                    }
+                }
+                table.sort_by(|a, b| b.4.cmp(&a.4).then(b.3.cmp(&a.3)));
+                let snap_csv = snap.clone();
+                let n = table.len();
+                view! {
+                    <div class="pane">
+                        {kpi_strip(&snap)}
+                        <section class="block">
+                            <div class="block-head">
+                                <h3 class="h-sub">{format!("Titik ≥ Tinggi, kini atau prakiraan ({n})")}</h3>
+                                <button type="button" class="btn btn-sm" on:click=move |_| {
+                                    download_text_file("hidrosentinel-indonesia.csv", "text/csv", &national_csv(&snap_csv));
+                                }>"Unduh CSV"</button>
+                            </div>
+                            {if n == 0 {
+                                view! { <p class="empty-msg">"Tidak ada titik pada level Tinggi atau lebih, kini maupun dalam prakiraan 7 hari."</p> }.into_any()
+                            } else {
+                                view! {
+                                    <div class="table-wrap">
+                                        <table class="data-table">
+                                            <thead><tr><th scope="col">"Titik · waktu puncak"</th><th scope="col">"Kini → puncak"</th><th scope="col" class="num">"P(>Q2)"</th></tr></thead>
+                                            <tbody>
+                                                {table.into_iter().map(|(id, name, prov, now_l, peak_l, when, p, lon, lat)| view! {
+                                                    <tr>
+                                                        <th scope="row">
+                                                            <button type="button" class="cell-link" on:click=move |_| on_select.run((id.clone(), lon, lat))>{name}</button>
+                                                            <small>{format!("{prov} · {when}")}</small>
+                                                        </th>
+                                                        <td class="lv-pair"><LevelBadge level=now_l/><LevelBadge level=peak_l/></td>
+                                                        <td class="num">{p}</td>
+                                                    </tr>
+                                                }).collect_view()}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }.into_any()
+                            }}
+                        </section>
+                        {bmkg_block(&snap, 40)}
+                        <Disclaimer/>
+                        <OfficialRefs/>
+                    </div>
+                }
+                .into_any()
+            }
+            Audience::Academia => {
+                let k = snap.kpis.clone();
+                let period = snap
+                    .stations
+                    .iter()
+                    .find_map(|s| s.thresholds.as_ref().map(|t| t.period.clone()))
+                    .unwrap_or_else(|| "–".into());
+                let mut st: Vec<_> = snap.stations.clone();
+                st.sort_by(|a, b| {
+                    b.ratio_q2
+                        .unwrap_or(-1.0)
+                        .partial_cmp(&a.ratio_q2.unwrap_or(-1.0))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+                let max_station = k.max_ratio_station.as_ref().and_then(|id| {
+                    snap.stations
+                        .iter()
+                        .find(|s| &s.id == id)
+                        .map(|s| s.name.clone())
+                });
+                view! {
+                    <div class="pane">
+                        <dl class="facts">
+                            <div><dt>"Versi metodologi"</dt><dd>{snap.methodology_version.clone()}</dd></div>
+                            <div><dt>"Klimatologi ambang"</dt><dd>{format!("Reanalisis GloFAS v4, {period}")}</dd></div>
+                            <div><dt>"Belum terkalibrasi"</dt><dd class="num">{format!("{} dari {} stasiun", k.uncalibrated, snap.stations.len())}</dd></div>
+                            {k.max_ratio_q2.map(|r| view! {
+                                <div><dt>"Q/Q2 tertinggi"</dt><dd class="num">{format!("{}{}", fmt_ratio(r), max_station.map(|n| format!(" · {n}")).unwrap_or_default())}</dd></div>
+                            })}
+                        </dl>
+                        <div class="btn-row">
+                            <a class="btn" href="/api/stations.geojson" download="hidrosentinel-stations.geojson">"Unduh GeoJSON"</a>
+                            <a class="btn" href=geolibre_url() target="_blank" rel="noopener">"Buka di GeoLibre"</a>
+                            <a class="btn" href="/api/flood" target="_blank" rel="noopener">"JSON lengkap"</a>
+                        </div>
+                        <div class="table-wrap">
+                            <table class="data-table">
+                                <caption>"Debit simulasi hari ini terhadap ambang periode ulang (m³/s)"</caption>
+                                <thead><tr><th scope="col">"Stasiun"</th><th scope="col" class="num">"Q"</th><th scope="col" class="num">"Q2"</th><th scope="col" class="num">"Q20"</th><th scope="col" class="num">"Q/Q2"</th><th scope="col" class="num">"Sel–pos"</th></tr></thead>
+                                <tbody>
+                                    {st.into_iter().map(|s| {
+                                        let id = s.id.clone();
+                                        let (lon, lat) = (s.lon, s.lat);
+                                        let t = s.thresholds.clone();
+                                        view! {
+                                            <tr>
+                                                <th scope="row"><button type="button" class="cell-link" on:click=move |_| on_select.run((id.clone(), lon, lat))>{s.name.clone()}</button></th>
+                                                <td class="num">{fmt_q(s.current_discharge_m3s)}</td>
+                                                <td class="num">{t.as_ref().map(|t| fmt_q(t.q2_m3s)).unwrap_or_else(|| "–".into())}</td>
+                                                <td class="num">{t.as_ref().map(|t| fmt_q(t.q20_m3s)).unwrap_or_else(|| "–".into())}</td>
+                                                <td class="num">{s.ratio_q2.map(fmt_ratio).unwrap_or_else(|| "–".into())}</td>
+                                                <td class="num">{s.glofas_cell.as_ref().map(|c| format!("{} km", fmt_num(c.offset_km, 1))).unwrap_or_else(|| "–".into())}</td>
+                                            </tr>
+                                        }
+                                    }).collect_view()}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Disclaimer/>
+                    </div>
+                }
+                .into_any()
+            }
+            Audience::AiAgent => {
+                let briefing = generate_briefing(&snap, "", Audience::AiAgent);
+                let md = briefing.markdown.clone();
+                view! {
+                    <div class="pane">
+                        <section class="block">
+                            <h3 class="h-sub">"Endpoint terbuka"</h3>
+                            <ul class="endpoint-list">
+                                <li><a href="/api/flood" target="_blank" rel="noopener"><code>"GET /api/flood"</code></a><span>"Snapshot lengkap (JSON, skema v2)"</span></li>
+                                <li><a href="/api/stations.geojson" target="_blank" rel="noopener"><code>"GET /api/stations.geojson"</code></a><span>"Titik dan level (GeoJSON, CORS terbuka)"</span></li>
+                                <li><a href="/api/ai/query?q=ciliwung" target="_blank" rel="noopener"><code>"GET /api/ai/query?q="</code></a><span>"Pencarian bahasa alami"</span></li>
+                                <li><a href="/api/openapi.json" target="_blank" rel="noopener"><code>"/api/openapi.json"</code></a><span>"Spesifikasi OpenAPI"</span></li>
+                                <li><a href="/llms.txt" target="_blank" rel="noopener"><code>"/llms.txt"</code></a><span>"Panduan untuk model bahasa"</span></li>
+                                <li><a href="/api/alerts.rss" target="_blank" rel="noopener"><code>"/api/alerts.rss"</code></a><span>"RSS titik ≥ Tinggi"</span></li>
+                            </ul>
+                        </section>
+                        <section class="block">
+                            <h3 class="h-sub">"Tanya data"</h3>
+                            <form class="ask-form" on:submit=move |ev| { ev.prevent_default(); run_ai_search(None); }>
+                                <label class="sr-only" for="ask-input">"Pertanyaan"</label>
+                                <input id="ask-input" type="search" class="input" placeholder="Contoh: ciliwung, rob semarang"
+                                    prop:value=move || ai_query_text.get()
+                                    on:input=move |ev| ai_query_text.set(event_target_value(&ev))/>
+                                <button type="submit" class="btn btn-solid" disabled=move || ai_busy.get()>
+                                    {move || if ai_busy.get() { "Mencari…" } else { "Tanya" }}
+                                </button>
+                            </form>
+                            {move || ai_result.get().map(|res| {
+                                let target = res.fly_to.clone().and_then(|f| f.station_id.map(|id| (id, f.lon, f.lat)));
+                                view! {
+                                    <div class="answer">
+                                        <p>{res.answer_id}</p>
+                                        {target.map(|t| view! {
+                                            <button type="button" class="btn btn-sm" on:click=move |_| on_select.run(t.clone())>"Buka titik ini"</button>
+                                        })}
+                                    </div>
+                                }
+                            })}
+                        </section>
+                        <section class="block">
+                            <div class="block-head">
+                                <h3 class="h-sub">"Ringkasan situasi (Markdown)"</h3>
+                                <button type="button" class="btn btn-sm" on:click=move |_| { copy_text(&md); toast.show("Markdown disalin"); }>"Salin"</button>
+                            </div>
+                            <pre class="code code-scroll">{briefing.markdown}</pre>
+                        </section>
+                    </div>
+                }
+                .into_any()
+            }
+        }
+    };
+
+    let news_pane = move |snap: FloodSnapshot| {
+        let reg = news_region.get();
+        let now_v = now.get();
+        let news: Vec<_> = snap
+            .news
+            .iter()
+            .filter(|n| reg == "Semua" || n.region_hint.eq_ignore_ascii_case(&reg))
+            .cloned()
+            .collect();
+        let reports = snap.citizen_reports.clone();
+        view! {
+            <div class="pane">
+                <section class="block">
+                    <h3 class="h-sub">"Berita banjir 72 jam terakhir"</h3>
+                    <div class="chip-wrap" role="group" aria-label="Wilayah berita">
+                        {["Semua", "Jawa", "Sumatera", "Kalimantan", "Sulawesi", "Nasional"].into_iter().map(|r| view! {
+                            <button type="button" class="chip" aria-pressed=move || (news_region.get() == r).to_string()
+                                on:click=move |_| news_region.set(r.to_string())>{r}</button>
+                        }).collect_view()}
+                    </div>
+                    {if news.is_empty() {
+                        view! { <p class="empty-msg">"Tidak ada berita banjir 72 jam terakhir."</p> }.into_any()
+                    } else {
+                        view! {
+                            <ul class="news-list">
+                                {news.into_iter().map(|item| {
+                                    let when = parse_utc_ms(&item.pub_date)
+                                        .map(|ms| format!("{} · {}", fmt_datetime_short(ms, 7), fmt_relative(ms, now_v)))
+                                        .unwrap_or_else(|| item.pub_date.clone());
+                                    view! {
+                                        <li>
+                                            <a class="news-item" href=item.link target="_blank" rel="noopener">
+                                                <b>{item.title}</b>
+                                                <small>{format!("{} · {}", item.source, when)}</small>
+                                            </a>
+                                        </li>
+                                    }
+                                }).collect_view()}
+                            </ul>
+                        }.into_any()
+                    }}
+                </section>
+                <section class="block">
+                    <h3 class="h-sub">{format!("Laporan banjir warga 24 jam ({})", reports.len())}</h3>
+                    {if reports.is_empty() {
+                        view! { <p class="empty-msg">"Tidak ada laporan banjir warga di PetaBencana.id dalam 24 jam terakhir."</p> }.into_any()
+                    } else {
+                        view! {
+                            <ul class="news-list">
+                                {reports.into_iter().map(|r| {
+                                    let when = parse_utc_ms(&r.created_at)
+                                        .map(|ms| fmt_datetime_short(ms, 7))
+                                        .unwrap_or_else(|| r.created_at.clone());
+                                    let depth = r.depth_cm.map(|d| format!(" · ±{d} cm")).unwrap_or_default();
+                                    let title = if r.title.trim().is_empty() { "Laporan banjir".to_string() } else { r.title.clone() };
+                                    let body = view! {
+                                        <b>{title}</b>
+                                        <small>{format!("{} · {when}{depth}", r.source)}</small>
+                                        {(!r.text.trim().is_empty()).then(|| view! { <span class="news-text">{r.text.clone()}</span> })}
+                                    };
+                                    match r.url.filter(|u| u.starts_with("https://")) {
+                                        Some(u) => view! { <li><a class="news-item" href=u target="_blank" rel="noopener">{body}</a></li> }.into_any(),
+                                        None => view! { <li><div class="news-item">{body}</div></li> }.into_any(),
+                                    }
+                                }).collect_view()}
+                            </ul>
+                        }.into_any()
+                    }}
+                </section>
+                {bmkg_block(&snap, 40)}
+            </div>
+        }
+        .into_any()
+    };
+
+    let notify_pane = move |snap: FloodSnapshot| {
+        let reg_val = ntfy_region.get();
+        let rss_url = if reg_val == "Nasional" {
+            "https://flood.transbulent.id/api/alerts.rss".to_string()
+        } else {
+            let enc: String = js_sys::encode_uri_component(&reg_val).into();
+            format!("https://flood.transbulent.id/api/alerts.rss?region={enc}")
+        };
+        let rss_copy = rss_url.clone();
+        view! {
+            <div class="pane">
+                <Disclaimer/>
+                <section class="block">
+                    <h3 class="h-sub">"Notifikasi ke ponsel (ntfy)"</h3>
+                    <p class="fine">"Pasang aplikasi ntfy, lalu langgani nama topik yang Anda pilih. Tanpa nomor telepon."</p>
+                    <label class="field">"Nama topik"
+                        <input type="text" class="input" placeholder="mis. banjir-rt05-bekasi" maxlength="48"
+                            prop:value=move || ntfy_topic.get()
+                            on:input=move |ev| ntfy_topic.set(event_target_value(&ev))/>
+                    </label>
+                    <div class="field-row">
+                        <label class="field">"Wilayah"
+                            <select class="input" on:change=move |ev| ntfy_region.set(event_target_value(&ev))>
+                                {["Nasional", "Jawa", "Sumatera", "Kalimantan", "Sulawesi", "DKI Jakarta", "Jawa Barat", "Jawa Tengah", "Jawa Timur"]
+                                    .into_iter()
+                                    .map(|r| view! { <option value=r selected=move || ntfy_region.get() == r>{r}</option> })
+                                    .collect_view()}
+                            </select>
+                        </label>
+                        <label class="field">"Level minimum"
+                            <select class="input" on:change=move |ev| {
+                                if let Some(l) = IndicatorLevel::from_slug(&event_target_value(&ev)) { ntfy_level.set(l); }
+                            }>
+                                {[IndicatorLevel::High, IndicatorLevel::VeryHigh, IndicatorLevel::Extreme]
+                                    .into_iter()
+                                    .map(|l| view! { <option value=l.slug() selected=move || ntfy_level.get() == l>{l.label_id()}</option> })
+                                    .collect_view()}
+                            </select>
+                        </label>
+                    </div>
+                    <label class="check">
+                        <input type="checkbox" prop:checked=move || ntfy_test.get()
+                            on:change=move |ev| ntfy_test.set(event_target_checked(&ev))/>
+                        <span>"Kirim notifikasi uji"</span>
+                    </label>
+                    <button type="button" class="btn btn-solid" disabled=move || ntfy_busy.get() on:click=submit_ntfy>
+                        {move || if ntfy_busy.get() { "Menyimpan…" } else { "Aktifkan notifikasi" }}
+                    </button>
+                    {move || ntfy_feedback.get().map(|m| view! { <p class="feedback" role="status">{m}</p> })}
+                </section>
+                <section class="block">
+                    <h3 class="h-sub">"Bagikan ringkasan ke WhatsApp"</h3>
+                    <button type="button" class="btn" on:click=move |_| {
+                        let msg = format!(
+                            "Hidrosentinel Nusantara, {}\n{}\n\nIndikasi model, bukan peringatan resmi. Ikuti BPBD setempat.\nhttps://flood.transbulent.id/",
+                            status_stamp(&snap), status_body(&snap)
+                        );
+                        open_whatsapp_text(&msg);
+                    }>"Buka WhatsApp"</button>
+                </section>
+                <section class="block">
+                    <h3 class="h-sub">"RSS"</h3>
+                    <div class="copy-row">
+                        <code class="code-inline">{rss_url}</code>
+                        <button type="button" class="btn btn-sm" on:click=move |_| { copy_text(&rss_copy); toast.show("Alamat RSS disalin"); }>"Salin"</button>
+                    </div>
+                </section>
+            </div>
+        }
+        .into_any()
     };
 
     view! {
         <>
             <Show when=move || !drawer_open.get()>
-                <button
-                    type="button"
-                    class="drawer-reopen"
-                    on:click=move |_| drawer_open.set(true)
-                >"Panel Hidrologi"</button>
+                <button type="button" class="drawer-reopen" on:click=move |_| drawer_open.set(true)>"Buka panel"</button>
             </Show>
 
             <aside
-                class=move || {
-                    let open_cls = if drawer_open.get() { "is-open" } else { "is-closed" };
-                    let snap_cls = mobile_snap.get().class_name();
-                    format!("inspector {open_cls} {snap_cls}")
-                }
-                aria-label="Panel Inspeksi Hidrometeorologi"
+                class=move || format!(
+                    "inspector {} {}",
+                    if drawer_open.get() { "is-open" } else { "is-closed" },
+                    mobile_snap.get().class_name()
+                )
+                aria-label="Panel informasi"
+                id="panel"
+                tabindex="-1"
             >
-                <div class="sheet-handle-bar">
-                    <button
-                        type="button"
-                        class="sheet-handle-btn"
-                        aria-label="Ubah tinggi panel bawah"
-                        on:click=move |_| mobile_snap.update(|s| *s = s.next_cycle())
-                    >
-                        <span class="sheet-pill"></span>
-                        <span class="sheet-hint">
-                            {move || match mobile_snap.get() {
-                                SheetSnap::Peek => "Ringkasan · Tarik / Ketuk",
-                                SheetSnap::Half => "Panel · Ketuk Perluas",
-                                SheetSnap::Full => "Panel Penuh · Perkecil",
-                            }}
-                        </span>
+                <div class="sheet-bar">
+                    <button type="button" class="sheet-handle"
+                        aria-label=move || match mobile_snap.get() {
+                            SheetSnap::Full => "Perkecil panel",
+                            _ => "Perbesar panel",
+                        }
+                        on:click=move |_| mobile_snap.update(|s| *s = s.next_cycle())>
+                        <span class="sheet-pill" aria-hidden="true"></span>
                     </button>
-                    <button
-                        type="button"
-                        class="drawer-collapse-btn"
-                        on:click=move |_| drawer_open.set(false)
-                        title="Sembunyikan panel di desktop"
-                    >"Tutup"</button>
+                    <div class="lens" role="group" aria-label="Lensa">
+                        {[Audience::Public, Audience::Gov, Audience::Academia, Audience::AiAgent].into_iter().map(|a| view! {
+                            <button type="button" class="lens-btn" aria-pressed=move || (lens.get() == a).to_string()
+                                on:click=move |_| lens.set(a)>{lens_label(a)}</button>
+                        }).collect_view()}
+                    </div>
+                    <button type="button" class="icon-btn drawer-close" aria-label="Sembunyikan panel" title="Sembunyikan panel"
+                        on:click=move |_| drawer_open.set(false)>
+                        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+                    </button>
                 </div>
 
-                <Show when=move || selected_station.get().is_some()>
-                    {move || selected_station.get().map(|st| {
-                        let aud = audience.get();
-                        let advice_txt = match aud {
-                            Audience::Public => st.public_advice.clone(),
-                            Audience::Gov => st.gov_action.clone(),
-                            Audience::Academia | Audience::AiAgent => st.academic_note.clone(),
-                        };
-                        let st_csv = st.clone();
-                        let st_wa = st.clone();
-                        let soil_top_pct = (st.soil_moisture_top * 200.0).clamp(5.0, 100.0);
-                        let soil_deep_pct = (st.soil_moisture_deep * 200.0).clamp(5.0, 100.0);
+                <div class="peek-status" on:click=move |_| if mobile_snap.get_untracked() == SheetSnap::Peek { mobile_snap.set(SheetSnap::Half) }>
+                    {move || match snapshot.get() {
+                        Some(s) if s.is_historical_replay => view! {
+                            <p class="peek-line"><b>"Replay historis"</b>{format!(" · {}", s.replay_label.clone().unwrap_or_default())}</p>
+                        }.into_any(),
+                        Some(s) => view! {
+                            <p class="peek-line"><b>{status_stamp(&s)}</b><br/>{status_body(&s)}</p>
+                        }.into_any(),
+                        None if loading.get() => view! { <p class="peek-line muted">"Memuat data…"</p> }.into_any(),
+                        None => view! { <p class="peek-line muted">"Data belum tersedia."</p> }.into_any(),
+                    }}
+                </div>
 
-                        view! {
-                            <div class="detail-view">
-                                <div class="detail-nav">
-                                    <button type="button" class="back-btn" on:click=move |_| selected_id.set(None)>
-                                        "← Kembali ke Ringkasan"
-                                    </button>
-                                    <span class=format!("badge badge-{}", st.alert_level.label().to_ascii_lowercase())>
-                                        {st.alert_level.label()}
-                                    </span>
-                                </div>
-
-                                <h2 class="detail-title">{st.name.clone()}</h2>
-                                <p class="detail-sub">
-                                    {format!("{} · {} ({}) · DAS {} km²", st.ws_code, st.province, st.island, st.basin_area_km2)}
-                                </p>
-
-                                <div class="mech-tag-row">
-                                    <span class=format!("mech-pill mech-{}", st.mechanism.slug())>
-                                        {st.mechanism.label_id()}
-                                    </span>
-                                    <span class="trend-pill">{format!("Tren: {}", st.trend.label())}</span>
-                                    <span class="trend-pill">{st.return_period_est.clone()}</span>
-                                </div>
-
-                                <div class="kpi-grid-4">
-                                    <div class="kpi-cell">
-                                        <small>"Debit Kini"</small>
-                                        <strong>{format!("{:.1}", st.current_discharge_m3s)}</strong>
-                                        <span>"m³/s"</span>
-                                    </div>
-                                    <div class="kpi-cell">
-                                        <small>"Puncak 7h"</small>
-                                        <strong>{format!("{:.1}", st.peak_forecast_m3s)}</strong>
-                                        <span>{st.peak_forecast_date.clone()}</span>
-                                    </div>
-                                    <div class="kpi-cell">
-                                        <small>"Rasio Q75"</small>
-                                        <strong>{format!("{:.2}×", st.anomaly_ratio)}</strong>
-                                        <span>{format!("Q75 {:.0}", st.p75_baseline_m3s)}</span>
-                                    </div>
-                                    <div class="kpi-cell">
-                                        <small>"Hujan 72j"</small>
-                                        <strong>{format!("{:.0}", st.rain_72h_mm)}</strong>
-                                        <span>{format!("24j: {:.0} mm", st.rain_24h_mm)}</span>
-                                    </div>
-                                </div>
-
-                                <HydrographChart station=st.clone()/>
-
-                                <div class="soil-card">
-                                    <div class="soil-row">
-                                        <span>"Kejenuhan Tanah 0–7 cm"</span>
-                                        <strong>{format!("{:.2} m³/m³", st.soil_moisture_top)}</strong>
-                                    </div>
-                                    <div class="meter-track">
-                                        <div class="meter-fill" style=format!("width:{soil_top_pct:.0}%")></div>
-                                    </div>
-                                    <div class="soil-row">
-                                        <span>"Kejenuhan Tanah 28–100 cm"</span>
-                                        <strong>{format!("{:.2} m³/m³", st.soil_moisture_deep)}</strong>
-                                    </div>
-                                    <div class="meter-track">
-                                        <div class="meter-fill deep" style=format!("width:{soil_deep_pct:.0}%")></div>
-                                    </div>
-                                </div>
-
-                                <div class="advice-box">
-                                    <div class="advice-head">{format!("Panduan {}", aud.label())}</div>
-                                    <p>{advice_txt}</p>
-                                </div>
-
-                                <div class="detail-actions">
-                                    <button
-                                        type="button"
-                                        class="btn-primary"
-                                        on:click=move |_| {
-                                            let msg = format!(
-                                                "[Hidrosentinel] {} ({}) — Status {} · Debit {:.1} m3/s ({:.2}x Q75) · Hujan 72j {:.0} mm. {}",
-                                                st_wa.name, st_wa.province, st_wa.alert_level.label(),
-                                                st_wa.current_discharge_m3s, st_wa.anomaly_ratio, st_wa.rain_72h_mm,
-                                                st_wa.public_advice
-                                            );
-                                            open_whatsapp_text(&msg);
-                                        }
-                                    >"Bagikan WhatsApp"</button>
-                                    <button
-                                        type="button"
-                                        class="btn-secondary"
-                                        on:click=move |_| {
-                                            let mut csv = String::from("date,is_forecast,discharge_m3s,mean_m3s,max_m3s,p75_m3s,rain_mm\n");
-                                            for p in &st_csv.hydrograph {
-                                                csv.push_str(&format!(
-                                                    "{},{},{:.2},{:.2},{:.2},{:.2},{:.2}\n",
-                                                    p.date, p.is_forecast, p.discharge_m3s,
-                                                    p.discharge_mean_m3s, p.discharge_max_m3s,
-                                                    p.discharge_p75_m3s, p.rain_mm
-                                                ));
-                                            }
-                                            download_text_file(&format!("{}-hydrograph.csv", st_csv.id), "text/csv", &csv);
-                                        }
-                                    >"Unduh CSV"</button>
-                                </div>
-                            </div>
-                        }
-                    })}
+                <Show when=move || has_selection.get()>
+                    <div class="scroll">{selected_view}</div>
                 </Show>
 
-                <Show when=move || selected_station.get().is_none() && selected_rob.get().is_some()>
-                    {move || selected_rob.get().map(|rb| {
-                        let rb_wa = rb.clone();
-                        view! {
-                            <div class="detail-view">
-                                <div class="detail-nav">
-                                    <button type="button" class="back-btn" on:click=move |_| selected_id.set(None)>
-                                        "← Kembali ke Ringkasan"
-                                    </button>
-                                    <span class=format!("badge badge-{}", rb.alert_level.label().to_ascii_lowercase())>
-                                        {format!("Rob {}", rb.alert_level.label())}
-                                    </span>
-                                </div>
-                                <h2 class="detail-title">{rb.name.clone()}</h2>
-                                <p class="detail-sub">{format!("{} ({}) · Faktor Amblesan {:.2}×", rb.province, rb.island, rb.sensitivity)}</p>
-                                <div class="kpi-grid-4">
-                                    <div class="kpi-cell">
-                                        <small>"MSL Kini"</small>
-                                        <strong>{format!("{:.2}", rb.current_msl_m)}</strong>
-                                        <span>"meter"</span>
-                                    </div>
-                                    <div class="kpi-cell">
-                                        <small>"Puncak 48j"</small>
-                                        <strong>{format!("{:.2}", rb.peak_msl_48h_m)}</strong>
-                                        <span>"meter"</span>
-                                    </div>
-                                    <div class="kpi-cell">
-                                        <small>"Gelombang"</small>
-                                        <strong>{format!("{:.2}", rb.wave_height_m)}</strong>
-                                        <span>"meter"</span>
-                                    </div>
-                                    <div class="kpi-cell">
-                                        <small>"Indeks Rob"</small>
-                                        <strong>{format!("{:.2}×", rb.rob_index)}</strong>
-                                        <span>{format!("Picu {:.2}m", rb.trigger_msl_m)}</span>
-                                    </div>
-                                </div>
-                                <div class="advice-box">
-                                    <div class="advice-head">"Analisis Pasang & Amblesan Pesisir"</div>
-                                    <p>{rb.note.clone()}</p>
-                                </div>
-                                <div class="detail-actions">
-                                    <button
-                                        type="button"
-                                        class="btn-primary"
-                                        on:click=move |_| {
-                                            let msg = format!(
-                                                "[Hidrosentinel Rob] {} ({}) — Status {} · Puncak MSL 48j {:.2} m · Gelombang {:.2} m. {}",
-                                                rb_wa.name, rb_wa.province, rb_wa.alert_level.label(),
-                                                rb_wa.peak_msl_48h_m, rb_wa.wave_height_m, rb_wa.note
-                                            );
-                                            open_whatsapp_text(&msg);
-                                        }
-                                    >"Bagikan WhatsApp"</button>
-                                </div>
-                            </div>
-                        }
-                    })}
-                </Show>
-
-                <Show when=move || selected_station.get().is_none() && selected_rob.get().is_none()>
-                    <div class="drawer-tabs" role="tablist">
-                        <button
-                            type="button"
-                            role="tab"
-                            class="tab-btn"
-                            aria-selected=move || (active_tab.get() == InspectorTab::Summary).to_string()
-                            on:click=move |_| { active_tab.set(InspectorTab::Summary); mobile_snap.set(SheetSnap::Half); }
-                        >"Ringkasan"</button>
-                        <button
-                            type="button"
-                            role="tab"
-                            class="tab-btn"
-                            aria-selected=move || (active_tab.get() == InspectorTab::News).to_string()
-                            on:click=move |_| { active_tab.set(InspectorTab::News); mobile_snap.set(SheetSnap::Half); }
-                        >"Berita"</button>
-                        <button
-                            type="button"
-                            role="tab"
-                            class="tab-btn"
-                            aria-selected=move || (active_tab.get() == InspectorTab::Alerts).to_string()
-                            on:click=move |_| { active_tab.set(InspectorTab::Alerts); mobile_snap.set(SheetSnap::Half); }
-                        >"Peringatan"</button>
-                        <button
-                            type="button"
-                            role="tab"
-                            class="tab-btn"
-                            aria-selected=move || (active_tab.get() == InspectorTab::AiData).to_string()
-                            on:click=move |_| { active_tab.set(InspectorTab::AiData); mobile_snap.set(SheetSnap::Half); }
-                        >"AI & Data"</button>
+                <Show when=move || !has_selection.get()>
+                    <div class="tabs" role="tablist" aria-label="Bagian panel">
+                        {tab_btn(InspectorTab::Summary, "Ringkasan")}
+                        {tab_btn(InspectorTab::News, "Berita")}
+                        {tab_btn(InspectorTab::Notify, "Notifikasi")}
+                        {tab_btn(InspectorTab::About, "Tentang data")}
                     </div>
-
-                    <div class="drawer-scroll">
-                        <Show when=move || loading.get() && snapshot.get().is_none()>
-                            <div class="loading-box">"Memuat telemetri 50 DAS GloFAS, 12 koridor rob, BMKG Nowcast & berita…"</div>
+                    <div class="scroll" role="tabpanel">
+                        <Show when=move || loading.get() && snapshot.with(|s| s.is_none())>
+                            <div class="skeleton" aria-busy="true" aria-label="Memuat data">
+                                <span></span><span></span><span></span><span></span>
+                            </div>
                         </Show>
-                        <Show when=move || error_msg.get().is_some()>
-                            <div class="error-box">{move || error_msg.get().unwrap_or_default()}</div>
-                        </Show>
-
-                        {move || snapshot.get().map(|snap| {
-                            let tab = active_tab.get();
-                            match tab {
-                                InspectorTab::Summary => {
-                                    let k = &snap.kpis;
-                                    let elevated_total = k.awas_count + k.siaga_count + k.waspada_count;
-
-                                    // 7-day lead-time watch (forecast peak significantly higher than current)
-                                    let mut surge_watch: Vec<_> = snap.stations.iter()
-                                        .filter(|s| s.peak_ratio >= 1.20 && s.peak_forecast_m3s > s.current_discharge_m3s * 1.15)
-                                        .cloned()
-                                        .collect();
-                                    surge_watch.sort_by(|a, b| b.peak_ratio.partial_cmp(&a.peak_ratio).unwrap_or(std::cmp::Ordering::Equal));
-
-                                    let filter_m = mech_filter.get();
-                                    let mut ranked_stations: Vec<_> = snap.stations.iter()
-                                        .filter(|s| filter_m.map(|m| m != FloodMechanism::CoastalRob && s.mechanism == m).unwrap_or(true))
-                                        .cloned()
-                                        .collect();
-                                    ranked_stations.sort_by(|a, b| {
-                                        b.alert_level.rank().cmp(&a.alert_level.rank())
-                                            .then_with(|| b.anomaly_ratio.partial_cmp(&a.anomaly_ratio).unwrap_or(std::cmp::Ordering::Equal))
-                                    });
-
-                                    let mut ranked_robs: Vec<_> = snap.coastal_rob.clone();
-                                    ranked_robs.sort_by(|a, b| b.rob_index.partial_cmp(&a.rob_index).unwrap_or(std::cmp::Ordering::Equal));
-
-                                    view! {
-                                        <div class="tab-pane">
-                                            <div class="kpi-grid-4">
-                                                <div class="kpi-cell">
-                                                    <small>"Waspada–Awas"</small>
-                                                    <strong>{elevated_total}</strong>
-                                                    <span>{format!("{} Awas · {} Siaga", k.awas_count, k.siaga_count)}</span>
-                                                </div>
-                                                <div class="kpi-cell">
-                                                    <small>"Anomali Maks"</small>
-                                                    <strong>{format!("{:.2}×", k.max_anomaly_ratio)}</strong>
-                                                    <span>"vs baseline Q75"</span>
-                                                </div>
-                                                <div class="kpi-cell">
-                                                    <small>"Nowcast BMKG"</small>
-                                                    <strong>{snap.bmkg_nowcasts.len()}</strong>
-                                                    <span>"peringatan aktif"</span>
-                                                </div>
-                                                <div class="kpi-cell">
-                                                    <small>"Laporan Warga"</small>
-                                                    <strong>{k.citizen_reports_24h}</strong>
-                                                    <span>"PetaBencana 24j"</span>
-                                                </div>
-                                            </div>
-
-                                            {(!snap.bmkg_nowcasts.is_empty()).then(|| view! {
-                                                <div class="section-block">
-                                                    <div class="sec-head">
-                                                        <h3>"Peringatan Dini Cuaca Ekstrem (BMKG)"</h3>
-                                                        <span class="sec-meta">"CAP RSS"</span>
-                                                    </div>
-                                                    <div class="pill-wrap">
-                                                        {snap.bmkg_nowcasts.iter().take(6).map(|nc| {
-                                                            view! {
-                                                                <a
-                                                                    class="bmkg-chip"
-                                                                    href=nc.link.clone()
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    title=nc.summary.clone()
-                                                                >{nc.province.clone()}</a>
-                                                            }
-                                                        }).collect_view()}
-                                                    </div>
-                                                </div>
-                                            })}
-
-                                            {(!surge_watch.is_empty()).then(|| view! {
-                                                <div class="section-block">
-                                                    <div class="sec-head">
-                                                        <h3>"Pantauan Lonjakan 7 Hari (Lead-Time)"</h3>
-                                                        <span class="sec-meta">"GloFAS Forecast"</span>
-                                                    </div>
-                                                    <div class="list-stack">
-                                                        {surge_watch.iter().take(4).map(|st| {
-                                                            let id = st.id.clone();
-                                                            let lon = st.lon;
-                                                            let lat = st.lat;
-                                                            view! {
-                                                                <button
-                                                                    type="button"
-                                                                    class="station-row surge-row"
-                                                                    on:click=move |_| select_station(id.clone(), lon, lat)
-                                                                >
-                                                                    <div class="st-main">
-                                                                        <strong>{st.name.clone()}</strong>
-                                                                        <span>{format!("{} · Puncak {}", st.province, st.peak_forecast_date)}</span>
-                                                                    </div>
-                                                                    <div class="st-metric">
-                                                                        <b>{format!("{:.2}×", st.peak_ratio)}</b>
-                                                                        <small>{format!("{:.0} m³/s", st.peak_forecast_m3s)}</small>
-                                                                    </div>
-                                                                </button>
-                                                            }
-                                                        }).collect_view()}
-                                                    </div>
-                                                </div>
-                                            })}
-
-                                            {if filter_m == Some(FloodMechanism::CoastalRob) {
-                                                view! {
-                                                    <div class="section-block">
-                                                        <div class="sec-head">
-                                                            <h3>"Koridor Pasang Rob Pesisir"</h3>
-                                                            <span class="sec-meta">{format!("{} koridor", ranked_robs.len())}</span>
-                                                        </div>
-                                                        <div class="list-stack">
-                                                            {ranked_robs.into_iter().map(|rb| {
-                                                                let id = rb.id.clone();
-                                                                let lon = rb.lon;
-                                                                let lat = rb.lat;
-                                                                let lvl = rb.alert_level.label().to_ascii_lowercase();
-                                                                view! {
-                                                                    <button type="button" class="station-row" on:click=move |_| select_station(id.clone(), lon, lat)>
-                                                                        <div class="st-main">
-                                                                            <strong>{rb.name.clone()}</strong>
-                                                                            <span>{format!("{} · Gelombang {:.2} m · Amblesan {:.2}×", rb.province, rb.wave_height_m, rb.sensitivity)}</span>
-                                                                        </div>
-                                                                        <div class="st-metric">
-                                                                            <span class=format!("badge badge-{lvl}")>{rb.alert_level.label()}</span>
-                                                                            <small>{format!("{:.2}×", rb.rob_index)}</small>
-                                                                        </div>
-                                                                    </button>
-                                                                }
-                                                            }).collect_view()}
-                                                        </div>
-                                                    </div>
-                                                }.into_any()
-                                            } else {
-                                                view! {
-                                                    <div class="section-block">
-                                                        <div class="sec-head">
-                                                            <h3>"Prioritas Stasiun DAS Indonesia"</h3>
-                                                            <span class="sec-meta">{format!("{} titik", ranked_stations.len())}</span>
-                                                        </div>
-                                                        <div class="list-stack">
-                                                            {ranked_stations.into_iter().take(18).map(|st| {
-                                                                let id = st.id.clone();
-                                                                let lon = st.lon;
-                                                                let lat = st.lat;
-                                                                let lvl = st.alert_level.label().to_ascii_lowercase();
-                                                                view! {
-                                                                    <button type="button" class="station-row" on:click=move |_| select_station(id.clone(), lon, lat)>
-                                                                        <div class="st-main">
-                                                                            <strong>{st.name.clone()}</strong>
-                                                                            <span>{format!("{} · {} · Hujan 72j {:.0} mm", st.province, st.mechanism.label_id(), st.rain_72h_mm)}</span>
-                                                                        </div>
-                                                                        <div class="st-metric">
-                                                                            <span class=format!("badge badge-{lvl}")>{st.alert_level.label()}</span>
-                                                                            <small>{format!("{:.2}× Q75", st.anomaly_ratio)}</small>
-                                                                        </div>
-                                                                    </button>
-                                                                }
-                                                            }).collect_view()}
-                                                        </div>
-                                                    </div>
-                                                }.into_any()
-                                            }}
-                                        </div>
-                                    }.into_any()
-                                }
-
-                                InspectorTab::News => {
-                                    let reg = news_region.get();
-                                    let filtered_news: Vec<_> = snap.news.iter()
-                                        .filter(|n| reg == "Semua" || n.region_hint.eq_ignore_ascii_case(&reg))
-                                        .cloned()
-                                        .collect();
-
-                                    view! {
-                                        <div class="tab-pane">
-                                            <div class="section-block">
-                                                <div class="sec-head">
-                                                    <h3>"Kanal Berita Banjir Nasional & Regional"</h3>
-                                                    <span class="sec-meta">"RSS Live"</span>
-                                                </div>
-                                                <div class="filter-pills-wrap">
-                                                    {["Semua", "Jawa", "Sumatera", "Kalimantan", "Sulawesi", "Nasional"].into_iter().map(|r| {
-                                                        let r_str = r.to_string();
-                                                        view! {
-                                                            <button
-                                                                type="button"
-                                                                class="mini-chip"
-                                                                aria-pressed=move || (news_region.get() == r_str).to_string()
-                                                                on:click=move |_| news_region.set(r.to_string())
-                                                            >{r}</button>
-                                                        }
-                                                    }).collect_view()}
-                                                </div>
-
-                                                {filtered_news.is_empty().then(|| view! {
-                                                    <p class="empty-msg">"Belum ada item berita untuk filter wilayah ini."</p>
-                                                })}
-
-                                                <div class="news-list">
-                                                    {filtered_news.into_iter().map(|item| {
-                                                        view! {
-                                                            <a class="news-card" href=item.link.clone() target="_blank" rel="noopener noreferrer">
-                                                                <div class="news-meta">
-                                                                    <span class="news-pub">{item.source.clone()}</span>
-                                                                    <span class="news-reg">{item.region_hint.clone()}</span>
-                                                                </div>
-                                                                <strong>{item.title.clone()}</strong>
-                                                                <small>{item.pub_date.clone()}</small>
-                                                            </a>
-                                                        }
-                                                    }).collect_view()}
-                                                </div>
-                                            </div>
-
-                                            {(!snap.bmkg_nowcasts.is_empty()).then(|| view! {
-                                                <div class="section-block">
-                                                    <div class="sec-head">
-                                                        <h3>"Detail Nowcast Cuaca Ekstrem BMKG"</h3>
-                                                        <span class="sec-meta">{snap.bmkg_nowcasts.len()}</span>
-                                                    </div>
-                                                    <div class="news-list">
-                                                        {snap.bmkg_nowcasts.iter().take(6).map(|nc| {
-                                                            view! {
-                                                                <a class="news-card bmkg-item" href=nc.link.clone() target="_blank" rel="noopener noreferrer">
-                                                                    <div class="news-meta">
-                                                                        <span class="news-pub">"BMKG CAP"</span>
-                                                                        <span class="news-reg">{nc.province.clone()}</span>
-                                                                    </div>
-                                                                    <strong>{nc.title.clone()}</strong>
-                                                                    <p>{nc.summary.clone()}</p>
-                                                                </a>
-                                                            }
-                                                        }).collect_view()}
-                                                    </div>
-                                                </div>
-                                            })}
-                                        </div>
-                                    }.into_any()
-                                }
-
-                                InspectorTab::Alerts => {
-                                    let snap_wa = snap.clone();
-                                    let reg_val = ntfy_region.get();
-                                    let rss_url = if reg_val == "Nasional" {
-                                        "https://flood.transbulent.id/api/alerts.rss".to_string()
-                                    } else {
-                                        format!("https://flood.transbulent.id/api/alerts.rss?region={reg_val}")
-                                    };
-                                    let rss_url_copy = rss_url.clone();
-
-                                    view! {
-                                        <div class="tab-pane">
-                                            <div class="info-callout">
-                                                <strong>"Notifikasi Gratis Tanpa Biaya SMS / WA Gateway"</strong>
-                                                <p>"Nomor HP/SMS Gateway komersial sengaja dilewati agar sistem tetap $0/bulan & bebas menyimpan data pribadi (PII). Gunakan 3 jalur gratis real-time di bawah ini:"</p>
-                                            </div>
-
-                                            <div class="section-block card-surface">
-                                                <h3>"1. Push HP Gratis via ntfy.sh (Tersimpan di Durable Object)"</h3>
-                                                <p class="field-hint">"Install aplikasi ntfy (Android/iOS) atau buka ntfy.sh lalu subscribe nama topik unik Anda:"</p>
-                                                <label class="field-lbl">"Nama Topik Unik (4–48 huruf/angka, bukan nomor HP)"
-                                                    <input
-                                                        type="text"
-                                                        class="text-input"
-                                                        prop:value=move || ntfy_topic.get()
-                                                        on:input=move |ev| ntfy_topic.set(event_target_value(&ev))
-                                                    />
-                                                </label>
-                                                <div class="form-row-2">
-                                                    <label class="field-lbl">"Wilayah Pantau"
-                                                        <select
-                                                            class="text-input"
-                                                            on:change=move |ev| ntfy_region.set(event_target_value(&ev))
-                                                        >
-                                                            <option value="Nasional" selected>"Nasional"</option>
-                                                            <option value="Jawa">"Jawa"</option>
-                                                            <option value="Sumatera">"Sumatera"</option>
-                                                            <option value="Kalimantan">"Kalimantan"</option>
-                                                            <option value="Sulawesi">"Sulawesi"</option>
-                                                            <option value="DKI Jakarta">"DKI Jakarta"</option>
-                                                            <option value="Jawa Barat">"Jawa Barat"</option>
-                                                            <option value="Jawa Tengah">"Jawa Tengah"</option>
-                                                            <option value="Jawa Timur">"Jawa Timur"</option>
-                                                        </select>
-                                                    </label>
-                                                    <label class="field-lbl">"Ambang Minimal"
-                                                        <select
-                                                            class="text-input"
-                                                            on:change=move |ev| ntfy_level.set(event_target_value(&ev))
-                                                        >
-                                                            <option value="Waspada" selected>"Waspada"</option>
-                                                            <option value="Siaga">"Siaga"</option>
-                                                            <option value="Awas">"Awas"</option>
-                                                        </select>
-                                                    </label>
-                                                </div>
-                                                <label class="check-row">
-                                                    <input
-                                                        type="checkbox"
-                                                        prop:checked=move || ntfy_test.get()
-                                                        on:change=move |ev| ntfy_test.set(event_target_checked(&ev))
-                                                    />
-                                                    <span>"Kirim tes notifikasi push sekarang"</span>
-                                                </label>
-                                                <button
-                                                    type="button"
-                                                    class="btn-primary full-w"
-                                                    disabled=move || ntfy_busy.get()
-                                                    on:click=submit_ntfy
-                                                >
-                                                    {move || if ntfy_busy.get() { "Menyimpan ke SQLite..." } else { "Aktifkan Push Gratis" }}
-                                                </button>
-                                                <Show when=move || ntfy_feedback.get().is_some()>
-                                                    <p class="feedback-msg">{move || ntfy_feedback.get().unwrap_or_default()}</p>
-                                                </Show>
-                                            </div>
-
-                                            <div class="section-block card-surface">
-                                                <h3>"2. Bagikan Peringatan ke Grup WhatsApp (Gratis 1 Klik)"</h3>
-                                                <p class="field-hint">"Kirim ringkasan status DAS & rob terkini langsung ke WhatsApp keluarga, grup RT, atau posko BPBD:"</p>
-                                                <button
-                                                    type="button"
-                                                    class="btn-secondary full-w"
-                                                    on:click=move |_| {
-                                                        let b = generate_briefing(&snap_wa, "", Audience::Public);
-                                                        let msg = format!("{}\n\n{}\nCek peta 3D: https://flood.transbulent.id/", b.headline, b.sitrep_summary);
-                                                        open_whatsapp_text(&msg);
-                                                    }
-                                                >"Buka WhatsApp & Bagikan SitRep Sekarang"</button>
-                                            </div>
-
-                                            <div class="section-block card-surface">
-                                                <h3>"3. RSS Feed Peringatan Wilayah (Untuk Bot Telegram / n8n)"</h3>
-                                                <div class="copy-row">
-                                                    <code class="rss-code">{rss_url}</code>
-                                                    <button
-                                                        type="button"
-                                                        class="mini-chip"
-                                                        on:click=move |_| {
-                                                            copy_text(&rss_url_copy);
-                                                            rss_copied.set(true);
-                                                        }
-                                                    >{move || if rss_copied.get() { "Tersalin" } else { "Salin RSS" }}</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }.into_any()
-                                }
-
-                                InspectorTab::AiData => {
-                                    let aud = audience.get();
-                                    let briefing = generate_briefing(&snap, "", aud);
-                                    let md_text = briefing.markdown.clone();
-                                    let snap_csv = snap.clone();
-                                    let snap_gj = snap.clone();
-
-                                    view! {
-                                        <div class="tab-pane">
-                                            <div class="section-block card-surface">
-                                                <div class="sec-head">
-                                                    <h3>"Tanya Data & Kendali Peta AI"</h3>
-                                                    <span class="sec-meta">"Rust Engine"</span>
-                                                </div>
-                                                <form
-                                                    class="ai-form"
-                                                    on:submit=move |ev| {
-                                                        ev.prevent_default();
-                                                        run_ai_search(None);
-                                                    }
-                                                >
-                                                    <input
-                                                        type="search"
-                                                        class="text-input"
-                                                        placeholder="Cth: ciliwung, rob semarang, siaga jawa..."
-                                                        prop:value=move || ai_query_text.get()
-                                                        on:input=move |ev| ai_query_text.set(event_target_value(&ev))
-                                                    />
-                                                    <button type="submit" class="btn-primary" disabled=move || ai_busy.get()>
-                                                        {move || if ai_busy.get() { "..." } else { "Tanya" }}
-                                                    </button>
-                                                </form>
-                                                <div class="filter-pills-wrap">
-                                                    {["ciliwung", "rob semarang", "barito", "banjir terparah"].into_iter().map(|preset| {
-                                                        view! {
-                                                            <button
-                                                                type="button"
-                                                                class="mini-chip"
-                                                                on:click=move |_| run_ai_search(Some(preset.to_string()))
-                                                            >{preset}</button>
-                                                        }
-                                                    }).collect_view()}
-                                                </div>
-                                                <Show when=move || ai_result.get().is_some()>
-                                                    {move || ai_result.get().map(|res| {
-                                                        let fly_id = res.fly_to.as_ref().and_then(|f| f.station_id.clone());
-                                                        let fly_lon = res.fly_to.as_ref().map(|f| f.lon).unwrap_or(118.0);
-                                                        let fly_lat = res.fly_to.as_ref().map(|f| f.lat).unwrap_or(-2.5);
-                                                        view! {
-                                                            <div class="ai-answer">
-                                                                <p>{res.answer_id}</p>
-                                                                {fly_id.map(|fid| view! {
-                                                                    <button
-                                                                        type="button"
-                                                                        class="mini-chip"
-                                                                        on:click=move |_| select_station(fid.clone(), fly_lon, fly_lat)
-                                                                    >"Buka Hidrograf Stasiun Ini →"</button>
-                                                                })}
-                                                            </div>
-                                                        }
-                                                    })}
-                                                </Show>
-                                            </div>
-
-                                            <div class="section-block card-surface">
-                                                <div class="sec-head">
-                                                    <h3>{format!("AI SitRep ({})", aud.label())}</h3>
-                                                    <button
-                                                        type="button"
-                                                        class="mini-chip"
-                                                        on:click=move |_| {
-                                                            copy_text(&md_text);
-                                                            md_copied.set(true);
-                                                        }
-                                                    >{move || if md_copied.get() { "Tersalin MD" } else { "Salin Markdown" }}</button>
-                                                </div>
-                                                <div class="filter-pills-wrap">
-                                                    {[(Audience::Public, "Publik"), (Audience::Gov, "BPBD"), (Audience::Academia, "Riset"), (Audience::AiAgent, "AI Agent")].into_iter().map(|(a_val, a_lbl)| {
-                                                        view! {
-                                                            <button
-                                                                type="button"
-                                                                class="mini-chip"
-                                                                aria-pressed=move || (audience.get() == a_val).to_string()
-                                                                on:click=move |_| audience.set(a_val)
-                                                            >{a_lbl}</button>
-                                                        }
-                                                    }).collect_view()}
-                                                </div>
-                                                <strong class="sitrep-head">{briefing.headline}</strong>
-                                                <p class="sitrep-body">{briefing.sitrep_summary}</p>
-                                                <p class="sitrep-mech">{briefing.mechanism_breakdown}</p>
-                                                <ul class="sitrep-list">
-                                                    {briefing.priority_actions.into_iter().map(|act| view! { <li>{act}</li> }).collect_view()}
-                                                </ul>
-                                            </div>
-
-                                            <div class="section-block card-surface">
-                                                <h3>"Ekspor Terbuka & AI Agent Discovery"</h3>
-                                                <div class="detail-actions">
-                                                    <button
-                                                        type="button"
-                                                        class="btn-secondary"
-                                                        on:click=move |_| {
-                                                            let mut csv = String::from("id,name,river,province,island,lat,lon,alert,mechanism,discharge_m3s,p75_m3s,anomaly_ratio,peak_7d_m3s,rain_72h_mm\n");
-                                                            for s in &snap_csv.stations {
-                                                                csv.push_str(&format!(
-                                                                    "{},\"{}\",\"{}\",\"{}\",{},{:.4},{:.4},{},{},{:.2},{:.2},{:.2},{:.2},{:.2}\n",
-                                                                    s.id, s.name, s.river, s.province, s.island, s.lat, s.lon,
-                                                                    s.alert_level.label(), s.mechanism.slug(),
-                                                                    s.current_discharge_m3s, s.p75_baseline_m3s, s.anomaly_ratio,
-                                                                    s.peak_forecast_m3s, s.rain_72h_mm
-                                                                ));
-                                                            }
-                                                            download_text_file("hidrosentinel-indonesia.csv", "text/csv", &csv);
-                                                        }
-                                                    >"Unduh CSV Nasional"</button>
-                                                    <button
-                                                        type="button"
-                                                        class="btn-secondary"
-                                                        on:click=move |_| {
-                                                            let (_, st_gj, _, _) = crate::bridge::build_map_geojsons(&snap_gj, None);
-                                                            download_text_file("hidrosentinel-stations.geojson", "application/geo+json", &st_gj);
-                                                        }
-                                                    >"Unduh GeoJSON"</button>
-                                                </div>
-                                                <div class="api-links-row">
-                                                    <a href="/llms.txt" target="_blank">"/llms.txt"</a>
-                                                    <a href="/api/openapi.json" target="_blank">"/api/openapi.json"</a>
-                                                    <a href="/api/alerts.rss" target="_blank">"/api/alerts.rss"</a>
-                                                    <a href="/api/health" target="_blank">"/api/health"</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }.into_any()
-                                }
-                            }
+                        {move || error_msg.get().map(|e| view! {
+                            <div class="error-box" role="alert">
+                                <b>"Data belum dapat dimuat."</b>
+                                <span>{e}</span>
+                            </div>
                         })}
+                        {move || {
+                            let tab = active_tab.get();
+                            if tab == InspectorTab::About {
+                                return Some(view! { <AboutPane snapshot=snapshot now=now/> }.into_any());
+                            }
+                            let snap = snapshot.get()?;
+                            Some(match tab {
+                                InspectorTab::Summary => summary_pane(snap),
+                                InspectorTab::News => news_pane(snap),
+                                InspectorTab::Notify => notify_pane(snap),
+                                InspectorTab::About => unreachable!(),
+                            })
+                        }}
                     </div>
                 </Show>
             </aside>
         </>
+    }
+}
+
+pub fn lens_from_slug(s: &str) -> Audience {
+    match s {
+        "bpbd" => Audience::Gov,
+        "riset" => Audience::Academia,
+        "ai" => Audience::AiAgent,
+        other => Audience::from_str_lossy(other),
     }
 }

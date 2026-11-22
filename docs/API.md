@@ -1,0 +1,63 @@
+# API Hidrosentinel Nusantara (schema v2)
+
+Basis: `https://flood.transbulent.id`. Semua respons `/api/*` memuat `Access-Control-Allow-Origin: *`. Isi API adalah **indikasi model, bukan peringatan resmi**. Metode: [METODOLOGI.md](METODOLOGI.md). Spesifikasi mesin: `/api/openapi.json`; ringkasan untuk agen AI: `/llms.txt`.
+
+| Metode | Path | Isi | Cache |
+|---|---|---|---|
+| GET | `/api/flood` | `FloodSnapshot` nasional | 120 s |
+| GET | `/api/stations.geojson` | FeatureCollection titik sungai, rob, laporan warga | 300 s |
+| GET | `/api/station/{id}` | satu `StationTelemetry` atau `CoastalRobTelemetry` | – |
+| GET | `/api/ai/briefing?region=&audience=public\|gov\|academia\|ai_agent&format=json\|md` | ringkasan deterministik | – |
+| GET | `/api/ai/query?q=` | pencarian stasiun/rob + target `fly_to` | – |
+| GET | `/api/alerts.rss?region=` | RSS 2.0 level Tinggi ke atas + nowcast BMKG | 180 s |
+| POST | `/api/alerts/subscribe` | langganan ntfy.sh | – |
+| GET | `/api/health` | umur snapshot dan waktu ambil tiap sumber | – |
+
+## Level
+`level`: `unknown` (Belum terkalibrasi) · `normal` · `high` (Tinggi) · `very_high` (Sangat tinggi) · `extreme` (Ekstrem).
+`mechanism`: `fluvial_basin` · `urban_pluvial` · `coastal_rob`.
+
+## `FloodSnapshot`
+```text
+schema_version = 2, methodology_version = "2026-11-22", generated_at_utc (ISO 8601 UTC),
+is_historical_replay, replay_id?, replay_label?, replay_citation?, replay_note?,
+kpis { river|pluvial|rob: { high, very_high, extreme, unknown }, citizen_flood_reports_24h,
+       bmkg_nowcasts, max_ratio_q2?, max_ratio_station?, uncalibrated },
+upstream { glofas_ok, weather_ok, marine_ok, petabencana_ok, bmkg_nowcast_ok, news_ok, notes[],
+           glofas_fetched_at_utc?, weather_fetched_at_utc?, marine_fetched_at_utc?,
+           petabencana_fetched_at_utc?, bmkg_fetched_at_utc?, news_fetched_at_utc? },
+stations[], coastal_rob[], citizen_reports[], bmkg_nowcasts[], news[]
+```
+Field opsional (`?`) selalu ada dan bernilai `null` bila tidak tersedia.
+
+### `stations[]`
+`id, name, river, ws_code, province, island, lat, lon` (koordinat pos), `tz_offset_hours, basin_area_km2`,
+`glofas_cell? { lat, lon, offset_km, mean_q_m3s }`,
+`thresholds? { q2_m3s, q5_m3s, q20_m3s, p90_m3s, p99_m3s, period, n_years }`,
+`current_discharge_m3s, ratio_q2?, peak_forecast_m3s, peak_forecast_date, peak_forecast_level`,
+`exceed_prob_7d? { q2, q5, q20, members }` (fraksi 0..1),
+`trend` (`naik_tajam|naik|stabil|surut`), `rain_24h_mm, rain_72h_mm, rain_next_24h_mm, soil_moisture_top, soil_moisture_deep, nearby_reports_24h`,
+`fluvial_level, pluvial_level, level, mechanism, level_reason, public_advice, gov_action, academic_note`,
+`hydrograph[] { date, is_forecast, discharge_m3s, discharge_min_m3s?, discharge_p25_m3s?, discharge_p75_m3s?, discharge_max_m3s?, rain_mm? }` — 14 hari lalu, hari ini, 7 hari prakiraan (GMT). Statistik ensemble hanya untuk hari prakiraan.
+
+### `coastal_rob[]`
+`id, name, province, island, lat, lon, tz_offset_hours, current_msl_m, peak_msl_48h_m, peak_msl_time` (ISO UTC), `wave_height_m` (maksimum 48 jam), `thresholds? { p95_m, p99_m, max_m, period }, level, level_reason, note`.
+
+### `citizen_reports[]`
+`pkey, created_at, source, status, depth_cm?, title, text, lat, lon, disaster_type` (selalu `flood`), `url?`.
+
+### `news[]`
+`title, link, source, pub_date` (ISO 8601 UTC, ≤ 72 jam), `region_hint`.
+
+## `/api/stations.geojson`
+Titik `[lon, lat]`; `properties.kind` = `river` | `rob` | `report`; setiap fitur memuat `id, name, level, level_label, mechanism, updated_at_utc` dan metrik kunci (sungai: `discharge_m3s, ratio_q2, q2_m3s, peak_forecast_m3s, rain_24h_mm, calibrated`; rob: `peak_msl_48h_m, p99_m, wave_height_m`; laporan: `depth_cm, url, created_at`). Membuka di GeoLibre: `https://web.geolibre.app/?data=` + `encodeURIComponent("https://flood.transbulent.id/api/stations.geojson")`.
+
+## `POST /api/alerts/subscribe`
+```json
+{ "topic": "banjir-semarang-utara", "region": "Jawa Tengah", "min_level": "high", "send_test": true }
+```
+- `topic`: `^[A-Za-z0-9_-]{8,64}$`, bukan deret angka (mencegah nomor telepon). Topik ntfy.sh bersifat publik; pakai nama yang sulit ditebak.
+- `min_level`: `high` | `very_high` | `extreme` (bawaan `high`).
+- Batas: 5 permintaan per jam per IP (disimpan sebagai hash SHA-256 IP + tanggal, dihapus setelah 1 jam), 1.000 langganan total. Kirim ulang topik yang sama memperbarui wilayah/level (idempoten).
+- Respons: `200 { ok, topic, region, min_level, updated, test_pushed, ntfy_url, rss_url }`, `400` topik tidak valid, `429` batas IP, `503` kuota penuh.
+- Notifikasi dikirim paling sering 6 jam sekali per topik dan selalu memuat “Indikasi model, bukan peringatan resmi”.

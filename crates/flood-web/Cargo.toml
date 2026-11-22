@@ -38,4 +38,7 @@ features = [
   "Url",
   "HtmlAnchorElement",
   "Element",
+  "EventTarget",
+  "Event",
+  "MediaQueryList",
 ]

@@ -1,6 +1,8 @@
 mod app;
 mod bridge;
 mod components;
+mod format;
+mod status;
 
 use app::App;
 use leptos::prelude::*;
