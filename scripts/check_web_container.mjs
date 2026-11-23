@@ -51,8 +51,12 @@ try {
   await writeFile(`${out}/report.json`, JSON.stringify(report, null, 2));
   console.log(`Container web UI, live API, MIME, CSP and missing-asset checks passed; web source ${provenance.source_commit}`);
 } catch (error) {
+  const upstream = await page.evaluate(async () => {
+    const response = await fetch('/api/flood', { cache: 'no-store' });
+    return { status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() };
+  });
   await page.screenshot({ path: `${out}/failure.png` });
-  await writeFile(`${out}/failure.json`, JSON.stringify({ error: String(error), pageErrors: errors, failedResponses }, null, 2));
+  await writeFile(`${out}/failure.json`, JSON.stringify({ error: String(error), pageErrors: errors, failedResponses, upstream }, null, 2));
   throw error;
 } finally {
   await browser.close();
