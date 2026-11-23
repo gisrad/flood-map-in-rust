@@ -1,6 +1,6 @@
 # Rilis sumber dan web
 
-Distribusi: arsip sumber, paket web, PWA (dari situs), serta klien tipis desktop Tauri 2: Windows NSIS `.exe` tanpa tanda tangan dan Debian `.deb`. Belum ada macOS, Android, kontainer/npm/crate publik. Tag dan aset rilis yang sudah ada tidak pernah ditimpa; perbaikan memakai versi baru. Membuat paket lokal tidak menerbitkan rilis.
+Distribusi: arsip sumber, paket web, PWA (dari situs), klien tipis desktop Tauri 2 (Windows NSIS `.exe` tanpa tanda tangan dan Debian `.deb`), serta image Docker preview frontend di GHCR. Belum ada macOS, Android, npm atau crate publik. Tag dan aset rilis yang sudah ada tidak pernah ditimpa; perbaikan memakai versi baru. Membuat paket lokal tidak menerbitkan rilis.
 
 **Indikasi model, bukan peringatan resmi.** Gunakan informasi resmi BPBD/BNPB, BMKG dan pengelola sungai untuk keputusan keselamatan. Validasi Q2 masih pendahuluan.
 
@@ -120,6 +120,21 @@ cd .. && npx tauri build --bundles nsis
 Linux `.deb` dibangun di Ubuntu 22.04 (glibc lebih tua dari Debian 12) dengan `libwebkit2gtk-4.1-dev`; lihat `.github/workflows/desktop.yml`. Workflow itu juga memasang `.exe` secara senyap, menjalankan dan menghapusnya, lalu memasang `.deb` lewat `apt` di kontainer Debian 12 bersih dan meluncurkannya di Xvfb (tangkapan layar sebagai artefak). Rilis tag menyertakan `.exe`, `.deb` dan `SHA256SUMS-desktop`.
 
 Batasan: `.exe` belum ditandatangani (SmartScreen memperingatkan); tidak ada pembaruan otomatis cangkang; WebGL di Linux bergantung pada driver dan WebKitGTK. `third-party/DEPENDENCY_LICENSES.json` mencakup dependensi Rust desktop, bukan WebView2/WebKitGTK sistem.
+
+## Image Docker preview (GHCR)
+
+`ghcr.io/gisrad/hidrosentinel-web:0.3.0` dan `latest` menunjuk digest `sha256:118cb0e4ff9723550b8144ff47139c25209d9bc2e073407899f7e60e2e3b6533`. Image berisi frontend dan bukti lisensi dari arsip web v0.3.0 yang lolos `--verify-assets`, dilayani Nginx non-root. `/api/*` dan `/llms.txt` diproksikan dengan verifikasi TLS ke `https://flood.transbulent.id`. Image tidak memuat Worker, Durable Object, data API, token atau backend mandiri.
+
+Build dan uji dari unduhan rilis (`SHA256SUMS`, arsip sumber dan web):
+
+```bash
+python containers/web/prepare.py --assets /path/ke/unduhan --tag v0.3.0 --out target/web-container
+docker build --build-arg WEB_VERSION=0.3.0 --build-arg WEB_SOURCE_COMMIT=<commit-tag> --build-arg CONTAINER_COMMIT=$(git rev-parse HEAD) -t hidrosentinel-web:test target/web-container
+docker run -d --name hidrosentinel-web-test --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:8080:8080 hidrosentinel-web:test
+node scripts/check_web_container.mjs http://127.0.0.1:8080 target/web-container-proof
+```
+
+Pemeriksa browser membutuhkan 4 KPI dari API live, peta MapLibre, MIME manifest, `sw.js` no-cache, CSP tanpa pelanggaran, mobile Menu, dan 404 untuk aset yang hilang. Dari GitHub Actions, Cloudflare membalas `/api/flood` dengan 403 “Attention Required”, jadi v0.3.0 dibangun, diuji, lalu diunggah dari mesin Linux yang sama. Unggah hanya tag baru; jangan menimpa tag versi. GHCR membuat paket baru sebagai private; mengubahnya menjadi public di Package settings tidak dapat dibatalkan.
 
 ## Tahap berikutnya
 

@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 const base = process.argv[2] ?? 'http://127.0.0.1:8080';
 const out = process.argv[3] ?? 'target/web-container-proof';
 await mkdir(out, { recursive: true });
-const browser = await chromium.launch();
+const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH });
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await context.newPage();
 const errors = [];

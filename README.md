@@ -132,6 +132,7 @@ Versi sumber saat ini: **0.3.0**. Catatan perubahan: [`CHANGELOG.md`](CHANGELOG.
 | **PWA** | Edge/Chrome di Windows, Linux, Android | Buka situs → menu peramban → *Instal aplikasi* |
 | **`Hidrosentinel-Nusantara_<versi>_x64-setup.exe`** | Windows 10/11 | Unduh dari [Releases](https://github.com/gisrad/flood-map-in-rust/releases/latest). **Belum ditandatangani**: SmartScreen → *More info* → *Run anyway*. Terpasang per pengguna, tanpa admin. Cocokkan dengan `SHA256SUMS-desktop`. |
 | **`hidrosentinel-nusantara_<versi>_amd64.deb`** | Debian 12+, Ubuntu 22.04+, Linux Mint 21+ | `sudo apt install ./hidrosentinel-nusantara_<versi>_amd64.deb` |
+| **`ghcr.io/gisrad/hidrosentinel-web:0.3.0`** | Docker, Linux amd64 | `docker run --rm -p 8080:8080 ghcr.io/gisrad/hidrosentinel-web:0.3.0`, lalu buka `http://localhost:8080`. Frontend v0.3.0; data `/api/*` tetap dari flood.transbulent.id, bukan backend mandiri. |
 
 Aplikasi desktop (Tauri 2, ID `id.transbulent.hidrosentinel`) adalah klien tipis: membuka https://flood.transbulent.id dalam jendela sendiri, tautan luar dibuka di peramban, dan memerlukan internet. Data atau frontend tidak dibundel, jadi fitur baru di situs langsung ikut tanpa memperbarui aplikasi. Belum ada paket macOS, APK Android, atau pembaruan otomatis cangkang aplikasi.
 
