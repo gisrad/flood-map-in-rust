@@ -2,6 +2,21 @@
 
 Perubahan yang memengaruhi pengguna dicatat per versi mengikuti SemVer. Sebelum 1.0, versi minor dapat membawa perubahan kontrak API; `schema_version` snapshot tetap harus diperiksa konsumen.
 
+## [0.2.1] - 2026-11-23
+
+### Fixed
+- Data terakhir tidak lagi tampak tanpa peringatan ketika koneksi terputus, refresh gagal, snapshot berumur ≥30 menit, atau sumber upstream gagal/kedaluwarsa. Data lama tetap tersedia dengan waktu aslinya; tersambung kembali memicu refresh dan tersedia tombol coba ulang. Replay tetap terpisah.
+- Peta menyesuaikan tinggi banner koneksi agar titik/kanvas tidak tersembunyi; tombol Menu memiliki nama aksesibel di mobile.
+- Tabel sumber menjelaskan waktu pengambilan data terakhir yang berhasil, bukan waktu upaya yang gagal.
+
+### Added
+- Manifest provenance dan bukti lisensi dependensi pada paket rilis. Teks upstream yang tidak tersedia ditandai eksplisit dengan deklarasi Cargo dan terms SPDX; bukan klaim audit legal lengkap atau SBOM lengkap.
+- Regresi browser untuk putus koneksi setelah berhasil memuat, refresh gagal/pulih, sumber menurun, snapshot lama, dan titik mobile dengan banner.
+
+### Limitations
+- Arsip v0.2.0 tidak ditimpa; versi ini menggantikannya untuk perbaikan di atas. Publikasi draf tetap keputusan pemilik.
+- Backend API tetap diperlukan; belum ada PWA, installer desktop/Android, penandatanganan paket, atau validasi Q2 operasional.
+
 ## [0.2.0] - 2026-11-23
 
 Fondasi rilis sumber dan web. Bagian ini menjadi catatan rilis ketika tag `v0.2.0` diterbitkan; keberadaan berkas ini sendiri bukan bukti rilis telah dipublikasikan.

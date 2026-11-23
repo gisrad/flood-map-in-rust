@@ -555,15 +555,19 @@ a { color: var(--accent); text-underline-offset: 2px; }
   border-radius: var(--r);
   color: var(--ink-soft);
 }
-.error-box {
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-  margin-bottom: 16px;
+.data-notice {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
   border-left: 3px solid var(--lv-very_high);
   background: var(--surface-2);
-  border-radius: 0 var(--r) var(--r) 0;
 }
+.data-notice > div { flex: 1; min-width: 0; }
+.data-notice p { margin: 2px 0 0; font-size: var(--fs-12); overflow-wrap: anywhere; }
+.data-notice button { flex: none; max-width: 112px; white-space: normal; }
 .skeleton { display: grid; gap: 10px; }
 .skeleton span {
   height: 44px;

@@ -96,9 +96,11 @@ flowchart LR
 
 ## Rilis
 
-Versi sumber saat ini: **0.2.0**. Catatan perubahan: [`CHANGELOG.md`](CHANGELOG.md); prosedur build, checksum, rilis draf dan deploy: [`docs/RELEASING.md`](docs/RELEASING.md).
+Versi sumber saat ini: **0.2.1**. Catatan perubahan: [`CHANGELOG.md`](CHANGELOG.md); prosedur build, checksum, rilis draf dan deploy: [`docs/RELEASING.md`](docs/RELEASING.md).
 
 Artefak tahap ini adalah arsip sumber dan paket frontend web yang membutuhkan backend `/api/*`; **belum ada installer Linux/Windows/macOS atau APK Android**. Tag rilis harus lolos CI sebelum menghasilkan draf GitHub Release. Publikasi draf dan deploy produksi adalah langkah terpisah.
+
+Web menandai koneksi terputus, refresh gagal, snapshot ≥30 menit dan sumber gagal/kedaluwarsa. Data terakhir tetap dapat dibaca dengan waktu aslinya, bukan dianggap pembaruan terkini. Ini belum menyediakan cache/PWA untuk membuka aplikasi dari kondisi luring.
 
 
 ## Local Development & Deployment

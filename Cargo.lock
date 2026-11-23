@@ -354,7 +354,7 @@ dependencies = [
 
 [[package]]
 name = "flood-shared"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -363,7 +363,7 @@ dependencies = [
 
 [[package]]
 name = "flood-web"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "console_error_panic_hook",
  "flood-shared",
@@ -380,7 +380,7 @@ dependencies = [
 
 [[package]]
 name = "flood-worker"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "flood-shared",
  "serde",

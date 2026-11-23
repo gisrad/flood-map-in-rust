@@ -45,3 +45,76 @@ pub fn status_stamp(snap: &FloodSnapshot) -> String {
         .map(|ms| fmt_datetime_long(ms, 7))
         .unwrap_or_else(|| snap.generated_at_utc.clone())
 }
+
+/// Peringatan data terakhir: waktu snapshot bukan jaminan setiap sumber masih mutakhir.
+pub fn freshness_notice(
+    snapshot: Option<&FloodSnapshot>,
+    failure: Option<&str>,
+    online: bool,
+    now: f64,
+) -> Option<(&'static str, String)> {
+    if snapshot.is_some_and(|s| s.is_historical_replay) {
+        return None;
+    }
+    let (title, mut detail) = if !online {
+        (
+            "Tidak ada koneksi internet.",
+            "Pembaruan data tidak dapat diperiksa.".to_string(),
+        )
+    } else if let Some(error) = failure {
+        (
+            if snapshot.is_some() {
+                "Pembaruan data gagal."
+            } else {
+                "Data belum dapat dimuat."
+            },
+            error.to_string(),
+        )
+    } else if let Some(snap) = snapshot {
+        let age = parse_utc_ms(&snap.generated_at_utc).map(|ms| now - ms);
+        if age.is_none() {
+            (
+                "Waktu data tidak diketahui.",
+                "Waktu snapshot dari server tidak dapat dikenali.".to_string(),
+            )
+        } else if age.is_some_and(|ms| ms >= 30.0 * 60_000.0) {
+            (
+                "Data belum diperbarui.",
+                "Snapshot sudah berumur 30 menit atau lebih.".to_string(),
+            )
+        } else {
+            let u = &snap.upstream;
+            let mut failed = String::new();
+            for (ok, name) in [
+                (u.glofas_ok, "GloFAS"),
+                (u.weather_ok, "hujan"),
+                (u.marine_ok, "laut"),
+                (u.petabencana_ok, "laporan warga"),
+                (u.bmkg_nowcast_ok, "BMKG"),
+                (u.news_ok, "berita"),
+            ] {
+                if !ok {
+                    if !failed.is_empty() {
+                        failed.push_str(", ");
+                    }
+                    failed.push_str(name);
+                }
+            }
+            if failed.is_empty() {
+                return None;
+            }
+            (
+                "Sebagian sumber belum mutakhir.",
+                format!("Gagal diperbarui atau kedaluwarsa: {failed}. Lihat Tentang data."),
+            )
+        }
+    } else {
+        return None;
+    };
+    if let Some(snap) = snapshot {
+        detail.push_str(" Data terakhir per ");
+        detail.push_str(&status_stamp(snap));
+        detail.push('.');
+    }
+    Some((title, detail))
+}

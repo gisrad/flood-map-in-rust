@@ -64,7 +64,8 @@ jobs:
           jq --exit-status --arg tag "$TAG" '.tag_name == $tag and .draft == false and .prerelease == false and .published_at != null' "$RUNNER_TEMP/release.json"
           mkdir -p "$RUNNER_TEMP/published-release"
           gh release download "$TAG" --repo "$GH_REPO" --dir "$RUNNER_TEMP/published-release" \
-            --pattern "flood-map-in-rust-${TAG}-web.zip" --pattern SHA256SUMS
+            --pattern "flood-map-in-rust-${TAG}-web.zip" --pattern "flood-map-in-rust-${TAG}-source.tar.gz" --pattern SHA256SUMS
+          python3 scripts/package_release.py --verify-assets "$RUNNER_TEMP/published-release" --tag "$TAG"
           # Bind the release assets to the commit, not merely a possibly moved tag.
           python3 - <<'PY'
           import hashlib, os, pathlib, subprocess, zipfile

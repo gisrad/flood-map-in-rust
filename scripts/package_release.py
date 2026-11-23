@@ -18,13 +18,14 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
-import shutil
-import subprocess
 import sys
+import subprocess
 import tarfile
 import time
 from urllib.parse import unquote, urlsplit
 import zipfile
+
+from release_licenses import TERMS, collect_licenses
 
 if sys.version_info < (3, 11):
     raise SystemExit("Python 3.11 or newer is required")
@@ -42,14 +43,46 @@ DOCS = (
 REQUIRED = DOCS + (
     "README.md", "Cargo.toml", "Cargo.lock", "package.json", "package-lock.json",
     ".github/workflows/ci.yml", ".github/workflows/release.yml",
+    ".github/workflows/deploy.yml", "scripts/security-check.ps1",
+    "tests/e2e/playwright.config.mjs", "tests/e2e/support/test.mjs",
+    "tests/e2e/fixtures/server.mjs", "tests/e2e/fixtures/snapshot.mjs",
     "crates/flood-web/Trunk.toml", "crates/flood-web/index.html",
     "crates/flood-worker/wrangler.toml.example",
-    "scripts/package_release.py", "scripts/check_wasm_size.mjs",
+    "scripts/package_release.py", "scripts/check_wasm_size.mjs", "scripts/release_licenses.py",
 )
 GENERATED_DIRS = {
     "target", "dist", "build", "node_modules", ".git", ".wrangler", "__pycache__",
     "test-results", "playwright-report", "blob-report", "results", "report",
 }
+
+def sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def build_provenance(source: Source, dist: Path) -> None:
+    """Record the builder, not the later packaging machine; no host paths/secrets."""
+    commit = git("rev-parse", "HEAD").decode().strip()
+    if git("diff", "--name-only", "HEAD", "--"):
+        raise ValueError("Commit tracked changes before building release assets")
+    files = validate_dist(source, dist, require_provenance=False)
+    tools = {}
+    for name, command in (
+        ("rustc", ["rustc", "-Vv"]), ("cargo", ["cargo", "-V"]),
+        ("trunk", ["trunk", "--version"]), ("node", ["node", "--version"]),
+    ):
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        tools[name] = result.stdout.strip()
+    record = {
+        "schema": 1, "source_commit": commit,
+        "cargo_lock_sha256": sha256(source.read("Cargo.lock")),
+        "target": "wasm32-unknown-unknown",
+        "command": "trunk build --release --locked",
+        "tools": tools,
+        "backend": "not included; requires a separately built compatible same-origin /api/* Worker",
+        "assets": {p: sha256(f.read_bytes()) for p, f in sorted(files.items()) if p != "BUILD_PROVENANCE.json"},
+    }
+    (dist / "BUILD_PROVENANCE.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+
 
 
 def git(*args: str) -> bytes:
@@ -177,7 +210,7 @@ class Links(HTMLParser):
                 self.refs.append(ref)
 
 
-def validate_dist(source: Source, dist: Path) -> dict[str, Path]:
+def validate_dist(source: Source, dist: Path, require_provenance: bool = True) -> dict[str, Path]:
     if not dist.is_dir() or dist.is_symlink():
         raise ValueError(f"Missing regular dist directory: {dist}")
     files = {}
@@ -232,7 +265,21 @@ def validate_dist(source: Source, dist: Path) -> dict[str, Path]:
                 output = (PurePosixPath(target) / path[len(prefix):]).as_posix()
                 if output not in files:
                     raise ValueError(f"Tracked static asset missing from dist: {output}")
+                if files[output].read_bytes() != source.read(path):
+                    raise ValueError(f"Dist static asset differs from selected source revision: {output}")
                 copied += 1
+    if require_provenance:
+        if "BUILD_PROVENANCE.json" not in files:
+            raise ValueError("Dist lacks BUILD_PROVENANCE.json; record it on the build machine with --record-build")
+        record = json.loads(files["BUILD_PROVENANCE.json"].read_text(encoding="utf-8"))
+        expected_commit = source.commit or git("rev-parse", "HEAD").decode().strip()
+        if record.get("schema") != 1 or record.get("source_commit") != expected_commit:
+            raise ValueError("Build provenance does not match selected source commit")
+        if record.get("cargo_lock_sha256") != sha256(source.read("Cargo.lock")):
+            raise ValueError("Build provenance Cargo.lock checksum mismatch")
+        expected = {p: sha256(f.read_bytes()) for p, f in sorted(files.items()) if p != "BUILD_PROVENANCE.json"}
+        if record.get("assets") != expected or not all(record.get("tools", {}).get(t) for t in ("rustc", "cargo", "trunk", "node")):
+            raise ValueError("Build provenance is missing tool versions or assets have changed since recording")
     print(f"Dist complete: {len(files)} files, {copied} tracked static assets; Trunk lock excluded")
     return files
 
@@ -259,10 +306,148 @@ by downloading or unpacking these files.
 
 Kode MIT tidak melisensikan ulang data atau pustaka pihak ketiga. Pertahankan
 LICENSE, DATA_LICENSES.md, THIRD_PARTY_NOTICES.md, CITATION.cff, lisensi MapLibre
-dan OFL font. Statistik turunan GSIM tetap CC BY-SA 3.0.
+dan OFL font; pertahankan juga licenses/, DEPENDENCY_LICENSES.json,
+BUILD_PROVENANCE.json dan RELEASE_CONTENTS.json. Statistik turunan GSIM tetap CC BY-SA 3.0.
+Inventaris Cargo mencakup seluruh workspace, bukan bukti linkage WASM. Entri
+missing_upstream_notice memakai teks standar SPDX berlabel, bukan rekonstruksi
+copyright upstream atau persetujuan hukum; wajib ditinjau sebelum publikasi.
 SHA256SUMS memeriksa integritas unduhan, bukan autentikasi penerbit. Tidak ada
 klaim tanda tangan, attestation penerbit, atau SBOM lengkap.
 """
+
+
+def content_manifest(entries: dict[str, bytes], tag: str, commit: str, kind: str) -> bytes:
+    return (json.dumps({
+        "schema": 1, "tag": tag, "source_commit": commit, "kind": kind,
+        "files": {p: sha256(data) for p, data in sorted(entries.items())},
+    }, indent=2) + "\n").encode()
+
+
+def verify_payload(entries: dict[str, bytes], tag: str, kind: str) -> str:
+    """Validate consumer files from archive bytes, independent of the checkout."""
+    for path in entries:
+        parts = PurePosixPath(path).parts
+        if not parts or path.startswith("/") or "\\" in path or ".." in parts:
+            raise ValueError(f"Unsafe archive path: {path}")
+    manifest = json.loads(entries["RELEASE_CONTENTS.json"])
+    if manifest.get("schema") != 1 or manifest.get("tag") != tag or manifest.get("kind") != kind:
+        raise ValueError("Release content manifest tag/schema/kind mismatch")
+    actual = {p: sha256(data) for p, data in sorted(entries.items()) if p != "RELEASE_CONTENTS.json"}
+    if manifest.get("files") != actual:
+        raise ValueError("Archive content inventory is missing, extra or modified")
+    required = set(DOCS) | {"BUILD_PROVENANCE.json", "DEPENDENCY_LICENSES.json", "Cargo.lock"}
+    if kind == "source":
+        required.update(REQUIRED)
+        workspace = tomllib.loads(entries["Cargo.toml"].decode())["workspace"]
+        for member in workspace["members"]:
+            required.add(f"{member}/Cargo.toml")
+            if not any(entries.get(f"{member}/src/{entry}", b"").strip() for entry in ("lib.rs", "main.rs")):
+                raise ValueError(f"Source archive has no crate entrypoint: {member}")
+        if not any(p.startswith("tests/e2e/") and p.endswith((".js", ".mjs", ".ts")) for p in entries):
+            raise ValueError("Source archive has no runnable browser tests")
+    else:
+        required.update(("RELEASE_NOTICE.txt", "site/index.html", "site/vendor/maplibre-gl.js",
+                         "site/vendor/maplibre-gl.css", "site/vendor/LICENSE.txt", "site/assets/fonts/OFL.txt"))
+        for pattern in (r"site/flood-web-[0-9a-f]+_bg\.wasm", r"site/flood-web-[0-9a-f]+\.js", r"site/main-[0-9a-f]+\.css"):
+            matches = [p for p in entries if re.fullmatch(pattern, p)]
+            if len(matches) != 1:
+                raise ValueError(f"Web archive lacks unambiguous runtime output: {pattern}")
+            required.update(matches)
+        for ref in Links(entries["site/index.html"].decode("utf-8")).refs:
+            url = urlsplit(ref)
+            if not url.scheme and not url.netloc and url.path and url.path != "/":
+                required.add("site/" + unquote(url.path).lstrip("/"))
+        provenance = json.loads(entries["BUILD_PROVENANCE.json"])
+        actual_site = {p[5:]: sha256(data) for p, data in entries.items()
+                       if p.startswith("site/") and p != "site/BUILD_PROVENANCE.json"}
+        if provenance.get("assets") != actual_site:
+            raise ValueError("Web archive differs from build-machine asset inventory")
+        if entries.get("site/BUILD_PROVENANCE.json") != entries["BUILD_PROVENANCE.json"]:
+            raise ValueError("Root and site build provenance differ")
+    missing = sorted(p for p in required if not entries.get(p, b"").strip())
+    if missing:
+        raise ValueError("Archive lacks consumer-required files: " + ", ".join(missing))
+    provenance = json.loads(entries["BUILD_PROVENANCE.json"])
+    commit = manifest["source_commit"]
+    if not re.fullmatch(r"[0-9a-f]{40}", commit) or provenance.get("source_commit") != commit:
+        raise ValueError("Build and archive source commits differ")
+    if provenance.get("cargo_lock_sha256") != sha256(entries["Cargo.lock"]):
+        raise ValueError("Archive lockfile differs from build provenance")
+    if provenance.get("schema") != 1 or provenance.get("target") != "wasm32-unknown-unknown" or not all(
+        provenance.get("tools", {}).get(tool) for tool in ("rustc", "cargo", "trunk", "node")
+    ):
+        raise ValueError("Build provenance lacks required builder/target details")
+    licenses = json.loads(entries["DEPENDENCY_LICENSES.json"])
+    if licenses.get("schema") != 1 or licenses.get("cargo_lock_sha256") != sha256(entries["Cargo.lock"]):
+        raise ValueError("Dependency license inventory schema/lockfile mismatch")
+    lock = tomllib.loads(entries["Cargo.lock"].decode())
+    expected = {(p["name"], p["version"], p["source"]) for p in lock["package"] if "source" in p}
+    found = {(p["name"], p["version"], p["source"]) for p in licenses["packages"]}
+    if expected != found or len(found) != len(licenses["packages"]):
+        raise ValueError("Dependency license inventory does not cover locked external packages exactly")
+    for package in licenses["packages"]:
+        if not package.get("files"):
+            raise ValueError(f"No license texts for {package['name']} {package['version']}")
+        if not any(n["origin"] == "spdx-standard-terms" or
+                   (n["origin"] == "published-crate" and TERMS.fullmatch(PurePosixPath(n["path"]).name))
+                   for n in package["files"]):
+            raise ValueError(f"Dependency has attribution metadata but no license terms: {package['name']}")
+        used_standard = any(n["origin"] == "spdx-standard-terms" for n in package["files"])
+        if package.get("standard_terms_used") != used_standard or package.get("missing_upstream_notice") != used_standard:
+            raise ValueError(f"Dependency fallback flags hide/misstate missing upstream notice: {package['name']}")
+        for notice in package["files"]:
+            if sha256(entries[notice["path"]]) != notice["sha256"]:
+                raise ValueError(f"Missing/modified dependency notice: {notice['path']}")
+    print(f"Verified {kind} archive: {len(entries)} files, {len(found)} dependency license records, commit {commit}")
+    return commit
+
+
+def verify_assets(directory: Path, tag: str | None) -> None:
+    sums = {}
+    for line in (directory / "SHA256SUMS").read_text(encoding="utf-8").splitlines():
+        match = re.fullmatch(r"([0-9a-f]{64})  (flood-map-in-rust-v" + SEMVER + r"-(?:web\.zip|source\.tar\.gz))", line)
+        if not match or match[2] in sums:
+            raise ValueError("Malformed or duplicate SHA256SUMS entry")
+        sums[match[2]] = match[1]
+    if tag is None and sums:
+        tag = next(iter(sums)).removeprefix(PROJECT + "-").split("-")[0]
+    expected = {f"{PROJECT}-{tag}-web.zip", f"{PROJECT}-{tag}-source.tar.gz"}
+    if set(sums) != expected:
+        raise ValueError("SHA256SUMS must list exactly the source and web archives for one tag")
+    commits = []
+    for name in sorted(expected):
+        path = directory / name
+        with path.open("rb") as stream:
+            if hashlib.file_digest(stream, "sha256").hexdigest() != sums[name]:
+                raise ValueError(f"Download checksum mismatch: {name}")
+        kind = "web" if name.endswith("-web.zip") else "source"
+        prefix = f"{PROJECT}-{tag}" + ("-web/" if kind == "web" else "/")
+        if kind == "web":
+            with zipfile.ZipFile(path) as archive:
+                names = archive.namelist()
+                if len(names) != len(set(names)) or any(
+                    not n.startswith(prefix) or "\\" in n or ".." in PurePosixPath(n).parts
+                    for n in names
+                ):
+                    raise ValueError("Duplicate/unsafe/unexpected ZIP path")
+                if any(((m.external_attr >> 16) & 0o170000) not in (0, 0o100000, 0o040000) for m in archive.infolist()):
+                    raise ValueError("Web archive contains links/special files")
+                entries = {n[len(prefix):]: archive.read(n) for n in names if not n.endswith("/")}
+        else:
+            with tarfile.open(path, "r:gz") as archive:
+                members = archive.getmembers()
+                names = [m.name for m in members]
+                if len(names) != len(set(names)) or any(
+                    not (n + "/").startswith(prefix) or "\\" in n or ".." in PurePosixPath(n).parts
+                    for n in names
+                ):
+                    raise ValueError("Duplicate/unsafe/unexpected tar path")
+                if any(not (m.isfile() or m.isdir()) for m in members):
+                    raise ValueError("Source archive contains links/special files")
+                entries = {m.name[len(prefix):]: archive.extractfile(m).read() for m in members if m.isfile()}
+        commits.append(verify_payload(entries, tag, kind))
+    if len(set(commits)) != 1:
+        raise ValueError("Source and web packages refer to different commits")
 
 
 def package(source: Source, tag: str, body: str, files: dict[str, Path], out: Path, notes: Path) -> None:
@@ -273,18 +458,26 @@ def package(source: Source, tag: str, body: str, files: dict[str, Path], out: Pa
         raise ValueError("Tracked working-tree changes present; commit changes and rebuild before packaging")
     if out == notes.parent or out in notes.parents:
         raise ValueError("Release notes must be outside the download-assets directory")
+    if notes.exists():
+        raise ValueError(f"Existing release notes are not overwritten: {notes}")
     out.mkdir(parents=True, exist_ok=True)
     web_name = f"{PROJECT}-{tag}-web.zip"
     source_name = f"{PROJECT}-{tag}-source.tar.gz"
-    allowed = {web_name, source_name, "SHA256SUMS"}
-    if any(p.name not in allowed for p in out.iterdir()):
-        raise ValueError(f"Output directory contains unrelated/stale assets: {out}")
+    if any(out.iterdir()):
+        raise ValueError(f"Output directory must be empty; existing release assets are never overwritten: {out}")
     epoch = int(git("show", "-s", "--format=%ct", commit).strip())
     zip_time = time.gmtime(max(315532800, min(epoch, 4354819198)))[:6]
+    support = collect_licenses(ROOT, source.read("Cargo.lock"))
+    support["Cargo.lock"] = source.read("Cargo.lock")
+    support["BUILD_PROVENANCE.json"] = files["BUILD_PROVENANCE.json"].read_bytes()
     root = f"{PROJECT}-{tag}-web"
-    entries = {f"{root}/{p}": source.read(p) for p in DOCS}
-    entries[f"{root}/RELEASE_NOTICE.txt"] = release_notice(tag, commit).encode("utf-8")
-    entries.update({f"{root}/site/{p}": f.read_bytes() for p, f in files.items()})
+    payload = {p: source.read(p) for p in DOCS}
+    payload.update(support)
+    payload["RELEASE_NOTICE.txt"] = release_notice(tag, commit).encode("utf-8")
+    payload.update({f"site/{p}": f.read_bytes() for p, f in files.items()})
+    payload["RELEASE_CONTENTS.json"] = content_manifest(payload, tag, commit, "web")
+    verify_payload(payload, tag, "web")
+    entries = {f"{root}/{p}": data for p, data in payload.items()}
     with zipfile.ZipFile(out / web_name, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path, data in sorted(entries.items()):
             info = zipfile.ZipInfo(path, zip_time)
@@ -292,16 +485,31 @@ def package(source: Source, tag: str, body: str, files: dict[str, Path], out: Pa
             info.external_attr = 0o100644 << 16
             info.compress_type = zipfile.ZIP_DEFLATED
             archive.writestr(info, data, compresslevel=9)
-    # Pure git archive: only tracked source, including lockfiles/workflows/test code.
-    # The tracked docs/RELEASING.md is the source archive's release notice.
+    # Git supplies all source bytes/modes; generated license evidence is additive.
     tar = git("archive", "--format=tar", f"--prefix={PROJECT}-{tag}/", commit)
+    source_root = f"{PROJECT}-{tag}/"
     with tarfile.open(fileobj=io.BytesIO(tar)) as archive:
-        names = {m.name for m in archive.getmembers() if m.isfile()}
-        for path in REQUIRED:
-            if f"{PROJECT}-{tag}/{path}" not in names:
-                raise ValueError(f"git archive omitted required file (check export-ignore): {path}")
-        if not any(p.startswith(f"{PROJECT}-{tag}/tests/e2e/") for p in names):
-            raise ValueError("git archive omitted e2e test code")
+        members = archive.getmembers()
+        source_payload = {m.name[len(source_root):]: archive.extractfile(m).read() for m in members if m.isfile()}
+        if set(source_payload) != source.paths:
+            raise ValueError("git archive must preserve every tracked source file (review export-ignore/export-subst attributes)")
+        overlap = set(support) & set(source_payload) - {"Cargo.lock"}
+        if overlap:
+            raise ValueError(f"Generated support files collide with tracked source: {sorted(overlap)}")
+        source_payload.update(support)
+        source_payload["RELEASE_CONTENTS.json"] = content_manifest(source_payload, tag, commit, "source")
+        verify_payload(source_payload, tag, "source")
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode="w") as combined:
+            for member in members:
+                combined.addfile(member, archive.extractfile(member) if member.isfile() else None)
+            for path, data in sorted(source_payload.items()):
+                if path in source.paths:
+                    continue
+                info = tarfile.TarInfo(source_root + path)
+                info.size, info.mtime, info.mode = len(data), epoch, 0o644
+                combined.addfile(info, io.BytesIO(data))
+        tar = buffer.getvalue()
     with (out / source_name).open("wb") as stream:
         with gzip.GzipFile(filename="", mode="wb", fileobj=stream, compresslevel=9, mtime=0) as compressed:
             compressed.write(tar)
@@ -311,6 +519,7 @@ def package(source: Source, tag: str, body: str, files: dict[str, Path], out: Pa
         sums.append(f"{digest}  {name}\n")
         print(f"Packaged {name}: {(out / name).stat().st_size} bytes, SHA256 {digest}")
     (out / "SHA256SUMS").write_text("".join(sums), encoding="utf-8", newline="\n")
+    verify_assets(out, tag)
     notes.parent.mkdir(parents=True, exist_ok=True)
     notes.write_text(
         f"> **{DISCLAIMER}.** Ikuti informasi resmi BPBD/BNPB, BMKG dan pengelola sungai.\n\n"
@@ -318,7 +527,7 @@ def package(source: Source, tag: str, body: str, files: dict[str, Path], out: Pa
         f"## Unduhan\n\n- `{web_name}`: frontend statis (`site/`), lisensi dan dokumen. **Backend /api/* tidak dibundel**; perlu backend kompatibel pada origin yang sama.\n"
         f"- `{source_name}`: sumber Git, lockfile, workflow dan kode tes; bukan installer.\n"
         "- `SHA256SUMS`: jalankan `sha256sum -c SHA256SUMS` dari direktori unduhan. Checksum bukan autentikasi penerbit; belum ada tanda tangan/attestation atau SBOM lengkap.\n\n"
-        "Lisensi kode MIT tidak mengganti lisensi data/pustaka. Baca DATA_LICENSES.md dan THIRD_PARTY_NOTICES.md; GSIM tetap CC BY-SA 3.0. Rilis ini tidak melakukan deploy produksi.\n",
+        "Lisensi kode MIT tidak mengganti lisensi data/pustaka. Baca DATA_LICENSES.md dan THIRD_PARTY_NOTICES.md; GSIM tetap CC BY-SA 3.0. DEPENDENCY_LICENSES.json menandai teks upstream yang hilang dan fallback standar SPDX: tinjau sebelum publikasi. Inventaris workspace bukan SBOM atau bukti linkage WASM. BUILD_PROVENANCE.json adalah catatan builder, bukan attestation bertanda tangan. Rilis ini tidak melakukan deploy produksi.\n",
         encoding="utf-8", newline="\n",
     )
     print(f"Downloads: {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}")
@@ -328,16 +537,34 @@ def package(source: Source, tag: str, body: str, files: dict[str, Path], out: Pa
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tag", help="Exact vMAJOR.MINOR.PATCH; required for packaging")
+    parser.add_argument("--record-build", action="store_true", help="Record tool versions and asset hashes immediately after Trunk build")
+    parser.add_argument("--verify-assets", help="Verify downloaded release archives/checksums without building or extracting")
     parser.add_argument("--check-only", action="store_true", help="Validate only; write no files")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--worktree", action="store_true", help="Check uncommitted working tree (check-only only)")
     group.add_argument("--rev", help="Git revision, defaults to the tag (or HEAD for tagless checks)")
     parser.add_argument("--dist", help="Trunk dist path; check-only checks dist only when explicitly supplied")
-    parser.add_argument("--out", default="target/release-assets", help="Download-assets directory")
-    parser.add_argument("--notes", default="target/release-notes.md", help="Release notes outside assets directory")
+    parser.add_argument("--out", help="Empty download-assets directory (default target/release-assets/<tag>)")
+    parser.add_argument("--notes", help="Release notes (default target/release-notes-<tag>.md)")
     args = parser.parse_args()
     if args.tag and not re.fullmatch("v" + SEMVER, args.tag):
         parser.error("--tag must be exactly vMAJOR.MINOR.PATCH")
+    if sum((bool(args.verify_assets), args.record_build, args.check_only)) > 1:
+        parser.error("--verify-assets, --record-build and --check-only are mutually exclusive")
+    if args.verify_assets:
+        try:
+            verify_assets((ROOT / args.verify_assets).resolve(), args.tag)
+            return 0
+        except (ValueError, OSError, KeyError, zipfile.BadZipFile, tarfile.TarError, json.JSONDecodeError) as error:
+            print(f"Release verification error: {error}", file=sys.stderr)
+            return 1
+    if args.record_build:
+        try:
+            build_provenance(Source("HEAD"), (ROOT / (args.dist or "crates/flood-web/dist")).resolve())
+            return 0
+        except (ValueError, OSError, subprocess.CalledProcessError, json.JSONDecodeError) as error:
+            print(f"Build provenance error: {error}", file=sys.stderr)
+            return 1
     if not args.check_only and (not args.tag or args.worktree):
         parser.error("Packaging requires --tag and a committed Git revision; --worktree is check-only")
     try:
@@ -348,13 +575,14 @@ def main() -> int:
         if args.check_only:
             print("Release checks passed (no files written)")
         else:
-            out, notes = (ROOT / args.out).resolve(), (ROOT / args.notes).resolve()
+            out = (ROOT / (args.out or f"target/release-assets/{args.tag}")).resolve()
+            notes = (ROOT / (args.notes or f"target/release-notes-{args.tag}.md")).resolve()
             dist = (ROOT / (args.dist or "crates/flood-web/dist")).resolve()
             if out == dist or dist in out.parents:
                 raise ValueError("Output directory must not be inside dist")
             package(source, args.tag, body, files, out, notes)
         return 0
-    except (ValueError, KeyError, OSError, tomllib.TOMLDecodeError, json.JSONDecodeError) as error:
+    except (ValueError, KeyError, OSError, tarfile.TarError, tomllib.TOMLDecodeError, json.JSONDecodeError) as error:
         print(f"Release error: {error}", file=sys.stderr)
         print("For uncommitted validation use --check-only --worktree; for pre-tag packaging use --rev HEAD.", file=sys.stderr)
         return 1

@@ -1,6 +1,6 @@
 import { test as base, expect } from '@playwright/test';
 import { startFixtureServer } from '../fixtures/server.mjs';
-import { buildSnapshot } from '../fixtures/snapshot.mjs';
+import { buildSnapshot, FIXTURE_TIME } from '../fixtures/snapshot.mjs';
 
 export { expect };
 export const test = base.extend({
@@ -12,6 +12,11 @@ export const test = base.extend({
   tourSeen: [true, { option: true }],
   scenario: ['mixed', { option: true }],
   expectedHttpErrors: [[], { option: true }],
+  page: async ({ page }, use) => {
+    // Freeze Date only: timers and real MapLibre animation still run normally.
+    await page.clock.setFixedTime(new Date(FIXTURE_TIME));
+    await use(page);
+  },
   context: async ({ context, server, tourSeen, scenario, expectedHttpErrors }, use, testInfo) => {
     const issues = [];
     const allowed = (url) => expectedHttpErrors.some((part) => url.includes(part))

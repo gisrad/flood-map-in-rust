@@ -22,6 +22,9 @@ extern "C" {
     #[wasm_bindgen(js_name = resetIndonesiaView)]
     pub fn js_reset_indonesia_view();
 
+    #[wasm_bindgen(js_name = resizeMap)]
+    pub fn js_resize_map();
+
     #[wasm_bindgen(js_name = setMapTheme)]
     pub fn js_set_map_theme(theme: &str);
 

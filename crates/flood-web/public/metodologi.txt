@@ -18,6 +18,8 @@ Versi metodologi: **2026-11-22** (`methodology_version` di setiap snapshot API).
 
 Pemicu cron Worker berjalan tiap 15 menit. Setiap sumber hanya diambil bila jatuh tempo; waktu ambil terakhir dicatat di `upstream.*_fetched_at_utc` dan `/api/health`. Sumber yang gagal dicoba ulang paling cepat 15 menit kemudian; data lama dipakai selama masih dalam batas umur (GloFAS 18 jam, cuaca 4 jam, muka laut 6 jam, laporan warga 2 jam, nowcast 3 jam, berita 6 jam), setelah itu dianggap tidak tersedia.
 
+Peramban meminta snapshot tiap 5 menit dan saat koneksi kembali. Bila permintaan gagal, snapshot terakhir dipertahankan **dengan banner peringatan dan waktu aslinya**; tombol coba ulang tersedia. Banner juga muncul saat luring, umur snapshot ≥30 menit (dua siklus cron), atau ada `upstream.*_ok = false`. Umur snapshot berbeda dari umur tiap sumber: snapshot baru tidak berarti semua sumber berhasil diperbarui. Tabel sumber menampilkan waktu data terakhir yang **berhasil** diambil, bukan waktu upaya gagal. Banner live disembunyikan dalam replay historis. Ini bukan cache/PWA luring: pemuatan pertama tetap membutuhkan koneksi.
+
 Kuota Open-Meteo gratis dihitung berbobot: bobot per lokasi = max(1, V/10 × max(1, D/14)), V = jumlah variabel (dikali jumlah anggota ensemble), D = jumlah hari. Permintaan rutin Worker per hari ≈ 4 × (50 + 50 × 5,1) GloFAS + 24 × 50 cuaca + 24 × 12 muka laut ≈ 2.700 panggilan berbobot.
 
 ## 2. Indikator sungai (banjir kiriman hulu)

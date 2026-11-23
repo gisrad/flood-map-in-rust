@@ -1,6 +1,6 @@
 # Rilis sumber dan web
 
-Tahap v0.2.0 belum menghasilkan installer desktop atau Android. GitHub Packages tidak diperlukan: distribusi berupa GitHub Release, bukan kontainer/npm/crate publik.
+Distribusi tetap sumber dan web, bukan installer desktop/Android, PWA, kontainer/npm/crate publik. Draf `v0.2.0` tidak ditimpa: perbaikan ini disiapkan sebagai patch `v0.2.1`, dengan tag/commit dan aset baru. Membuat paket lokal tidak menerbitkan rilis.
 
 **Indikasi model, bukan peringatan resmi.** Gunakan informasi resmi BPBD/BNPB, BMKG dan pengelola sungai untuk keputusan keselamatan. Validasi Q2 masih pendahuluan.
 
@@ -11,13 +11,24 @@ Tahap v0.2.0 belum menghasilkan installer desktop atau Android. GitHub Packages 
 - Catatan tiap versi ada di `CHANGELOG.md`. Sebelum menandai rilis, isi tanggal aktual dan tinjau batasan, bukan hanya daftar fitur. `date-released` di `CITATION.cff` boleh ditambahkan saat tanggal publikasi sudah pasti.
 - Rilis sumber berasal dari berkas yang dilacak Git pada tag; konfigurasi lokal `wrangler.toml`, token, `target/`, hasil tes dan `node_modules/` tidak boleh ikut.
 - Paket web memuat hasil Trunk dan pemberitahuan lisensi; **tidak memuat backend Worker, data API terkini, kredensial, maupun fixture sintetis**. Hosting HTML/WASM saja tidak cukup: `/api/*` memerlukan backend kompatibel pada origin yang sama. Untuk self-host penuh gunakan arsip sumber dan konfigurasi Worker sendiri.
-- Arsip wajib mempertahankan `LICENSE`, `DATA_LICENSES.md`, `THIRD_PARTY_NOTICES.md`, `CITATION.cff`, serta pemberitahuan MapLibre/font. Data GSIM CC BY-SA 3.0 tidak dilisensikan ulang menjadi MIT; lihat `DATA_LICENSES.md`.
+- Arsip wajib mempertahankan `LICENSE`, `DATA_LICENSES.md`, `THIRD_PARTY_NOTICES.md`, `CITATION.cff`, pemberitahuan MapLibre/font, `licenses/`, `DEPENDENCY_LICENSES.json`, `BUILD_PROVENANCE.json`, `RELEASE_CONTENTS.json`, dan `Cargo.lock`. Data GSIM CC BY-SA 3.0 tidak dilisensikan ulang menjadi MIT; lihat `DATA_LICENSES.md`.
+
+### Bukti lisensi dan asal build
+
+`scripts/release_licenses.py` membaca semua paket eksternal dalam `Cargo.lock` melalui `cargo metadata --locked --offline`, lalu memeriksa SHA-256 arsip `.crate` cache Cargo terhadap checksum lockfile. Berkas lisensi/NOTICE/COPYRIGHT disalin verbatim, termasuk pemberitahuan bersarang. Author, deklarasi lisensi, repository, dan baris copyright asli disimpan sebagai bukti, bukan copyright holder/tahun hasil tebakan.
+
+Sebagian crate terbit tidak menyertakan teks lisensi. Entri tersebut **tetap terlihat** sebagai `missing_upstream_notice: true` dan `standard_terms_used: true`; teks standar SPDX yang cocok dengan deklarasi Cargo disertakan dari revisi tetap SPDX license-list-data v3.27.0. Placeholder dalam teks standar bukan copyright upstream yang telah ditemukan. Inventaris mencakup dependensi seluruh workspace (termasuk backend, host/build, optional/target lain), **bukan daftar yang terbukti ter-link ke WASM, bukan SBOM, bukan pernyataan kepatuhan hukum lengkap**. Rust sysroot dan alat npm tes/deploy tidak diinventarisasi oleh collector ini. Pemberitahuan data, MapLibre, dan font terpisah tetap wajib. Tinjau semua fallback dan asal atribusi sebelum memutuskan publikasi; draf bukan persetujuan publikasi.
+
+`BUILD_PROVENANCE.json` dicatat pada mesin build segera setelah Trunk: commit, hash lockfile, target/perintah, versi rustc/Cargo/Trunk/Node, dan hash setiap aset. File ini catatan builder tanpa hostname/path/kredensial pribadi, **bukan attestation/tanda tangan**. `RELEASE_CONTENTS.json` mencatat hash isi setiap arsip, bukan dirinya sendiri. Checksum mendeteksi perubahan, bukan membuktikan identitas penerbit atau build bit-for-bit deterministik.
 
 ## Verifikasi lokal
 
-Prasyarat: Rust dengan target `wasm32-unknown-unknown`, Trunk 0.22.2, Node.js 22 atau lebih baru, Python 3.11 atau lebih baru. `Cargo.lock` dan `package-lock.json` disimpan agar versi dependensi konsisten.
+Prasyarat yang sama dengan CI: Rust **1.97.1**, target `wasm32-unknown-unknown`, Trunk **0.22.2**, Node.js **22**, Python **3.11+**, Git, dan akses jaringan untuk fetch Cargo/alat Trunk/browser serta teks standar SPDX ketika packaging. `Cargo.lock` dan `package-lock.json` mengunci dependensi, bukan seluruh OS/toolchain eksternal. Jalankan dari checkout bersih commit yang akan dirilis; arsip sumber tanpa `.git` dapat dibangun, tetapi pembuatan paket/provenance memerlukan checkout Git.
 
 ```bash
+rustup toolchain install 1.97.1 --profile minimal --component rustfmt,clippy --target wasm32-unknown-unknown --no-self-update
+rustup default 1.97.1
+cargo fetch --locked
 cargo fmt --all -- --check
 cargo test -p flood-shared -p flood-worker --locked
 cargo clippy -p flood-shared -p flood-worker --target wasm32-unknown-unknown --locked -- -D warnings
@@ -25,6 +36,7 @@ cargo check -p flood-web --target wasm32-unknown-unknown --locked
 cd crates/flood-web
 trunk build --release --locked
 cd ../..
+python scripts/package_release.py --record-build --dist crates/flood-web/dist
 npm ci
 npx playwright install chromium
 npm run test:e2e
@@ -38,29 +50,34 @@ Jika memakai Chrome lokal, tetapkan `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` ke exe
 
 1. Selesaikan perubahan, perbarui versi/changelog/atribusi, dan pastikan CI lulus pada commit yang akan ditandai.
 2. Buat tag pada commit yang ditinjau lalu dorong tag tersebut. Workflow rilis mengulang pemeriksaan sebelum menyiapkan artefak dan **draf** GitHub Release.
-3. Unduh arsip, baca batasan, cocokkan checksum, dan tinjau isi ZIP (tidak ada konfigurasi pribadi atau fixture dalam paket web).
-4. Terbitkan draf hanya sesudah peninjauan. Belum ada tanda tangan/attestation penerbit atau SBOM lengkap; jangan menyamakan checksum dengan autentikasi penerbit.
+3. Unduh kedua arsip dan `SHA256SUMS` ke direktori baru, cocokkan checksum, lalu jalankan pemeriksa isi di bawah. Periksa entri fallback dalam `DEPENDENCY_LICENSES.json` dan batas web/backend; jangan menganggap CI menggantikan peninjauan atribusi.
+4. Tetap simpan sebagai **draf** sampai pemilik memutuskan publikasi setelah peninjauan. Belum ada tanda tangan/attestation penerbit atau SBOM lengkap. Jangan memindah tag atau mengganti aset `v0.2.0` dengan commit patch; gunakan `v0.2.1`.
 
 Contoh verifikasi checksum dari direktori unduhan:
 
 ```bash
 sha256sum -c SHA256SUMS
+python /path/ke/checkout/scripts/package_release.py --verify-assets /path/ke/unduhan --tag v0.2.1
 ```
 
-Pemeriksaan anggaran WASM dan kesiapan paket sebelum commit:
+Pemeriksa unduhan membaca arsip tanpa mengekstrak: checksum kedua unduhan, satu root yang aman/tanpa duplikat/link khusus, manifest isi, dokumen dan entrypoint crate, output JS/CSS/WASM, referensi HTML, hash seluruh aset builder, kesamaan commit sumber/web, kecocokan lockfile, serta satu catatan lisensi berteks untuk setiap paket eksternal terkunci. Penghapusan berkas wajib tetap ditolak walaupun manifest/checksum arsip dibuat ulang. Ini validasi konten untuk konsumen, bukan tes yang sekadar mencari string dalam source script. Paket lama `v0.2.0` belum memuat metadata/lisensi baru sehingga tidak lulus gate baru; kedua checksum unduhan lama tetap bisa cocok.
+
+Pemeriksaan sebelum commit (tanpa dist/provenance baru):
+
+```bash
+python scripts/package_release.py --check-only --worktree --tag v0.2.1
+```
+
+Sesudah commit, bangun ulang dan catat provenance seperti di atas, jalankan tes, lalu:
 
 ```bash
 node scripts/check_wasm_size.mjs --dist crates/flood-web/dist --budget-kib 450
-python scripts/package_release.py --check-only --worktree --tag v0.2.0
+python scripts/package_release.py --check-only --tag v0.2.1 --rev HEAD --dist crates/flood-web/dist
+python scripts/package_release.py --tag v0.2.1 --rev HEAD --dist crates/flood-web/dist
+python scripts/package_release.py --verify-assets target/release-assets/v0.2.1 --tag v0.2.1
 ```
 
-Sesudah commit, buat paket dari revisi yang akan ditandai:
-
-```bash
-python scripts/package_release.py --tag v0.2.0 --rev HEAD --dist crates/flood-web/dist
-```
-
-Keluaran: `target/release-assets/flood-map-in-rust-v0.2.0-web.zip`, `flood-map-in-rust-v0.2.0-source.tar.gz`, `SHA256SUMS`; catatan rilis di `target/release-notes.md`. Ganti versi sesuai tag. Arsip sumber memakai revisi Git, bukan seluruh direktori kerja.
+Default lokal berdasarkan tag: `target/release-assets/v0.2.1/` berisi `flood-map-in-rust-v0.2.1-web.zip`, `flood-map-in-rust-v0.2.1-source.tar.gz`, `SHA256SUMS`; catatan di `target/release-notes-v0.2.1.md`. Output harus kosong: script menolak menimpa aset yang sudah ada. Gunakan `--out <direktori-baru>` / `--notes <file-baru>` untuk percobaan lain. CI memakai direktori runner baru dan nama output eksplisit. Arsip sumber memakai byte/mode Git ditambah bukti lisensi, provenance, dan manifest isi hasil generator; bukan salinan seluruh direktori kerja.
 
 Windows PowerShell: `Get-FileHash <nama-arsip.zip> -Algorithm SHA256`, lalu bandingkan hasil dengan entri berkas yang sama dalam `SHA256SUMS`.
 

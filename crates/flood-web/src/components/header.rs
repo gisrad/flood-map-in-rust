@@ -47,6 +47,7 @@ pub fn Header(
             <button
                 type="button"
                 class="menu-btn"
+                aria-label="Menu"
                 aria-haspopup="true"
                 aria-expanded=move || menu_open.get().to_string()
                 aria-controls="app-menu"

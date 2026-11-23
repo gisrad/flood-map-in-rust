@@ -53,7 +53,7 @@ pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) ->
                 <h3 class="h-sub">"Pembaruan per sumber"</h3>
                 <div class="table-wrap">
                     <table class="data-table">
-                        <thead><tr><th scope="col">"Sumber"</th><th scope="col">"Jadwal"</th><th scope="col">"Terakhir diambil"</th></tr></thead>
+                        <thead><tr><th scope="col">"Sumber"</th><th scope="col">"Jadwal"</th><th scope="col">"Data terakhir berhasil diambil"</th></tr></thead>
                         <tbody>
                             {rows.into_iter().map(|(name, sched, ok, at)| {
                                 let when = at
@@ -66,7 +66,7 @@ pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) ->
                                         <th scope="row">{name}</th>
                                         <td>{sched}</td>
                                         <td>
-                                            <span class=if ok { "feed-ok" } else { "feed-bad" }>{if ok { "Berhasil" } else { "Gagal" }}</span>
+                                            <span class=if ok { "feed-ok" } else { "feed-bad" }>{if ok { "Tersedia" } else { "Gagal / kedaluwarsa" }}</span>
                                             <small class="feed-time">{when}</small>
                                         </td>
                                     </tr>

@@ -1,6 +1,6 @@
 use crate::bridge::{
     build_map_geojsons, copy_text, current_url, js_clear_user_location, js_fly_to_point,
-    js_init_map, js_reset_indonesia_view, js_set_inundation_layer, js_set_map_theme,
+    js_init_map, js_reset_indonesia_view, js_resize_map, js_set_inundation_layer, js_set_map_theme,
     js_set_user_location, js_toggle_3d_terrain, js_update_map_data, prefers_dark, read_url_param,
     remove_splash, set_html_theme, update_url_param, watch_system_theme,
 };
@@ -14,6 +14,7 @@ use crate::components::station_detail::{Gem15Cell, Gem15Ctx};
 use crate::components::tour::{tour_seen, Tour};
 use crate::components::ui::Toast;
 use crate::format::{fmt_num, now_ms};
+use crate::status::freshness_notice;
 use flood_shared::hydrology::haversine_km;
 use flood_shared::model::{Audience, FloodMechanism, FloodSnapshot};
 use flood_shared::replay::{build_replay_snapshot, list_replay_scenarios};
@@ -108,9 +109,10 @@ pub fn App() -> impl IntoView {
     provide_context(gem15);
 
     let live_snapshot = RwSignal::new(Option::<FloodSnapshot>::None);
-    let loading = RwSignal::new(true);
+    let loading = RwSignal::new(false);
     let error_msg = RwSignal::new(Option::<String>::None);
     let now = RwSignal::new(now_ms());
+    let online = RwSignal::new(web_sys::window().is_some_and(|win| win.navigator().on_line()));
 
     let selected_id = RwSignal::new(initial_sel);
     let mech_filter = RwSignal::new(initial_mech);
@@ -147,10 +149,14 @@ pub fn App() -> impl IntoView {
 
     // Data langsung + pembaruan berkala.
     let load = move || {
+        if loading.get_untracked() {
+            return;
+        }
+        loading.set(true);
         spawn_local(async move {
             match fetch_snapshot().await {
                 Ok(snap) => {
-                    let first = live_snapshot.get_untracked().is_none();
+                    let first = live_snapshot.with_untracked(Option::is_none);
                     live_snapshot.set(Some(snap));
                     // Tur pertama kali: setelah data tampil, hanya untuk kunjungan langsung.
                     if first && !deep_link && !tour_seen() {
@@ -165,19 +171,28 @@ pub fn App() -> impl IntoView {
                     }
                     error_msg.set(None);
                 }
-                Err(e) => {
-                    if live_snapshot.get_untracked().is_none() {
-                        error_msg.set(Some(e));
-                    }
-                }
+                Err(e) => error_msg.set(Some(e)),
             }
             loading.set(false);
+            now.set(now_ms());
             remove_splash();
         });
     };
     load();
     Interval::new(REFRESH_MS, load).forget();
     Interval::new(30_000, move || now.set(now_ms())).forget();
+    if let Some(win) = web_sys::window() {
+        for (event, connected) in [("online", true), ("offline", false)] {
+            let listener = Closure::<dyn FnMut()>::new(move || {
+                online.set(connected);
+                if connected {
+                    load();
+                }
+            });
+            let _ = win.add_event_listener_with_callback(event, listener.as_ref().unchecked_ref());
+            listener.forget();
+        }
+    }
     Timeout::new(8000, remove_splash).forget();
 
     // Sel DEM GEM-15 untuk lensa Riset (opsional, berkas milik worker aset).
@@ -189,6 +204,18 @@ pub fn App() -> impl IntoView {
                 }
             }
         }
+    });
+
+    let data_notice = Memo::new(move |_| {
+        if replay_active.get() {
+            return None;
+        }
+        let at = now.get();
+        let connected = online.get();
+        error_msg.with(|failure| {
+            live_snapshot
+                .with(|snap| freshness_notice(snap.as_ref(), failure.as_deref(), connected, at))
+        })
     });
 
     let active_snapshot = Signal::derive(move || {
@@ -221,6 +248,11 @@ pub fn App() -> impl IntoView {
         }) as Box<dyn FnMut(String)>);
         js_init_map("map-canvas", &theme.get_untracked(), &cb);
         cb.forget();
+    });
+    // Peringatan ada dalam alur layout, bukan menutupi peta. Sesuaikan kanvas setelah DOM berubah.
+    Effect::new(move |_| {
+        data_notice.track();
+        Timeout::new(60, move || js_resize_map()).forget();
     });
 
     // Terbang ke titik dari permalink sekali, setelah data pertama tiba.
@@ -436,6 +468,16 @@ pub fn App() -> impl IntoView {
                 })
             />
 
+            {move || data_notice.get().map(|(title, detail)| view! {
+                <section class="data-notice" role="alert">
+                    <div><strong>{title}</strong><p>{detail}</p></div>
+                    <button type="button" class="chip" disabled=move || loading.get() || !online.get()
+                        on:click=move |_| load()>
+                        {move || if loading.get() { "Memperbarui…" } else { "Coba perbarui" }}
+                    </button>
+                </section>
+            })}
+
             <main class="stage">
                 <div id="map-canvas" class="map-canvas" role="region" aria-label="Peta indikasi banjir Indonesia"></div>
                 <MapTools mech_filter=mech_filter terrain_3d=terrain_3d inundation=inundation theme=theme theme_explicit=theme_explicit on_gps=trigger_gps/>
@@ -468,7 +510,6 @@ pub fn App() -> impl IntoView {
                 <InspectorDrawer
                     snapshot=active_snapshot
                     loading=loading
-                    error_msg=error_msg
                     selected_id=selected_id
                     mech_filter=mech_filter
                     lens=lens

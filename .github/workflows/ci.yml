@@ -115,6 +115,8 @@ jobs:
       - name: Release frontend build
         working-directory: crates/flood-web
         run: trunk build --release --locked
+      - name: Record builder provenance before testing
+        run: python3 scripts/package_release.py --record-build --dist crates/flood-web/dist
       - name: WASM Brotli quality-11 budget
         run: node scripts/check_wasm_size.mjs --dist crates/flood-web/dist --budget-kib "$WASM_BROTLI_BUDGET_KIB"
       - name: Install Chromium with system dependencies

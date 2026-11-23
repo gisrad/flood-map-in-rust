@@ -256,7 +256,6 @@ fn bmkg_block(snap: &FloodSnapshot, limit: usize) -> AnyView {
 pub fn InspectorDrawer(
     snapshot: Signal<Option<FloodSnapshot>>,
     loading: RwSignal<bool>,
-    error_msg: RwSignal<Option<String>>,
     selected_id: RwSignal<Option<String>>,
     mech_filter: RwSignal<Option<FloodMechanism>>,
     lens: RwSignal<Audience>,
@@ -903,12 +902,6 @@ pub fn InspectorDrawer(
                                 <span></span><span></span><span></span><span></span>
                             </div>
                         </Show>
-                        {move || error_msg.get().map(|e| view! {
-                            <div class="error-box" role="alert">
-                                <b>"Data belum dapat dimuat."</b>
-                                <span>{e}</span>
-                            </div>
-                        })}
                         {move || {
                             let tab = active_tab.get();
                             if tab == InspectorTab::About {

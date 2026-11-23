@@ -81,11 +81,12 @@ function isMobile() {
 function getPadding() {
   if (isMobile()) {
     const sheet = document.querySelector('.inspector');
-    const h = window.innerHeight;
-    let bottom = 196;
-    if (sheet && sheet.classList.contains('snap-half')) bottom = Math.round(h * 0.56) + 16;
-    else if (sheet && sheet.classList.contains('snap-full')) bottom = Math.round(h * 0.56) + 16;
-    bottom = Math.min(bottom, h - 160);
+    const c = map?.getContainer().getBoundingClientRect();
+    const h = c?.height || window.innerHeight;
+    const sheetRect = sheet?.getBoundingClientRect();
+    // Hitung ruang yang benar-benar tertutup: banner koneksi dapat memperpendek stage.
+    let bottom = c && sheetRect?.height ? Math.max(16, c.bottom - sheetRect.top + 16) : 196;
+    bottom = Math.min(bottom, Math.max(16, h - 160));
     // Panel replay menutupi bagian atas peta: pusatkan target di bawahnya.
     let top = 64;
     const replay = document.querySelector('.replay');
