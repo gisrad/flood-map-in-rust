@@ -7,7 +7,7 @@
 [![Live site](https://img.shields.io/badge/live-flood.transbulent.id-0b7285)](https://flood.transbulent.id/)
 [![Model indication, not official warning](https://img.shields.io/badge/status-model%20indication%2C%20not%20official%20warning-lightgrey)](docs/METODOLOGI.md)
 
-**100% Rust Full-Stack (`Leptos` CSR WebAssembly + `workers-rs` + Cloudflare SQLite Durable Objects + MapLibre GL v5 3D)**
+**Rust-first full stack**: Cloudflare Worker backend (`workers-rs`) with SQLite Durable Objects and a Leptos CSR WebAssembly UI, sharing hydrology logic through the `flood-shared` crate. The 3D map is rendered by MapLibre GL JS v5 through a JavaScript bridge (`map_bridge.js`, ~900 lines); offline calibration, data baking and release packaging use Python.
 
 Observatorium banjir dan hidrometeorologi seluruh Indonesia yang memisahkan tiga mekanisme banjir — **sungai (kiriman hulu DAS)**, **hujan lokal (drainase kota)**, dan **rob pesisir** — dengan hidrograf ensemble, berita banjir regional RSS, peringatan dini BMKG Nowcast, kanal notifikasi gratis (`ntfy.sh` + WhatsApp Share + RSS), serta API ramah *AI Agent* (`/llms.txt` & `/api/openapi.json`).
 
@@ -17,19 +17,19 @@ Observatorium banjir dan hidrometeorologi seluruh Indonesia yang memisahkan tiga
 
 ### English
 
-**Hidrosentinel Nusantara** is an all-Rust flood observatory for Indonesia. It separates three flood mechanisms: **river floods** from upstream basins, **local rainfall** that overwhelms urban drainage, and **coastal tidal flooding (rob)**. It monitors 50 major rivers (44 calibrated GloFAS cells) and 12 coastal corridors on a 3D MapLibre map, combining Copernicus GloFAS v4 discharge ensembles, Open-Meteo rainfall, soil moisture and sea level, PetaBencana.id citizen reports, BMKG nowcasts and regional flood news. It also offers free alerts (ntfy, RSS, WhatsApp share), historical replays and an AI-agent-friendly API (`/llms.txt`, `/api/openapi.json`). Stack: Leptos WebAssembly, Cloudflare Workers and SQLite Durable Objects.
+**Hidrosentinel Nusantara** is a Rust-first flood observatory for Indonesia. It separates three flood mechanisms: **river floods** from upstream basins, **local rainfall** that overwhelms urban drainage, and **coastal tidal flooding (rob)**. It monitors 50 major rivers (44 calibrated GloFAS cells) and 12 coastal corridors on a 3D MapLibre map, combining Copernicus GloFAS v4 discharge ensembles, Open-Meteo rainfall, soil moisture and sea level, PetaBencana.id citizen reports, BMKG nowcasts and regional flood news. It also offers free alerts (ntfy, RSS, WhatsApp share), historical replays and an AI-agent-friendly API (`/llms.txt`, `/api/openapi.json`). Stack: Rust (Leptos WebAssembly UI, Cloudflare Workers, SQLite Durable Objects), MapLibre GL JS for the map, and Python for offline calibration and data processing.
 
 > **Model indication, not an official warning.** Official flood warnings in Indonesia come from BNPB/BPBD, BMKG and the river basin authorities (BBWS/BWS). Q2 comparisons with gauges are still preliminary.
 
 ### 中文
 
-**Hidrosentinel Nusantara（努山塔拉水文哨兵）** 是一个完全用 Rust 构建的印度尼西亚洪水观测平台，区分三种洪水机制：上游流域来水造成的**河流洪水**、超出城市排水能力的**局地降雨内涝**，以及**沿海潮汐洪水（rob）**。平台在 MapLibre 三维地图上监测 50 条主要河流（其中 44 个 GloFAS 网格已校准）和 12 个沿海区段，融合 Copernicus GloFAS v4 流量集合预报、Open-Meteo 降雨、土壤湿度与海平面数据、PetaBencana.id 民众报告、BMKG 临近预警以及地区洪水新闻。另提供免费提醒（ntfy、RSS、WhatsApp 分享）、历史事件回放，以及便于 AI 智能体调用的 API（`/llms.txt`、`/api/openapi.json`）。技术栈：Leptos WebAssembly、Cloudflare Workers 与 SQLite Durable Objects。
+**Hidrosentinel Nusantara（努山塔拉水文哨兵）** 是一个以 Rust 为主构建的印度尼西亚洪水观测平台，区分三种洪水机制：上游流域来水造成的**河流洪水**、超出城市排水能力的**局地降雨内涝**，以及**沿海潮汐洪水（rob）**。平台在 MapLibre 三维地图上监测 50 条主要河流（其中 44 个 GloFAS 网格已校准）和 12 个沿海区段，融合 Copernicus GloFAS v4 流量集合预报、Open-Meteo 降雨、土壤湿度与海平面数据、PetaBencana.id 民众报告、BMKG 临近预警以及地区洪水新闻。另提供免费提醒（ntfy、RSS、WhatsApp 分享）、历史事件回放，以及便于 AI 智能体调用的 API（`/llms.txt`、`/api/openapi.json`）。技术栈：Rust（Leptos WebAssembly 前端、Cloudflare Workers 与 SQLite Durable Objects），地图使用 MapLibre GL JS，离线校准与数据处理使用 Python。
 
 > **模型指示，非官方预警。** 印度尼西亚的官方洪水预警由 BNPB/BPBD、BMKG 及流域管理机构（BBWS/BWS）发布。与水文站数据的 Q2 对比仍属初步结果。
 
 ### Bahasa Indonesia
 
-**Hidrosentinel Nusantara** adalah observatorium banjir Indonesia yang seluruhnya dibangun dengan Rust. Situs ini memisahkan tiga mekanisme banjir: **banjir sungai** kiriman hulu DAS, **hujan lokal** yang melampaui kapasitas drainase kota, dan **rob pesisir**. Pemantauan mencakup 50 sungai utama (44 sel GloFAS terkalibrasi) dan 12 koridor pesisir di peta 3D MapLibre. Datanya memadukan ensemble debit Copernicus GloFAS v4, hujan, lengas tanah dan muka laut Open-Meteo, laporan warga PetaBencana.id, nowcast BMKG, dan berita banjir regional. Tersedia juga notifikasi gratis (ntfy, RSS, bagikan WhatsApp), replay kejadian historis, dan API ramah agen AI (`/llms.txt`, `/api/openapi.json`). Teknologi: Leptos WebAssembly, Cloudflare Workers, dan SQLite Durable Objects.
+**Hidrosentinel Nusantara** adalah observatorium banjir Indonesia yang sebagian besar dibangun dengan Rust. Situs ini memisahkan tiga mekanisme banjir: **banjir sungai** kiriman hulu DAS, **hujan lokal** yang melampaui kapasitas drainase kota, dan **rob pesisir**. Pemantauan mencakup 50 sungai utama (44 sel GloFAS terkalibrasi) dan 12 koridor pesisir di peta 3D MapLibre. Datanya memadukan ensemble debit Copernicus GloFAS v4, hujan, lengas tanah dan muka laut Open-Meteo, laporan warga PetaBencana.id, nowcast BMKG, dan berita banjir regional. Tersedia juga notifikasi gratis (ntfy, RSS, bagikan WhatsApp), replay kejadian historis, dan API ramah agen AI (`/llms.txt`, `/api/openapi.json`). Teknologi: Rust (antarmuka Leptos WebAssembly, Cloudflare Workers, SQLite Durable Objects), MapLibre GL JS untuk peta, dan Python untuk kalibrasi serta pengolahan data offline.
 
 > Perbandingan Q2 dengan pos duga air masih pendahuluan; status resmi tetap mengikuti peringatan di atas.
 
@@ -77,7 +77,7 @@ flowchart LR
 
 ## Ringkasan Bahasa Indonesia
 
-**Hidrosentinel Nusantara** dibangun seluruhnya dalam bahasa **Rust** dari *backend* Cloudflare Worker hingga antarmuka *frontend* WebAssembly (hanya menjembatani kanvas WebGL **MapLibre GL v5** melalui modul ES tipis).
+**Hidrosentinel Nusantara** memakai **Rust** untuk *backend* Cloudflare Worker, logika hidrologi bersama, dan antarmuka *frontend* WebAssembly (Leptos). Peta 3D dirender **MapLibre GL v5** (JavaScript) lewat jembatan `map_bridge.js` (~900 baris: lapisan peta, kamera, relief 3D, genangan, lokasi pengguna). Skrip kalibrasi, pengolahan data, dan paket rilis memakai Python; tes browser memakai Playwright (Node.js).
 
 ### Keunggulan Utama
 1. **Pemisahan 3 Mekanisme Banjir dengan Level Indikasi Terkalibrasi**
@@ -89,7 +89,7 @@ flowchart LR
    * **Uji silang GRRR (lensa Riset)**: ambang Q2 GloFAS dibandingkan dengan *Google Runoff Reanalysis & Reforecast* 1980–2023 di sekitar pos. Hasilnya model-terhadap-model dan menandai stasiun yang perlu diverifikasi dengan pos duga air; tidak memengaruhi level.
    * **Validasi pos duga air (lensa Riset)**: rerata debit sel GloFAS dibandingkan dengan rerata terukur pos GRDC di sungai yang sama (5 stasiun: Bengawan Solo Bojonegoro dan Sragen, Brantas, Walanae, Tondano). Menguji apakah sel mewakili sungai yang benar, bukan ambang banjir.
    * **Uji pendahuluan Q2 terukur**: maksimum tahunan debit harian GSIM/GRDC untuk Jurug, Sempajeruk, dan Kairagi, serta nilai terbit untuk Bojonegoro (lebih lemah, ditandai), dibanding ambang GloFAS; mutu rekaman dan sensitivitas ditampilkan di Riset. Jabon belum dapat dinilai. Belum validasi operasional; tidak mengubah level.
-2. **All-Rust + SQLite Durable Object (`FloodHub`)**
+2. **Rust di server dan klien + SQLite Durable Object (`FloodHub`)**
    * Data disimpan di **Cloudflare Durable Object SQLite** (`new_sqlite_classes = ["FloodHub"]`) — aktif otomatis di paket gratis Cloudflare Workers tanpa server terpisah.
    * Berbagi tipe data & logika hidrologi antara server dan klien lewat crate `flood-shared`.
 3. **Multi-Perspektif + Mobile-First + Berita & Peringatan Gratis**

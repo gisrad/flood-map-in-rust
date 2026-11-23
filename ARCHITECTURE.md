@@ -1,6 +1,6 @@
 # Architecture & Scale-Up Guide
 
-## 1. All-Rust Workspace Architecture
+## 1. Rust-First Workspace Architecture
 
 `flood-map-in-rust` is a single 3-crate Rust workspace compiling two independent WebAssembly targets (`wasm32-unknown-unknown`) that share identical domain types and deterministic hydrology algorithms:
 
@@ -16,10 +16,13 @@
    - Stores live snapshots (`snapshots`), ingestion telemetry (`ingest_log`), and zero-PII push topics (`subscriptions`) inside embedded Durable Object SQLite (`SqlStorage`).
    - Refreshes automatically via `#[event(scheduled)]` every 15 minutes (`*/15 * * * *`) with Durable Object `alarm()` fallback and lazy bootstrap if empty/stale (>20 min).
 
-3. **`crates/flood-web` (Rust Leptos 0.8 CSR WASM + Minimal MapLibre Bridge)**
+3. **`crates/flood-web` (Rust Leptos 0.8 CSR WASM + MapLibre GL JS Bridge)**
    - Compiled via `Trunk` (`--release`, `wasm-opt -Oz`) into static `[assets]`.
    - Renders full Coastal Editorial UI, scientific SVG hydrographs (simulated GloFAS discharge + 7d forecast + ensemble uncertainty band + Q2/Q5/Q20 return-period thresholds), mobile 3-state snap bottom sheet, news reader, free alert hub (`ntfy.sh` + WhatsApp share + RSS), and AI command bar directly in Rust.
-   - Only ~190 lines of thin ES glue (`assets/map_bridge.js`) connect `wasm-bindgen` to locally bundled `maplibre-gl` v5.
+   - Map rendering stays in JavaScript: `assets/map_bridge.js` (~900 lines) connects `wasm-bindgen` to locally bundled `maplibre-gl` v5 (map layers, camera, 3D terrain, inundation overlay, user location). `assets/theme.js` (5 lines) sets the theme before WASM loads.
+
+4. **Offline tooling (not deployed)**
+   - Python scripts in `scripts/` calibrate GloFAS/rob thresholds, bake rivers, replays and inundation summaries, render art, validate gauges and package releases. Browser tests use Playwright on Node.js.
 
 ## 2. Scale-Up Roadmap (When Traffic or Station Count Grows)
 

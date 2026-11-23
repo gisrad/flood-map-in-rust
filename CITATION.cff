@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "Hidrosentinel Nusantara (flood-map-in-rust): All-Rust Indonesian 3D Flood, GloFAS Discharge & Coastal Rob Observatory"
+title: "Hidrosentinel Nusantara (flood-map-in-rust): Rust-First Indonesian 3D Flood, GloFAS Discharge & Coastal Rob Observatory"
 message: "If you use this software or methodology in your research, please cite it using the metadata below."
 type: software
 authors:
@@ -11,7 +11,7 @@ license: MIT
 url: "https://flood.transbulent.id"
 repository-code: "https://github.com/gisrad/flood-map-in-rust"
 abstract: >-
-  Full-stack Rust (Leptos CSR WebAssembly + Cloudflare Workers Rust + SQLite-backed Durable Objects)
+  Rust-first (Leptos CSR WebAssembly + Cloudflare Workers Rust + SQLite-backed Durable Objects; MapLibre GL JS map bridge; Python offline calibration)
   observatory monitoring 50 major Indonesian river basins and 12 coastal tidal (Rob) corridors.
   Fuses Copernicus GloFAS v4 river discharge ensembles, Open-Meteo precipitation and 2-layer soil moisture,
   Open-Meteo Marine sea-level/wave telemetry, PetaBencana.id citizen reports, BMKG CAP nowcast alerts,
