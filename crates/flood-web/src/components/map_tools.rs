@@ -8,6 +8,8 @@ pub fn MapTools(
     terrain_3d: RwSignal<bool>,
     inundation: RwSignal<bool>,
     theme: RwSignal<String>,
+    /// `true` setelah pengunjung memilih tema sendiri; sebelum itu tema mengikuti sistem.
+    theme_explicit: RwSignal<bool>,
     on_gps: Callback<()>,
 ) -> impl IntoView {
     let options: [(Option<FloodMechanism>, &'static str); 4] = [
@@ -41,7 +43,10 @@ pub fn MapTools(
                 <button type="button" class="icon-btn"
                     title=move || if theme.get() == "dark" { "Mode terang" } else { "Mode gelap" }
                     aria-label=move || if theme.get() == "dark" { "Mode terang" } else { "Mode gelap" }
-                    on:click=move |_| theme.update(|t| *t = if t == "dark" { "light".into() } else { "dark".into() })>
+                    on:click=move |_| {
+                        theme_explicit.set(true);
+                        theme.update(|t| *t = if t == "dark" { "light".into() } else { "dark".into() });
+                    }>
                     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
                         <circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
                         <path d="M8 2.5 A5.5 5.5 0 0 1 8 13.5 Z" fill="currentColor"/>

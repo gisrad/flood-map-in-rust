@@ -2,7 +2,7 @@ use crate::bridge::{
     build_map_geojsons, copy_text, current_url, js_clear_user_location, js_fly_to_point,
     js_init_map, js_reset_indonesia_view, js_set_inundation_layer, js_set_map_theme,
     js_set_user_location, js_toggle_3d_terrain, js_update_map_data, prefers_dark, read_url_param,
-    remove_splash, set_html_theme, update_url_param,
+    remove_splash, set_html_theme, update_url_param, watch_system_theme,
 };
 use crate::components::header::{AppMenu, Header};
 use crate::components::inspector::{
@@ -11,6 +11,7 @@ use crate::components::inspector::{
 use crate::components::map_tools::{Legend, MapTools};
 use crate::components::replay_bar::ReplayBar;
 use crate::components::station_detail::{Gem15Cell, Gem15Ctx};
+use crate::components::tour::{tour_seen, Tour};
 use crate::components::ui::Toast;
 use crate::format::{fmt_num, now_ms};
 use flood_shared::hydrology::haversine_km;
@@ -77,20 +78,26 @@ async fn fetch_snapshot() -> Result<FloodSnapshot, String> {
 
 #[component]
 pub fn App() -> impl IntoView {
-    let initial_theme = read_url_param("theme")
-        .filter(|t| t == "dark" || t == "light")
-        .unwrap_or_else(|| {
-            if prefers_dark() {
-                "dark".into()
-            } else {
-                "light".into()
-            }
-        });
+    // Tema mengikuti sistem (perangkat pengunjung) kecuali dipilih eksplisit: `?theme=` di tautan
+    // atau tombol tema. Pilihan eksplisit tidak disimpan; kunjungan berikutnya kembali ke sistem.
+    let url_theme = read_url_param("theme").filter(|t| t == "dark" || t == "light");
+    let theme_explicit = RwSignal::new(url_theme.is_some());
+    let initial_theme = url_theme.unwrap_or_else(|| {
+        if prefers_dark() {
+            "dark".into()
+        } else {
+            "light".into()
+        }
+    });
     let initial_lens = read_url_param("lens")
         .map(|s| lens_from_slug(&s))
         .unwrap_or(Audience::Public);
     let initial_mech = read_url_param("m").and_then(|s| mech_from_slug(&s));
     let initial_sel = read_url_param("s").or_else(|| read_url_param("basin"));
+    // Pengunjung dari tautan ke titik, replay, atau lensa datang untuk isi tertentu: tanpa tur.
+    let deep_link = initial_sel.is_some()
+        || read_url_param("replay").is_some()
+        || read_url_param("lens").is_some();
     let scenarios = StoredValue::new(list_replay_scenarios());
     let initial_replay = read_url_param("replay")
         .filter(|id| scenarios.with_value(|all| all.iter().any(|s| &s.id == id)));
@@ -109,6 +116,13 @@ pub fn App() -> impl IntoView {
     let mech_filter = RwSignal::new(initial_mech);
     let lens = RwSignal::new(initial_lens);
     let theme = RwSignal::new(initial_theme);
+    // Ikuti perubahan tema sistem selama halaman terbuka (mis. mode gelap otomatis malam hari).
+    watch_system_theme(move |dark| {
+        if !theme_explicit.get_untracked() {
+            theme.set(if dark { "dark" } else { "light" }.into());
+        }
+    });
+    let tour_open = RwSignal::new(false);
     let terrain_3d = RwSignal::new(false);
     let inundation = RwSignal::new(read_url_param("riwayat").is_some());
 
@@ -136,7 +150,19 @@ pub fn App() -> impl IntoView {
         spawn_local(async move {
             match fetch_snapshot().await {
                 Ok(snap) => {
+                    let first = live_snapshot.get_untracked().is_none();
                     live_snapshot.set(Some(snap));
+                    // Tur pertama kali: setelah data tampil, hanya untuk kunjungan langsung.
+                    if first && !deep_link && !tour_seen() {
+                        Timeout::new(1200, move || {
+                            if !replay_active.get_untracked()
+                                && selected_id.get_untracked().is_none()
+                            {
+                                tour_open.set(true);
+                            }
+                        })
+                        .forget();
+                    }
                     error_msg.set(None);
                 }
                 Err(e) => {
@@ -224,7 +250,10 @@ pub fn App() -> impl IntoView {
         let th = theme.get();
         set_html_theme(&th);
         js_set_map_theme(&th);
-        update_url_param("theme", (th == "dark").then_some("dark"));
+        update_url_param(
+            "theme",
+            theme_explicit.get_untracked().then_some(th.as_str()),
+        );
     });
     Effect::new(move |_| js_toggle_3d_terrain(terrain_3d.get()));
     Effect::new(move |_| {
@@ -393,6 +422,11 @@ pub fn App() -> impl IntoView {
                     copy_text(&current_url());
                     toast.show("Tautan disalin");
                 })
+                on_tour=Callback::new(move |_| {
+                    selected_id.set(None);
+                    mobile_snap.set(SheetSnap::Peek);
+                    tour_open.set(true);
+                })
                 on_open_data=Callback::new(move |_| {
                     selected_id.set(None);
                     lens.set(Audience::AiAgent);
@@ -404,7 +438,7 @@ pub fn App() -> impl IntoView {
 
             <main class="stage">
                 <div id="map-canvas" class="map-canvas" role="region" aria-label="Peta indikasi banjir Indonesia"></div>
-                <MapTools mech_filter=mech_filter terrain_3d=terrain_3d inundation=inundation theme=theme on_gps=trigger_gps/>
+                <MapTools mech_filter=mech_filter terrain_3d=terrain_3d inundation=inundation theme=theme theme_explicit=theme_explicit on_gps=trigger_gps/>
                 <Legend open=legend_open inundation=inundation/>
 
                 {move || user_msg.get().map(|m| view! {
@@ -447,6 +481,7 @@ pub fn App() -> impl IntoView {
 
                 {move || toast.0.get().map(|m| view! { <div class="toast" role="status">{m}</div> })}
             </main>
+            <Tour open=tour_open/>
         </div>
     }
 }

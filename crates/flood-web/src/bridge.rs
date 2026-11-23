@@ -160,6 +160,22 @@ pub fn prefers_dark() -> bool {
         .unwrap_or(false)
 }
 
+/// Panggil `on_change(gelap)` setiap kali preferensi tema sistem berubah.
+pub fn watch_system_theme(on_change: impl Fn(bool) + 'static) {
+    let Some(mql) = web_sys::window()
+        .and_then(|w| w.match_media("(prefers-color-scheme: dark)").ok().flatten())
+    else {
+        return;
+    };
+    let cb = Closure::<dyn FnMut(web_sys::Event)>::new(move |ev: web_sys::Event| {
+        if let Ok(m) = ev.dyn_into::<web_sys::MediaQueryListEvent>() {
+            on_change(m.matches());
+        }
+    });
+    let _ = mql.add_event_listener_with_callback("change", cb.as_ref().unchecked_ref());
+    cb.forget();
+}
+
 pub fn copy_text(text: &str) {
     if let Some(win) = web_sys::window() {
         let _ = win.navigator().clipboard().write_text(text);

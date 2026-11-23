@@ -5,4 +5,5 @@ pub mod inspector;
 pub mod map_tools;
 pub mod replay_bar;
 pub mod station_detail;
+pub mod tour;
 pub mod ui;

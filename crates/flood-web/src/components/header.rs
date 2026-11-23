@@ -70,6 +70,7 @@ pub fn AppMenu(
     on_replay: Callback<()>,
     on_copy_link: Callback<()>,
     on_open_data: Callback<()>,
+    on_tour: Callback<()>,
 ) -> impl IntoView {
     let close = move || menu_open.set(false);
     view! {
@@ -86,6 +87,9 @@ pub fn AppMenu(
                 </button>
                 <button type="button" class="menu-item" on:click=move |_| { close(); on_copy_link.run(()); }>
                     <b>"Salin tautan tampilan ini"</b><small>"Termasuk titik, lensa, dan tema"</small>
+                </button>
+                <button type="button" class="menu-item" on:click=move |_| { close(); on_tour.run(()); }>
+                    <b>"Tur singkat fitur"</b><small>"6 langkah, ±30 detik"</small>
                 </button>
                 <button type="button" class="menu-item" on:click=move |_| { close(); on_open_data.run(()); }>
                     <b>"Data terbuka & API"</b><small>"JSON, GeoJSON, OpenAPI, llms.txt"</small>

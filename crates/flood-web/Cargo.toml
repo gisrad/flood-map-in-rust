@@ -41,5 +41,7 @@ features = [
   "HtmlElement",
   "EventTarget",
   "Event",
+  "MediaQueryListEvent",
+  "DomRect",
   "MediaQueryList",
 ]
