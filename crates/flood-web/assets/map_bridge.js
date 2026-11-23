@@ -97,7 +97,16 @@ function getPadding() {
     }
     return { top, right: 16, bottom, left: 16 };
   }
-  return { top: 72, right: 440, bottom: 40, left: 40 };
+  // Panel replay di kiri: pusatkan target di antara panel itu dan panel informasi.
+  let left = 40;
+  const replay = document.querySelector('.replay');
+  if (map && replay) {
+    const r = replay.getBoundingClientRect();
+    const c = map.getContainer().getBoundingClientRect();
+    if (r.width > 0) left = Math.max(left, Math.round(r.right - c.left) + 16);
+    left = Math.min(left, Math.max(40, Math.round(c.width) - 440 - 160));
+  }
+  return { top: 72, right: 440, bottom: 40, left };
 }
 
 // ---------- Gaya peta dasar ----------

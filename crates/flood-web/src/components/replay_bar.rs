@@ -66,8 +66,7 @@ pub fn ReplayBar(
                     </select>
                     <button type="button" class="btn btn-sm replay-exit" aria-label="Kembali ke data terkini"
                         on:click=move |_| on_exit.run(())>
-                        <span class="lbl-wide">"Kembali ke data terkini"</span>
-                        <span class="lbl-narrow">"← Data terkini"</span>
+                        "← Data terkini"
                     </button>
                 </header>
 

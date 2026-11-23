@@ -788,7 +788,7 @@ html[data-theme="dark"] .hg-th-lbl.hg-q20 { fill: #D59BE2; }
   top: 60px;
   left: 12px;
   z-index: 13;
-  width: min(560px, calc(100% - var(--panel-w) - 84px));
+  width: min(440px, calc(100% - var(--panel-w) - 84px));
   max-height: calc(100% - 140px);
   overflow-y: auto;
   padding: 12px;
@@ -804,9 +804,11 @@ html[data-theme="dark"] .hg-th-lbl.hg-q20 { fill: #D59BE2; }
 .replay-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .replay-tag { padding: 3px 8px; border-radius: 4px; background: var(--ink); color: var(--paper); font-size: var(--fs-12); font-weight: 700; }
 .replay-period { flex: 1; font-size: 13px; color: var(--ink-soft); min-width: 140px; }
-/* Pilihan kejadian ringkas (layar sempit); layar lebar memakai kartu bergambar. */
+/* Pilihan kejadian ringkas; kartu bergambar hanya tampil saat rincian dibuka (layar lebar). */
 .replay-pick {
-  display: none;
+  display: block;
+  flex: 1 0 100%;
+  order: 3;
   min-width: 0;
   min-height: 36px;
   padding: 0 8px;
@@ -816,8 +818,8 @@ html[data-theme="dark"] .hg-th-lbl.hg-q20 { fill: #D59BE2; }
   font-size: 13.5px;
   font-weight: 600;
 }
-.replay-exit .lbl-narrow { display: none; }
-.replay-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.replay-cards { display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.replay.is-open .replay-cards { display: grid; }
 .replay > *, .replay-steps { min-width: 0; }
 .replay, .replay * { overflow-wrap: anywhere; }
 .replay-card {
@@ -852,7 +854,7 @@ html[data-theme="dark"] .hg-th-lbl.hg-q20 { fill: #D59BE2; }
 .ro-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
 .replay-outcome .h-sub { margin: 0; }
 .replay-more {
-  display: none;
+  display: inline-block;
   flex: none;
   padding: 2px 0;
   border: 0;
@@ -868,6 +870,17 @@ html[data-theme="dark"] .hg-th-lbl.hg-q20 { fill: #D59BE2; }
 .replay-outcome ul { margin: 0; padding-left: 16px; display: grid; gap: 3px; font-size: 12.5px; line-height: 1.4; }
 .replay-outcome li:first-child { list-style: none; margin-left: -16px; font-weight: 600; font-size: 13px; }
 .replay-prov, .replay-cite { margin: 0; font-size: var(--fs-12); color: var(--ink-soft); }
+/* Ringkas secara bawaan agar peta tetap terlihat: narasi 3 baris, hasil model hanya kalimat
+   ringkas; "Rincian" membuka rincian hasil, kartu kejadian, provenance, dan rujukan. */
+.replay.has-outcome:not(.is-open) .replay-narr {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.replay.has-outcome:not(.is-open) .replay-outcome li:not(:first-child),
+.replay.has-outcome:not(.is-open) .replay-prov,
+.replay.has-outcome:not(.is-open) .replay-cite { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   .steps { scroll-behavior: smooth; }
 }
@@ -1029,21 +1042,8 @@ html[data-theme="dark"] .maplibregl-ctrl-attrib-button { filter: invert(1); }
     gap: 8px;
     max-height: calc(100% - var(--peek-h) - 72px);
   }
-  .replay-tag, .replay-cards { display: none; }
+  .replay-tag, .replay.is-open .replay-cards { display: none; }
   .replay-period { min-width: 0; }
-  .replay-pick { display: block; flex: 1 0 100%; order: 3; }
-  .replay-exit .lbl-wide { display: none; }
-  .replay-exit .lbl-narrow { display: inline; }
-  .replay-more { display: inline-block; }
-  .replay.has-outcome:not(.is-open) .replay-narr {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    overflow: hidden;
-  }
-  .replay.has-outcome:not(.is-open) .replay-outcome li:not(:first-child),
-  .replay.has-outcome:not(.is-open) .replay-prov,
-  .replay.has-outcome:not(.is-open) .replay-cite { display: none; }
   /* Panel informasi dinaikkan (mis. detail titik): sisakan kontrol replay. Spesifisitas setara
      aturan ringkas di atas, sehingga urutan sumber yang menentukan. */
   .app-shell.sheet-raised .replay .replay-narr,
