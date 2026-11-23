@@ -1,5 +1,12 @@
 # Hidrosentinel Nusantara — Indonesia Flood & River Discharge Observatory (`flood.transbulent.id`)
 
+[![CI](https://github.com/gisrad/flood-map-in-rust/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/gisrad/flood-map-in-rust/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/gisrad/flood-map-in-rust?sort=semver)](https://github.com/gisrad/flood-map-in-rust/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/gisrad/flood-map-in-rust)](LICENSE)
+[![Rust 1.97.1](https://img.shields.io/badge/Rust-1.97.1-orange?logo=rust)](docs/RELEASING.md)
+[![Live site](https://img.shields.io/badge/live-flood.transbulent.id-0b7285)](https://flood.transbulent.id/)
+[![Model indication, not official warning](https://img.shields.io/badge/status-model%20indication%2C%20not%20official%20warning-lightgrey)](docs/METODOLOGI.md)
+
 **100% Rust Full-Stack (`Leptos` CSR WebAssembly + `workers-rs` + Cloudflare SQLite Durable Objects + MapLibre GL v5 3D)**
 
 Observatorium banjir dan hidrometeorologi seluruh Indonesia yang memisahkan tiga mekanisme banjir — **sungai (kiriman hulu DAS)**, **hujan lokal (drainase kota)**, dan **rob pesisir** — dengan hidrograf ensemble, berita banjir regional RSS, peringatan dini BMKG Nowcast, kanal notifikasi gratis (`ntfy.sh` + WhatsApp Share + RSS), serta API ramah *AI Agent* (`/llms.txt` & `/api/openapi.json`).
