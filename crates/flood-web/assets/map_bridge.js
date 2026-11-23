@@ -85,7 +85,17 @@ function getPadding() {
     let bottom = 196;
     if (sheet && sheet.classList.contains('snap-half')) bottom = Math.round(h * 0.56) + 16;
     else if (sheet && sheet.classList.contains('snap-full')) bottom = Math.round(h * 0.56) + 16;
-    return { top: 64, right: 16, bottom: Math.min(bottom, h - 160), left: 16 };
+    bottom = Math.min(bottom, h - 160);
+    // Panel replay menutupi bagian atas peta: pusatkan target di bawahnya.
+    let top = 64;
+    const replay = document.querySelector('.replay');
+    if (map && replay) {
+      const r = replay.getBoundingClientRect();
+      const c = map.getContainer().getBoundingClientRect();
+      if (r.height > 0) top = Math.max(top, Math.round(r.bottom - c.top) + 12);
+      top = Math.min(top, Math.max(64, Math.round(c.height) - bottom - 80));
+    }
+    return { top, right: 16, bottom, left: 16 };
   }
   return { top: 72, right: 440, bottom: 40, left: 40 };
 }

@@ -1,5 +1,7 @@
 use flood_shared::model::{FloodSnapshot, ReplayScenarioMeta};
+use leptos::html::Div;
 use leptos::prelude::*;
+use wasm_bindgen::JsCast;
 
 #[component]
 pub fn ReplayBar(
@@ -21,14 +23,52 @@ pub fn ReplayBar(
                 .or_else(|| all.first().cloned())
         })
     });
+    let has_outcome = Signal::derive(move || {
+        current.with(|c| c.as_ref().is_some_and(|sc| !sc.outcome.is_empty()))
+    });
+    // Layar sempit: narasi penuh, rincian hasil, dan sumber dibuka lewat tombol agar peta tetap
+    // terlihat. Layar lebar selalu menampilkan semuanya (tombol disembunyikan CSS).
+    let details_open = RwSignal::new(false);
+
+    // Hari aktif tetap terlihat di deret hari yang digulir mendatar, juga saat replay diputar.
+    let steps_ref = NodeRef::<Div>::new();
+    Effect::new(move |_| {
+        let idx = frame_idx.get();
+        scenario_id.track();
+        let Some(row) = steps_ref.get() else {
+            return;
+        };
+        let Ok(Some(btn)) = row.query_selector(&format!(".step:nth-child({})", idx + 1)) else {
+            return;
+        };
+        let Ok(btn) = btn.dyn_into::<web_sys::HtmlElement>() else {
+            return;
+        };
+        let target = btn.offset_left() - (row.client_width() - btn.offset_width()) / 2;
+        row.set_scroll_left(target.max(0));
+    });
 
     view! {
         <Show when=move || replay_active.get()>
-            <section class="replay" aria-label="Replay kejadian historis">
+            <section class="replay" class:is-open=move || details_open.get() class:has-outcome=move || has_outcome.get()
+                aria-label="Replay kejadian historis">
                 <header class="replay-head">
                     <span class="replay-tag">"Replay historis"</span>
                     <span class="replay-period">{move || current.get().map(|s| s.period).unwrap_or_default()}</span>
-                    <button type="button" class="btn btn-sm" on:click=move |_| on_exit.run(())>"Kembali ke data terkini"</button>
+                    <select class="replay-pick" aria-label="Pilih kejadian"
+                        on:change=move |ev| on_pick.run(event_target_value(&ev))>
+                        {scenarios.get_value().into_iter().map(|sc| {
+                            let id = sc.id.clone();
+                            view! {
+                                <option value=sc.id.clone() prop:selected=move || scenario_id.get() == id>{sc.title.clone()}</option>
+                            }
+                        }).collect_view()}
+                    </select>
+                    <button type="button" class="btn btn-sm replay-exit" aria-label="Kembali ke data terkini"
+                        on:click=move |_| on_exit.run(())>
+                        <span class="lbl-wide">"Kembali ke data terkini"</span>
+                        <span class="lbl-narrow">"← Data terkini"</span>
+                    </button>
                 </header>
 
                 <div class="replay-cards" role="group" aria-label="Pilih kejadian">
@@ -56,7 +96,7 @@ pub fn ReplayBar(
                         aria-label=move || if playing.get() { "Jeda" } else { "Putar" }>
                         {move || if playing.get() { "Jeda" } else { "Putar" }}
                     </button>
-                    <div class="steps" role="group" aria-label="Hari">
+                    <div class="steps" node_ref=steps_ref role="group" aria-label="Hari">
                         {move || current.get().map(|sc| sc.frames.into_iter().enumerate().map(|(i, fr)| view! {
                             <button type="button" class="step" aria-pressed=move || (frame_idx.get() == i).to_string()
                                 on:click=move |_| { playing.set(false); frame_idx.set(i); }>{fr.step_label}</button>
@@ -72,7 +112,13 @@ pub fn ReplayBar(
                 </p>
                 {move || current.get().filter(|sc| !sc.outcome.is_empty()).map(|sc| view! {
                     <section class="replay-outcome" aria-label="Hasil model dibanding kejadian">
-                        <h3 class="h-sub">"Hasil model vs kejadian"</h3>
+                        <div class="ro-head">
+                            <h3 class="h-sub">"Hasil model vs kejadian"</h3>
+                            <button type="button" class="replay-more" aria-expanded=move || details_open.get().to_string()
+                                on:click=move |_| details_open.update(|v| *v = !*v)>
+                                "Rincian"<span class="chev" aria-hidden="true">"▾"</span>
+                            </button>
+                        </div>
                         <ul>
                             {sc.outcome.into_iter().map(|line| view! { <li>{line}</li> }).collect_view()}
                         </ul>

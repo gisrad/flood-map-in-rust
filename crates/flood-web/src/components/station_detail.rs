@@ -166,7 +166,7 @@ fn grrr_facts(g: &GrrrCheck) -> impl IntoView {
         GrrrVerdict::WithinRange => "Q2 GloFAS dalam rentang Q2 GRRR di sekitar pos (uji kasar, model terhadap model)",
         GrrrVerdict::GlofasAbove => "Q2 GloFAS lebih dari 2× Q2 GRRR terbesar di sekitar pos: verifikasi dengan pos duga air",
         GrrrVerdict::GlofasBelow => "Q2 GloFAS kurang dari 0,5× Q2 GRRR terkecil di sekitar pos: verifikasi dengan pos duga air",
-        GrrrVerdict::NoOutlets => "Tidak ada titik keluar sub-DAS GRRR dalam radius pos",
+        GrrrVerdict::NoOutlets => "Tidak ada titik keluar DAS GRRR dalam radius pos",
     };
     let closest = g.closest.clone().map(|c| {
         view! {

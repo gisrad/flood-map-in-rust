@@ -35,6 +35,12 @@ fn mech_from_slug(s: &str) -> Option<FloodMechanism> {
     }
 }
 
+/// Terbang setelah DOM diperbarui: padding peta dibaca dari kelas panel informasi dan tinggi panel
+/// replay saat `flyTo` dipanggil, sedangkan perubahan sinyal baru tergambar pada tick berikutnya.
+fn fly_after_render(lon: f64, lat: f64, zoom: f64) {
+    Timeout::new(60, move || js_fly_to_point(lon, lat, zoom)).forget();
+}
+
 fn mech_slug(m: FloodMechanism) -> &'static str {
     match m {
         FloodMechanism::FluvialBasin => "sungai",
@@ -173,7 +179,7 @@ pub fn App() -> impl IntoView {
         if mobile_snap.get_untracked() == SheetSnap::Peek {
             mobile_snap.set(SheetSnap::Half);
         }
-        js_fly_to_point(lon, lat, 9.6);
+        fly_after_render(lon, lat, 9.6);
     });
 
     // Peta
@@ -204,12 +210,12 @@ pub fn App() -> impl IntoView {
         if let Some(id) = selected_id.get_untracked() {
             if let Some((lon, lat, z)) = point_coords(&snap, &id) {
                 mobile_snap.set(SheetSnap::Half);
-                js_fly_to_point(lon, lat, z);
+                fly_after_render(lon, lat, z);
             }
         } else if replay_active.get_untracked() {
             let id = scenario_id.get_untracked();
             if let Some(sc) = scenarios.with_value(|all| all.iter().find(|s| s.id == id).cloned()) {
-                js_fly_to_point(sc.center_lon, sc.center_lat, sc.zoom);
+                fly_after_render(sc.center_lon, sc.center_lat, sc.zoom);
             }
         }
     });
@@ -271,11 +277,16 @@ pub fn App() -> impl IntoView {
         playing.set(false);
         frame_idx.set(0);
         selected_id.set(None);
-        if let Some(sc) = scenarios.with_value(|all| all.iter().find(|s| s.id == id).cloned()) {
-            js_fly_to_point(sc.center_lon, sc.center_lat, sc.zoom);
-        }
+        let target = scenarios.with_value(|all| {
+            all.iter()
+                .find(|s| s.id == id)
+                .map(|sc| (sc.center_lon, sc.center_lat, sc.zoom))
+        });
         scenario_id.set(id);
         replay_active.set(true);
+        if let Some((lon, lat, zoom)) = target {
+            fly_after_render(lon, lat, zoom);
+        }
     };
     let exit_replay = Callback::new(move |_| {
         playing.set(false);
@@ -363,7 +374,8 @@ pub fn App() -> impl IntoView {
     esc.forget();
 
     view! {
-        <div class="app-shell" class:is-replay=move || replay_active.get()>
+        <div class="app-shell" class:is-replay=move || replay_active.get()
+            class:sheet-raised=move || mobile_snap.get() != SheetSnap::Peek>
             <a class="skip-link" href="#panel">"Lewati ke panel informasi"</a>
             <Header snapshot=active_snapshot loading=loading now=now menu_open=menu_open on_home=go_home/>
             <AppMenu

@@ -804,6 +804,19 @@ html[data-theme="dark"] .hg-th-lbl.hg-q20 { fill: #D59BE2; }
 .replay-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .replay-tag { padding: 3px 8px; border-radius: 4px; background: var(--ink); color: var(--paper); font-size: var(--fs-12); font-weight: 700; }
 .replay-period { flex: 1; font-size: 13px; color: var(--ink-soft); min-width: 140px; }
+/* Pilihan kejadian ringkas (layar sempit); layar lebar memakai kartu bergambar. */
+.replay-pick {
+  display: none;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.replay-exit .lbl-narrow { display: none; }
 .replay-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .replay > *, .replay-steps { min-width: 0; }
 .replay, .replay * { overflow-wrap: anywhere; }
@@ -821,7 +834,7 @@ html[data-theme="dark"] .hg-th-lbl.hg-q20 { fill: #D59BE2; }
 .replay-card[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 .rc-title { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
 .replay-steps { display: flex; gap: 8px; align-items: center; }
-.steps { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; }
+.steps { position: relative; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: thin; }
 .step {
   flex: none;
   min-height: 30px;
@@ -836,10 +849,28 @@ html[data-theme="dark"] .hg-th-lbl.hg-q20 { fill: #D59BE2; }
 .step[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .replay-narr { margin: 0; font-size: var(--fs-14); }
 .replay-outcome { padding: 8px 10px; border-left: 3px solid var(--ink); background: var(--surface-2); border-radius: 0 var(--r) var(--r) 0; }
-.replay-outcome .h-sub { margin: 0 0 4px; }
+.ro-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.replay-outcome .h-sub { margin: 0; }
+.replay-more {
+  display: none;
+  flex: none;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.replay-more .chev { display: inline-block; margin-left: 3px; text-decoration: none; }
+.replay.is-open .replay-more .chev { transform: rotate(180deg); }
 .replay-outcome ul { margin: 0; padding-left: 16px; display: grid; gap: 3px; font-size: 12.5px; line-height: 1.4; }
 .replay-outcome li:first-child { list-style: none; margin-left: -16px; font-weight: 600; font-size: 13px; }
 .replay-prov, .replay-cite { margin: 0; font-size: var(--fs-12); color: var(--ink-soft); }
+@media (prefers-reduced-motion: no-preference) {
+  .steps { scroll-behavior: smooth; }
+}
 
 /* ---------- Pesan ---------- */
 .gps-toast {
@@ -988,14 +1019,37 @@ html[data-theme="dark"] .maplibregl-ctrl-attrib-button { filter: invert(1); }
   .tabs { border-top: 1px solid var(--line); }
   .scroll { padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); }
 
+  /* Replay ringkas: peta tetap terlihat dan rel alat peta (38 px) di kanan tidak tertutup. */
   .replay {
     top: 56px;
     left: 8px;
-    right: 8px;
+    right: 54px;
     width: auto;
+    padding: 10px;
+    gap: 8px;
     max-height: calc(100% - var(--peek-h) - 72px);
   }
-  .replay-card img { display: none; }
+  .replay-tag, .replay-cards { display: none; }
+  .replay-period { min-width: 0; }
+  .replay-pick { display: block; flex: 1 0 100%; order: 3; }
+  .replay-exit .lbl-wide { display: none; }
+  .replay-exit .lbl-narrow { display: inline; }
+  .replay-more { display: inline-block; }
+  .replay.has-outcome:not(.is-open) .replay-narr {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+  .replay.has-outcome:not(.is-open) .replay-outcome li:not(:first-child),
+  .replay.has-outcome:not(.is-open) .replay-prov,
+  .replay.has-outcome:not(.is-open) .replay-cite { display: none; }
+  /* Panel informasi dinaikkan (mis. detail titik): sisakan kontrol replay. Spesifisitas setara
+     aturan ringkas di atas, sehingga urutan sumber yang menentukan. */
+  .app-shell.sheet-raised .replay .replay-narr,
+  .app-shell.sheet-raised .replay .replay-outcome,
+  .app-shell.sheet-raised .replay .replay-prov,
+  .app-shell.sheet-raised .replay .replay-cite { display: none; }
 
   .maplibregl-ctrl-bottom-right { right: 0; bottom: calc(var(--peek-h) + 4px); }
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { display: none; }

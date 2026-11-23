@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Uji kewajaran silang ambang periode ulang GloFAS terhadap Google Runoff Reanalysis & Reforecast (GRRR).
 
-Sumber: gs://flood-forecasting/hydrologic_predictions/distributed_model_2026_11 (bucket publik, CC BY 4.0,
-Google Research): `return_periods.parquet` (debit periode ulang 1,01–100 tahun per sub-DAS HydroBASINS,
-reanalisis 1980–2023) dan `subhybas_outlet_locations_UNOFFICIAL.zarr` (koordinat titik keluar sub-DAS).
+Sumber: gs://flood-forecasting/hydrologic_predictions/model_id_8583a5c2_v0 (bucket publik, CC BY 4.0,
+Google Research). Ini GRRR yang tercantum di halaman sumber daya Google Flood Forecasting ("global river
+discharge estimates from 1980 to 2023"); periode reanalisis dibaca dari sumbu waktu
+`reanalysis/streamflow.zarr` dan dicatat di keluaran. Berkas yang dipakai: `return_periods.zarr` (debit
+periode ulang per titik keluar DAS HydroBASINS) dan `hybas_outlet_locations_UNOFFICIAL.zarr` (koordinat
+titik keluar). Folder `distributed_model_2026_11` di bucket yang sama adalah rilis lain (reanalisis
+31 Des 1980–30 Des 2025) dan tidak dipakai.
 
 Metode (untuk tiap stasiun dengan ambang GloFAS terkalibrasi):
   1. Ambang GloFAS Q2/Q5/Q20 dihitung dari `annual_max_m3s` dengan rumus yang sama seperti flood-shared.
@@ -20,7 +24,7 @@ Keluaran: crates/flood-shared/data/grrr_crosscheck.json
 
 Pemakaian:
   python scripts/crosscheck_grrr.py --cache-dir <dir>
-Dibutuhkan: numpy, pandas, pyarrow, numcodecs (blosc).
+Dibutuhkan: numpy, pandas, numcodecs (blosc). Unduhan disimpan di <dir>/grrr/<model>.
 """
 from __future__ import annotations
 
@@ -44,8 +48,11 @@ CATALOG_RS = REPO / "crates/flood-shared/src/catalog.rs"
 GLOFAS_JSON = REPO / "crates/flood-shared/data/glofas_calibration.json"
 OUT_JSON = REPO / "crates/flood-shared/data/grrr_crosscheck.json"
 
-BASE = "https://storage.googleapis.com/flood-forecasting/hydrologic_predictions/distributed_model_2026_11/"
-MODEL = "distributed_model_2026_11"
+MODEL = "model_id_8583a5c2_v0"
+BASE = f"https://storage.googleapis.com/flood-forecasting/hydrologic_predictions/{MODEL}/"
+OUTLETS = "hybas_outlet_locations_UNOFFICIAL.zarr"
+RETURN_PERIODS = "return_periods.zarr"
+TIME = "reanalysis/streamflow.zarr/time"
 BBOX = (94.5, -11.5, 141.2, 6.5)  # lon_min, lat_min, lon_max, lat_max
 RADIUS_KM = 12.0
 ABOVE_FACTOR = 2.0
@@ -67,50 +74,65 @@ def fetch(cache: Path, rel: str) -> bytes:
     return fn.read_bytes()
 
 
-def load_outlets(cache: Path) -> pd.DataFrame:
+def zarr_array(cache: Path, path: str) -> np.ndarray:
+    """Larik 1-D zarr v2 (kompresor dari metadata; teks vlen-utf8), dipotong ke `shape`."""
     import numcodecs
 
-    zarr = "subhybas_outlet_locations_UNOFFICIAL.zarr/"
-    blosc, vlen = numcodecs.Blosc(), numcodecs.VLenUTF8()
+    meta = json.loads(fetch(cache, f"{path}/.zarray"))
+    (n,), (chunk,) = meta["shape"], meta["chunks"]
+    codec = numcodecs.get_codec(meta["compressor"]) if meta.get("compressor") else None
+    text = any(f.get("id") == "vlen-utf8" for f in meta.get("filters") or [])
+    parts = []
+    for i in range(math.ceil(n / chunk)):
+        raw = fetch(cache, f"{path}/{i}")
+        raw = codec.decode(raw) if codec else raw
+        if text:
+            parts.append(np.asarray(numcodecs.VLenUTF8().decode(raw), dtype=object))
+        else:
+            parts.append(np.frombuffer(raw, dtype=meta["dtype"]))
+    return np.concatenate(parts)[:n]
 
-    def meta(var):
-        z = json.loads(fetch(cache, zarr + f"{var}/.zarray"))
-        return z["shape"][0], z["chunks"][0]
 
-    n, ch = meta("gauge_id")
-    ids: list[str] = []
-    for i in range(math.ceil(n / ch)):
-        ids += list(vlen.decode(blosc.decode(fetch(cache, zarr + f"gauge_id/{i}"))))
+def reanalysis_period(cache: Path) -> tuple[str, str]:
+    """Tanggal pertama dan terakhir sumbu waktu reanalisis model."""
+    units = json.loads(fetch(cache, f"{TIME}/.zattrs"))["units"]
+    step, _, origin = units.partition(" since ")
+    if step != "days":
+        raise ValueError(f"satuan waktu tak dikenal: {units}")
+    t0 = dt.date.fromisoformat(origin[:10])
+    days = zarr_array(cache, TIME)
+    return str(t0 + dt.timedelta(days=int(days.min()))), str(t0 + dt.timedelta(days=int(days.max())))
 
-    def floats(var):
-        n_, ch_ = meta(var)
-        a = [np.frombuffer(blosc.decode(fetch(cache, zarr + f"{var}/{i}")), dtype="<f8") for i in range(math.ceil(n_ / ch_))]
-        return np.concatenate(a)[:n_]
 
-    return pd.DataFrame({"gauge_id": ids[:n], "lat": floats("latitude")[:n], "lon": floats("longitude")[:n]})
+def load_outlets(cache: Path) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "gauge_id": zarr_array(cache, f"{OUTLETS}/gauge_id"),
+            "lat": zarr_array(cache, f"{OUTLETS}/latitude"),
+            "lon": zarr_array(cache, f"{OUTLETS}/longitude"),
+        }
+    )
 
 
 def load_return_periods(cache: Path) -> pd.DataFrame:
-    fn = cache / "return_periods.parquet"
-    if not fn.exists():
-        fn.write_bytes(urllib.request.urlopen(BASE + "return_periods.parquet", timeout=600).read())
-    rp = pd.read_parquet(fn)
-    rp.columns = [str(c) for c in rp.columns]
-    return rp.reset_index() if "gauge_id" not in rp.columns else rp
+    df = pd.DataFrame({"gauge_id": zarr_array(cache, f"{RETURN_PERIODS}/gauge_id")})
+    for t in (2, 5, 20):
+        df[f"q{t}"] = zarr_array(cache, f"{RETURN_PERIODS}/return_period_{t}")
+    return df
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--cache-dir", required=True, type=Path)
     args = ap.parse_args()
-    args.cache_dir.mkdir(parents=True, exist_ok=True)
-    cache = args.cache_dir / "grrr"
-    cache.mkdir(exist_ok=True)
+    cache = args.cache_dir / "grrr" / MODEL
+    cache.mkdir(parents=True, exist_ok=True)
 
-    outlets = load_outlets(cache)
-    rp = load_return_periods(cache)
-    df = outlets.merge(rp, on="gauge_id", how="inner")
-    df = df[(df.lon > BBOX[0]) & (df.lat > BBOX[1]) & (df.lon < BBOX[2]) & (df.lat < BBOX[3])].reset_index(drop=True)
+    start, end = reanalysis_period(cache)
+    print(f"{MODEL}: reanalisis {start} s.d. {end}", flush=True)
+    df = load_outlets(cache).merge(load_return_periods(cache), on="gauge_id", how="inner")
+    df = df[(df.lon > BBOX[0]) & (df.lat > BBOX[1]) & (df.lon < BBOX[2]) & (df.lat < BBOX[3])]
+    df = df[np.isfinite(df.q2) & (df.q2 > 0)].reset_index(drop=True)
     print(f"{len(df)} titik keluar GRRR di Indonesia dan sekitarnya", flush=True)
 
     glofas = {s["id"]: s for s in json.loads(GLOFAS_JSON.read_text(encoding="utf-8"))["stations"]}
@@ -120,7 +142,7 @@ def main() -> int:
         if not cal or not cal.get("accepted") or len(cal.get("annual_max_m3s", [])) < MIN_ANNUAL_MAXIMA:
             continue
         xi, alpha = gumbel_lmoments(np.array(cal["annual_max_m3s"], dtype=float))
-        q2, q5, q20 = (gumbel_q(xi, alpha, t) for t in (2, 5, 20))
+        q2 = gumbel_q(xi, alpha, 2)
         d = haversine_vec(st["lat"], st["lon"], df.lat.values, df.lon.values)
         near = df[d <= RADIUS_KM].copy()
         near["d"] = d[d <= RADIUS_KM]
@@ -128,8 +150,8 @@ def main() -> int:
             out[st["id"]] = {"radius_km": RADIUS_KM, "n_outlets": 0, "verdict": "no_outlets"}
             rows.append((st["id"], q2, 0, None, None, "no_outlets"))
             continue
-        lo, hi = float(near["2.0"].min()), float(near["2.0"].max())
-        best = near.loc[(np.log(near["2.0"] / q2)).abs().idxmin()]
+        lo, hi = float(near.q2.min()), float(near.q2.max())
+        best = near.loc[(np.log(near.q2 / q2)).abs().idxmin()]
         verdict = "glofas_above" if q2 > ABOVE_FACTOR * hi else "glofas_below" if q2 < BELOW_FACTOR * lo else "within_range"
         out[st["id"]] = {
             "radius_km": RADIUS_KM,
@@ -139,28 +161,22 @@ def main() -> int:
             "closest": {
                 "id": str(best["gauge_id"]),
                 "distance_km": round(float(best["d"]), 1),
-                "q2_m3s": round(float(best["2.0"]), 2),
-                "q5_m3s": round(float(best["5.0"]), 2),
-                "q20_m3s": round(float(best["20.0"]), 2),
+                "q2_m3s": round(float(best["q2"]), 2),
+                "q5_m3s": round(float(best["q5"]), 2),
+                "q20_m3s": round(float(best["q20"]), 2),
             },
-            "ratio_q2": round(q2 / float(best["2.0"]), 2),
+            "ratio_q2": round(q2 / float(best["q2"]), 2),
             "verdict": verdict,
         }
         rows.append((st["id"], q2, len(near), lo, hi, verdict))
 
     counts = {v: sum(1 for r in rows if r[5] == v) for v in ("within_range", "glofas_above", "glofas_below", "no_outlets")}
     # Bentuk kurva hanya dari pasangan yang skalanya berdekatan (rasio Q2 0,5–2).
-    pairs = [
-        (st_id, v)
-        for st_id, v in out.items()
-        if v.get("closest") and 0.5 <= v["ratio_q2"] <= 2.0
-    ]
+    pairs = [(st_id, v) for st_id, v in out.items() if v.get("closest") and 0.5 <= v["ratio_q2"] <= 2.0]
     glofas_growth, grrr_growth = [], []
     for st_id, v in pairs:
-        cal = glofas[st_id]
-        xi, alpha = gumbel_lmoments(np.array(cal["annual_max_m3s"], dtype=float))
-        g2 = gumbel_q(xi, alpha, 2)
-        glofas_growth.append(gumbel_q(xi, alpha, 20) / g2)
+        xi, alpha = gumbel_lmoments(np.array(glofas[st_id]["annual_max_m3s"], dtype=float))
+        glofas_growth.append(gumbel_q(xi, alpha, 20) / gumbel_q(xi, alpha, 2))
         grrr_growth.append(v["closest"]["q20_m3s"] / v["closest"]["q2_m3s"])
     summary = {
         "n_assessed": len(rows),
@@ -173,8 +189,10 @@ def main() -> int:
         json.dumps(
             {
                 "generated_at_utc": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "source": "Google Research, Google Runoff Reanalysis & Reforecast (GRRR) 1980–2023, "
-                f"{MODEL}/return_periods.parquet (CC BY 4.0)",
+                "source": "Google Research, Google Runoff Reanalysis & Reforecast (GRRR), "
+                f"{MODEL}/{RETURN_PERIODS} (CC BY 4.0)",
+                "model": MODEL,
+                "reanalysis_period": [start, end],
                 "radius_km": RADIUS_KM,
                 "above_factor": ABOVE_FACTOR,
                 "below_factor": BELOW_FACTOR,
@@ -188,7 +206,9 @@ def main() -> int:
         encoding="utf-8",
     )
     for r in rows:
-        print(f"{r[0]:<26} Q2 GloFAS {r[1]:9.1f}  n={r[2]:<3} GRRR {r[3] if r[3] is None else round(r[3], 1)}–{r[4] if r[4] is None else round(r[4], 1)}  {r[5]}")
+        lo = "–" if r[3] is None else round(r[3], 1)
+        hi = "–" if r[4] is None else round(r[4], 1)
+        print(f"{r[0]:<26} Q2 GloFAS {r[1]:9.1f}  n={r[2]:<3} GRRR {lo}–{hi}  {r[5]}")
     print(json.dumps(summary, ensure_ascii=False), flush=True)
     return 0
 

@@ -311,7 +311,7 @@ pub struct CitizenReport {
     pub url: Option<String>,
 }
 
-/// Putusan uji silang Q2 GloFAS terhadap titik keluar sub-DAS GRRR dalam radius pos.
+/// Putusan uji silang Q2 GloFAS terhadap titik keluar DAS GRRR (HydroBASINS) dalam radius pos.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GrrrVerdict {
@@ -324,7 +324,7 @@ pub enum GrrrVerdict {
     NoOutlets,
 }
 
-/// Titik keluar sub-DAS GRRR dengan Q2 terdekat ke Q2 GloFAS (pencocokan bias menuju kecocokan).
+/// Titik keluar DAS GRRR dengan Q2 terdekat ke Q2 GloFAS (pencocokan bias menuju kecocokan).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GrrrOutlet {
     pub id: String,

@@ -3,8 +3,10 @@ use crate::format::{fmt_datetime_short, fmt_relative, parse_utc_ms};
 use flood_shared::model::{FloodSnapshot, IndicatorLevel};
 use leptos::prelude::*;
 
-/// Salinan `docs/METODOLOGI.md` yang disajikan statis (repo GitHub belum publik).
-const METHOD_DOC: &str = "/metodologi.txt";
+/// Metodologi lengkap di repo publik (dirender GitHub, tabel terbaca). Salinan teks yang sama
+/// disajikan statis di `/metodologi.txt` sesuai versi yang terpasang.
+const METHOD_DOC: &str = "https://github.com/gisrad/flood-map-in-rust/blob/main/docs/METODOLOGI.md";
+const METHOD_TXT: &str = "/metodologi.txt";
 
 #[component]
 pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) -> impl IntoView {
@@ -94,7 +96,7 @@ pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) ->
                     <div><dt><LevelBadge level=IndicatorLevel::Unknown/></dt><dd>"Ambang belum tersedia untuk sel model ini; level sungai tidak dinilai."</dd></div>
                 </dl>
                 <p class="fine">"Ambang sungai berasal dari reanalisis GloFAS v4 1997–2024 pada sel model yang sama (maksimum tahunan, distribusi Gumbel). Rob dibandingkan dengan klimatologi puncak muka laut model 48 jam setempat. Level ini bukan status peringatan resmi BPBD, BMKG, atau BBWS."</p>
-                <p><a href=METHOD_DOC target="_blank" rel="noopener">"Metodologi lengkap"</a></p>
+                <p><a href=METHOD_DOC target="_blank" rel="noopener">"Metodologi lengkap"</a>" · "<a href=METHOD_TXT target="_blank" rel="noopener">"versi teks"</a></p>
             </section>
 
             {feeds}
