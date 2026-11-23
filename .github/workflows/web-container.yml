@@ -8,6 +8,11 @@ on:
         required: true
         type: string
         default: v0.3.0
+      release_run:
+        description: Successful source/web release run with retained release-bundle artifact
+        required: true
+        type: string
+        default: "45190126339"
       image_tag:
         description: New immutable image tag; never reuse an existing tag
         required: true
@@ -32,10 +37,12 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      actions: read
       packages: write
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ inputs.release_tag }}
+      RELEASE_RUN: ${{ inputs.release_run }}
       IMAGE_TAG: ${{ inputs.image_tag }}
       IMAGE: ghcr.io/gisrad/hidrosentinel-web
     steps:
@@ -52,10 +59,14 @@ jobs:
           set -euo pipefail
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           [[ "$IMAGE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][a-zA-Z0-9.-]+)?$ ]]
-          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir target/container-release \
-            --pattern "flood-map-in-rust-${RELEASE_TAG}-web.zip" \
-            --pattern "flood-map-in-rust-${RELEASE_TAG}-source.tar.gz" --pattern SHA256SUMS
-          python3 containers/web/prepare.py --assets target/container-release --tag "$RELEASE_TAG" --out target/web-container
+          [[ "$RELEASE_RUN" =~ ^[0-9]+$ ]]
+          tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RELEASE_RUN" > "$RUNNER_TEMP/release-run.json"
+          jq -e --arg sha "$tag_sha" '.head_sha == $sha and .conclusion == "success" and .event == "push" and .path == ".github/workflows/release.yml"' "$RUNNER_TEMP/release-run.json"
+          # Draft release assets are invisible to a read-only contents token. Use the
+          # verified workflow artifact rather than granting repository write access.
+          gh run download "$RELEASE_RUN" --repo "$GITHUB_REPOSITORY" --name release-bundle --dir target/container-release
+          python3 containers/web/prepare.py --assets target/container-release/release-assets --tag "$RELEASE_TAG" --out target/web-container
       - name: Build non-root Linux amd64 image
         shell: bash
         run: |
