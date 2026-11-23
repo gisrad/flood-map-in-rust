@@ -485,8 +485,9 @@ def package(source: Source, tag: str, body: str, files: dict[str, Path], out: Pa
             info.external_attr = 0o100644 << 16
             info.compress_type = zipfile.ZIP_DEFLATED
             archive.writestr(info, data, compresslevel=9)
-    # Git supplies all source bytes/modes; generated license evidence is additive.
-    tar = git("archive", "--format=tar", f"--prefix={PROJECT}-{tag}/", commit)
+    # Git supplies all source bytes/modes; generated license evidence is additive. Disable
+    # checkout EOL conversion (Windows core.autocrlf) so archive bytes equal committed blobs.
+    tar = git("-c", "core.autocrlf=false", "-c", "core.eol=lf", "archive", "--format=tar", f"--prefix={PROJECT}-{tag}/", commit)
     source_root = f"{PROJECT}-{tag}/"
     with tarfile.open(fileobj=io.BytesIO(tar)) as archive:
         members = archive.getmembers()
