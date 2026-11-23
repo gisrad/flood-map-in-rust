@@ -13,7 +13,7 @@ Perubahan yang memengaruhi pengguna dicatat per versi mengikuti SemVer. Sebelum 
 - Pengumpul lisensi rilis kini membaca `cargo metadata` sebagai UTF-8 (sebelumnya gagal di Windows) dan mendukung ekspresi `WITH LLVM-exception` serta ID 0BSD/MIT-0/ISC/MPL-2.0 setelah ditinjau.
 
 ### Limitations
-- `.exe` belum ditandatangani: Windows SmartScreen akan menampilkan peringatan "Windows protected your PC" (pilih *More info* → *Run anyway*). Verifikasi dengan `SHA256SUMS`.
+- `.exe` belum ditandatangani: Windows SmartScreen akan menampilkan peringatan "Windows protected your PC" (pilih *More info* → *Run anyway*). Verifikasi dengan `SHA256SUMS-desktop`.
 - Aplikasi desktop memerlukan internet dan tidak membundel data atau frontend; pembaruan fitur mengikuti situs. Belum ada pembaruan otomatis cangkang aplikasi, paket macOS, atau Android.
 - WebGL (peta 3D) di Linux bergantung pada driver GPU dan WebKitGTK; bila peta tidak tampil, buka situs di peramban.
 

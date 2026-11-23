@@ -464,6 +464,24 @@ def verify_assets(directory: Path, tag: str | None) -> None:
         raise ValueError("Source and web packages refer to different commits")
 
 
+def release_notes(tag: str, commit: str, body: str, web_name: str, source_name: str) -> str:
+    # release.yml attaches the desktop installers under these exact names.
+    version = tag.removeprefix("v")
+    exe = f"Hidrosentinel-Nusantara_{version}_x64-setup.exe"
+    deb = f"hidrosentinel-nusantara_{version}_amd64.deb"
+    return (
+        f"> **{DISCLAIMER}.** Ikuti informasi resmi BPBD/BNPB, BMKG dan pengelola sungai.\n\n"
+        f"Tag: `{tag}`\n\nCommit: `{commit}`\n\n{body}\n\n"
+        f"## Unduhan\n\n- `{web_name}`: frontend statis (`site/`), lisensi dan dokumen. **Backend /api/* tidak dibundel**; perlu backend kompatibel pada origin yang sama.\n"
+        f"- `{source_name}`: sumber Git, lockfile, workflow dan kode tes; bukan installer.\n"
+        "- `SHA256SUMS`: jalankan `sha256sum -c SHA256SUMS` dari direktori unduhan. Checksum bukan autentikasi penerbit; belum ada tanda tangan/attestation atau SBOM lengkap.\n"
+        f"- `{exe}`: installer Windows 10/11 per pengguna, **tanpa tanda tangan kode**.\n"
+        f"- `{deb}`: paket Debian 12+/Ubuntu 22.04+; pasang dengan `sudo apt install ./{deb}`.\n"
+        "- `SHA256SUMS-desktop`: jalankan `sha256sum -c SHA256SUMS-desktop` untuk kedua installer.\n\n"
+        "Lisensi kode MIT tidak mengganti lisensi data/pustaka. Baca DATA_LICENSES.md dan THIRD_PARTY_NOTICES.md; GSIM tetap CC BY-SA 3.0. DEPENDENCY_LICENSES.json menandai teks upstream yang hilang dan fallback standar SPDX: tinjau sebelum publikasi. Inventaris workspace bukan SBOM atau bukti linkage WASM. BUILD_PROVENANCE.json adalah catatan builder, bukan attestation bertanda tangan. Rilis ini tidak melakukan deploy produksi.\n"
+    )
+
+
 def package(source: Source, tag: str, body: str, files: dict[str, Path], out: Path, notes: Path) -> None:
     commit = source.commit
     if git("rev-parse", "HEAD").decode().strip() != commit:
@@ -536,15 +554,7 @@ def package(source: Source, tag: str, body: str, files: dict[str, Path], out: Pa
     (out / "SHA256SUMS").write_text("".join(sums), encoding="utf-8", newline="\n")
     verify_assets(out, tag)
     notes.parent.mkdir(parents=True, exist_ok=True)
-    notes.write_text(
-        f"> **{DISCLAIMER}.** Ikuti informasi resmi BPBD/BNPB, BMKG dan pengelola sungai.\n\n"
-        f"Tag: `{tag}`\n\nCommit: `{commit}`\n\n{body}\n\n"
-        f"## Unduhan\n\n- `{web_name}`: frontend statis (`site/`), lisensi dan dokumen. **Backend /api/* tidak dibundel**; perlu backend kompatibel pada origin yang sama.\n"
-        f"- `{source_name}`: sumber Git, lockfile, workflow dan kode tes; bukan installer.\n"
-        "- `SHA256SUMS`: jalankan `sha256sum -c SHA256SUMS` dari direktori unduhan. Checksum bukan autentikasi penerbit; belum ada tanda tangan/attestation atau SBOM lengkap.\n\n"
-        "Lisensi kode MIT tidak mengganti lisensi data/pustaka. Baca DATA_LICENSES.md dan THIRD_PARTY_NOTICES.md; GSIM tetap CC BY-SA 3.0. DEPENDENCY_LICENSES.json menandai teks upstream yang hilang dan fallback standar SPDX: tinjau sebelum publikasi. Inventaris workspace bukan SBOM atau bukti linkage WASM. BUILD_PROVENANCE.json adalah catatan builder, bukan attestation bertanda tangan. Rilis ini tidak melakukan deploy produksi.\n",
-        encoding="utf-8", newline="\n",
-    )
+    notes.write_text(release_notes(tag, commit, body, web_name, source_name), encoding="utf-8", newline="\n")
     print(f"Downloads: {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}")
     print(f"Release notes (not a download): {notes}")
 
