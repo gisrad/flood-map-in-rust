@@ -127,7 +127,7 @@ pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) ->
                     <li>"Hujan lokal diukur pada satu titik grid; hujan konvektif dapat terlewat."</li>
                     <li>"Hanya laporan warga berstatus confirmed atau verified yang menaikkan level; cakupan bergantung pada partisipasi."</li>
                     <li>"Riwayat genangan Google adalah frekuensi permukaan basah pada citra satelit 1999–2020. Dapat mencakup sawah tergenang, tambak, dan waduk, dan tidak menunjukkan banjir saat ini."</li>
-                    <li>"Uji silang GRRR membandingkan model dengan model. Pembanding pos GRDC mencakup rerata debit 5 stasiun dan uji pendahuluan Q2 3 stasiun dari GSIM; rekaman pendek dan periode berbeda, belum validasi operasional."</li>
+                    <li>"Uji silang GRRR membandingkan model dengan model. Pembanding pos GRDC mencakup rerata debit 5 stasiun dan uji pendahuluan Q2 4 stasiun (3 dari GSIM, 1 dari makalah terbit); rekaman pendek dan periode berbeda, belum validasi operasional."</li>
                     <li>"Replay historis menjalankan ulang model dengan reanalisis GloFAS v4 dan hujan ERA5. Hasilnya dapat meleset dari kejadian nyata; setiap replay menampilkan perbandingan model terhadap kejadian bersumber."</li>
                 </ul>
             </section>

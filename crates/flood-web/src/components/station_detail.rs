@@ -207,7 +207,7 @@ fn gauge_facts(g: &GaugeCheck) -> impl IntoView {
             GaugeVerdict::GlofasLow => "Di bawah toleransi penyaring terhadap rentang skala",
         };
         view! {
-            <div><dt>{format!("Estimasi Q2 pos ({} tahun)", f.years.len())}</dt><dd class="num">{format!(
+            <div><dt>{if f.kind == "published" { "Q2 pos (makalah terbit)".to_string() } else { format!("Estimasi Q2 pos ({} tahun)", f.years.len()) }}</dt><dd class="num">{format!(
                 "{} m³/s di pos → {}–{} m³/s untuk DAS katalog",
                 fmt_q(f.gauge_q2_m3s), fmt_q(f.scaled_q2_low_m3s), fmt_q(f.scaled_q2_high_m3s)
             )}</dd></div>
@@ -217,7 +217,11 @@ fn gauge_facts(g: &GaugeCheck) -> impl IntoView {
                 fmt_num(f.gauge_q20_m3s / f.gauge_q2_m3s, 2),
                 fmt_num(f.glofas_q20_m3s / f.glofas_q2_m3s, 2)
             )}</dd></div>
-            <div><dt>"Mutu uji Q2"</dt><dd>"Pendahuluan: periode dan lokasi berbeda; rentang skala bukan interval kepercayaan. Homogenitas belum dapat diuji (GSIM: NSD)."</dd></div>
+            <div><dt>"Mutu uji Q2"</dt><dd>{if f.kind == "published" {
+                format!("Pendahuluan, lebih lemah dari data pos: nilai sekunder dari makalah, tahun dan panjang rekaman tidak dilaporkan, tidak dapat diperiksa ulang. {}", f.citation.clone().unwrap_or_default())
+            } else {
+                "Pendahuluan: periode dan lokasi berbeda; rentang skala bukan interval kepercayaan. Homogenitas belum dapat diuji (GSIM: NSD).".to_string()
+            }}</dd></div>
             {f.screened_gauge_q2_m3s.map(|q| view! {
                 <div><dt>"Sensitivitas tahun debit rendah"</dt><dd>{format!(
                     "Q2 pos {} m³/s bila {} tahun debit rendah tidak disertakan (bukan koreksi data resmi)",

@@ -1,5 +1,5 @@
 {
- "generated_at_utc": "2026-11-23T06:02:20Z",
+ "generated_at_utc": "2026-11-23T06:21:52Z",
  "source": "The Global Runoff Data Centre, 56068 Koblenz, Germany (katalog stasiun GRDC, lta_discharge)",
  "flood_source": "GSIM (Do dkk. 2018, doi:10.1594/PANGAEA.887477; Gudmundsson dkk. 2018, doi:10.1594/PANGAEA.887470), CC BY-SA 3.0, dari data GRDC",
  "max_area_ratio": 3.0,
@@ -86,7 +86,26 @@
    "cell_mean_m3s": 460.33,
    "ratio": 1.03,
    "verdict": "consistent",
-   "flood": null
+   "flood": {
+    "kind": "published",
+    "gsim_no": null,
+    "years": [],
+    "excluded_low_mean_years": [],
+    "screened_gauge_q2_m3s": null,
+    "max_missing_days": null,
+    "citation": "Sulaeman, A., Suhartanto, E., Sumiadi (2017), Jurnal Teknik Pengairan 8(2): 146–157, Tabel 3 (Gumbel pada debit tahunan maksimum pos Bojonegoro; data BBWS Bengawan Solo dan Perum Jasa Tirta I; tahun dan panjang rekaman tidak dilaporkan)",
+    "status": "preliminary",
+    "gauge_q2_m3s": 1883.0,
+    "gauge_q5_m3s": 2316.0,
+    "gauge_q20_m3s": 2877.0,
+    "scaled_q2_low_m3s": 2091.73,
+    "scaled_q2_m3s": 2204.62,
+    "scaled_q2_high_m3s": 2323.6,
+    "glofas_q2_m3s": 1662.66,
+    "glofas_q20_m3s": 2181.72,
+    "ratio_q2": 0.75,
+    "verdict": "consistent"
+   }
   },
   "solo-sragen": {
    "grdc_no": 5141201,
@@ -101,6 +120,7 @@
    "ratio": 1.27,
    "verdict": "consistent",
    "flood": {
+    "kind": "gsim_annual_max",
     "gsim_no": "ID_0000008",
     "years": [
      1975,
@@ -122,6 +142,7 @@
     ],
     "screened_gauge_q2_m3s": 601.64,
     "max_missing_days": 30,
+    "citation": null,
     "status": "preliminary",
     "gauge_q2_m3s": 543.61,
     "gauge_q5_m3s": 756.14,
@@ -162,6 +183,7 @@
    "ratio": 1.03,
    "verdict": "consistent",
    "flood": {
+    "kind": "gsim_annual_max",
     "gsim_no": "ID_0000022",
     "years": [
      1990,
@@ -183,6 +205,7 @@
     ],
     "screened_gauge_q2_m3s": 733.33,
     "max_missing_days": 30,
+    "citation": null,
     "status": "preliminary",
     "gauge_q2_m3s": 665.0,
     "gauge_q5_m3s": 996.31,
@@ -209,6 +232,7 @@
    "ratio": 1.62,
    "verdict": "glofas_high",
    "flood": {
+    "kind": "gsim_annual_max",
     "gsim_no": "ID_0000021",
     "years": [
      1991,
@@ -224,6 +248,7 @@
     "excluded_low_mean_years": [],
     "screened_gauge_q2_m3s": 43.44,
     "max_missing_days": 30,
+    "citation": null,
     "status": "preliminary",
     "gauge_q2_m3s": 43.44,
     "gauge_q5_m3s": 70.83,

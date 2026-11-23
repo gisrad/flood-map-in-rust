@@ -389,12 +389,17 @@ pub struct GaugeCheck {
 /// Q2 GloFAS dibanding Q2 pos duga air yang diskalakan ke luas DAS katalog (Q ∝ A^b, b 0,5–1,0).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GaugeFlood {
-    pub gsim_no: String,
+    /// `gsim_annual_max` (maksimum tahunan GSIM) atau `published` (nilai Gumbel dari makalah terbit).
+    pub kind: String,
+    pub gsim_no: Option<String>,
+    /// Rujukan lengkap untuk `kind = published`.
+    #[serde(default)]
+    pub citation: Option<String>,
     /// Tahun dengan maksimum harian yang lolos uji kelengkapan.
     pub years: Vec<u16>,
     pub excluded_low_mean_years: Vec<u16>,
     pub screened_gauge_q2_m3s: Option<f64>,
-    pub max_missing_days: u32,
+    pub max_missing_days: Option<u32>,
     /// Selalu `preliminary`: rekaman pendek, periode dan lokasi tidak sama.
     pub status: String,
     pub gauge_q2_m3s: f64,

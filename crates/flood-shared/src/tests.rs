@@ -746,7 +746,11 @@ fn gauge_validation_is_consistent_with_current_calibration_and_catalog() {
                 (fl.glofas_q2_m3s - th.q2_m3s).abs() <= 0.02 + 1e-3 * th.q2_m3s,
                 "{id}"
             );
-            assert!(fl.years.len() >= 8, "{id}");
+            if fl.kind == "published" {
+                assert!(fl.years.is_empty() && fl.citation.is_some(), "{id}");
+            } else {
+                assert!(fl.years.len() >= 8 && fl.gsim_no.is_some(), "{id}");
+            }
             let scale = |b: f64| fl.gauge_q2_m3s * area_ratio.powf(b);
             let (lo, hi) = {
                 let (a, b) = (scale(f.area_exponents[0]), scale(f.area_exponents[2]));

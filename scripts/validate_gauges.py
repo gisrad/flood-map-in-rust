@@ -31,8 +31,10 @@ Metode:
      × median rerata tahunan; nilai rendah tidak otomatis berarti alat rusak.
      Q2/Q5/Q20 dengan Gumbel L-moment yang sama seperti GloFAS bila ≥ MIN_FLOOD_YEARS tahun.
      Q2 pos diskalakan ke luas DAS katalog dengan Q ∝ A^b, b = 0,5–1,0 (rentang), nilai tengah b = 0,75.
-     Putusan: `consistent` bila Q2 GloFAS dalam [Q2_b0,5 / TOLERANCE, Q2_b1,0 × TOLERANCE].
      Berkas GSIM diambil per pos lewat HTTP range dari arsip zip PANGAEA dan disimpan di --cache-dir.
+     Pos yang tidak ada di GSIM (Bojonegoro, Jabon: GRDC hanya menyimpan rekaman bulanan) memakai nilai
+     terbit bila ada (PUBLISHED_FLOOD, `kind=published`): nilai sekunder tanpa tahun rekaman, sehingga
+     lebih lemah daripada `gsim_annual_max`. Jabon belum punya sumber terbuka dan tetap tidak dinilai.
 Keterbatasan: periode data GRDC (1951–2010) tidak sama dengan GloFAS (1997–2024); penskalaan luas
 mengabaikan perbedaan hujan antara hulu dan hilir serta peredaman danau dan dataran banjir; Q2 pos dari
 9–13 tahun data; homogenitas GSIM berstatus NSD (data tidak cukup), bukan terbukti homogen.
@@ -176,32 +178,37 @@ def gsim_yearly(cache: Path, grdc_no: int) -> tuple[str, pd.DataFrame] | None:
     return gsim_no, df[["year", "MEAN", "MAX", "n.missing"]].dropna(subset=["MAX", "MEAN"])
 
 
-def flood_check(cache: Path, grdc_no: int, area_ratio: float, glofas_amax: list[float]) -> dict | None:
-    got = gsim_yearly(cache, grdc_no)
-    if not got or len(glofas_amax) < MIN_FLOOD_YEARS:
-        return None
-    gsim_no, y = got
-    y = y[y["n.missing"] <= MAX_MISSING_DAYS]
-    if len(y) < MIN_FLOOD_YEARS:
-        return None
-    xi, alpha = gumbel_lmoments(y.MAX.to_numpy(dtype=float))
-    q2, q5, q20 = (gumbel_q(xi, alpha, t) for t in (2, 5, 20))
-    screened = y[y.MEAN >= MIN_MEAN_FRACTION * y.MEAN.median()]
-    screened_q2 = None
-    if len(screened) >= MIN_FLOOD_YEARS:
-        sx, sa = gumbel_lmoments(screened.MAX.to_numpy(dtype=float))
-        screened_q2 = round(gumbel_q(sx, sa, 2), 2)
+# Q2/Q5/Q20 terbit untuk pos yang tidak ada di GSIM (hanya rekaman bulanan di GRDC). Bukan data mentah:
+# panjang rekaman tidak dilaporkan pada sumber.
+PUBLISHED_FLOOD = {
+    "solo-bojonegoro": {
+        "q": {2: 1883.0, 5: 2316.0, 20: 2877.0},
+        "citation": (
+            "Sulaeman, A., Suhartanto, E., Sumiadi (2017), Jurnal Teknik Pengairan 8(2): 146–157, Tabel 3 "
+            "(Gumbel pada debit tahunan maksimum pos Bojonegoro; data BBWS Bengawan Solo dan Perum Jasa Tirta I; "
+            "tahun dan panjang rekaman tidak dilaporkan)"
+        ),
+    },
+}
+
+
+def _compare(
+    kind: str,
+    q2: float,
+    q5: float,
+    q20: float,
+    area_ratio: float,
+    glofas_amax: list[float],
+    extra: dict,
+) -> dict:
     gxi, galpha = gumbel_lmoments(np.array(glofas_amax, dtype=float))
-    g2, g5, g20 = (gumbel_q(gxi, galpha, t) for t in (2, 5, 20))
+    g2, g20 = (gumbel_q(gxi, galpha, t) for t in (2, 20))
     lo, mid, hi = (q2 * area_ratio**b for b in AREA_EXPONENTS)
     lo, hi = min(lo, hi), max(lo, hi)
     verdict = "glofas_high" if g2 > hi * TOLERANCE else "glofas_low" if g2 < lo / TOLERANCE else "consistent"
     return {
-        "gsim_no": gsim_no,
-        "years": [int(v) for v in y.year],
-        "excluded_low_mean_years": [int(v) for v in y.loc[~y.year.isin(screened.year), "year"]],
-        "screened_gauge_q2_m3s": screened_q2,
-        "max_missing_days": MAX_MISSING_DAYS,
+        "kind": kind,
+        **extra,
         "status": "preliminary",
         "gauge_q2_m3s": round(q2, 2),
         "gauge_q5_m3s": round(q5, 2),
@@ -214,6 +221,60 @@ def flood_check(cache: Path, grdc_no: int, area_ratio: float, glofas_amax: list[
         "ratio_q2": round(g2 / mid, 2),
         "verdict": verdict,
     }
+
+
+def flood_check(cache: Path, sid: str, grdc_no: int, area_ratio: float, glofas_amax: list[float]) -> dict | None:
+    if len(glofas_amax) < MIN_FLOOD_YEARS:
+        return None
+    pub = PUBLISHED_FLOOD.get(sid)
+    got = gsim_yearly(cache, grdc_no)
+    if not got and pub:
+        q = pub["q"]
+        return _compare(
+            "published",
+            q[2],
+            q[5],
+            q[20],
+            area_ratio,
+            glofas_amax,
+            {
+                "gsim_no": None,
+                "years": [],
+                "excluded_low_mean_years": [],
+                "screened_gauge_q2_m3s": None,
+                "max_missing_days": None,
+                "citation": pub["citation"],
+            },
+        )
+    if not got:
+        return None
+    gsim_no, y = got
+    y = y[y["n.missing"] <= MAX_MISSING_DAYS]
+    if len(y) < MIN_FLOOD_YEARS:
+        return None
+    xi, alpha = gumbel_lmoments(y.MAX.to_numpy(dtype=float))
+    q2, q5, q20 = (gumbel_q(xi, alpha, t) for t in (2, 5, 20))
+    screened = y[y.MEAN >= MIN_MEAN_FRACTION * y.MEAN.median()]
+    screened_q2 = None
+    if len(screened) >= MIN_FLOOD_YEARS:
+        sx, sa = gumbel_lmoments(screened.MAX.to_numpy(dtype=float))
+        screened_q2 = round(gumbel_q(sx, sa, 2), 2)
+    return _compare(
+        "gsim_annual_max",
+        q2,
+        q5,
+        q20,
+        area_ratio,
+        glofas_amax,
+        {
+            "gsim_no": gsim_no,
+            "years": [int(v) for v in y.year],
+            "excluded_low_mean_years": [int(v) for v in y.loc[~y.year.isin(screened.year), "year"]],
+            "screened_gauge_q2_m3s": screened_q2,
+            "max_missing_days": MAX_MISSING_DAYS,
+            "citation": None,
+        },
+    )
 
 
 def main() -> int:
@@ -260,7 +321,7 @@ def main() -> int:
             "cell_mean_m3s": cell["mean_q_m3s"],
             "ratio": round(ratio, 2),
             "verdict": verdict,
-            "flood": flood_check(cache, no, area_ratio, cal.get("annual_max_m3s", [])),
+            "flood": flood_check(cache, sid, no, area_ratio, cal.get("annual_max_m3s", [])),
         }
 
     specific = {}
