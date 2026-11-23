@@ -115,9 +115,35 @@ Setiap replay menampilkan blok **hasil model vs kejadian** yang dihitung `flood-
 python scripts/calibrate_glofas.py --cache-dir <dir> --report kalibrasi.md
 python scripts/calibrate_rob.py    --cache-dir <dir> --report rob.md
 python scripts/bake_replays.py     --cache-dir <dir>
+python scripts/bake_inundation.py  --cache-dir <dir>
+python scripts/crosscheck_grrr.py  --cache-dir <dir>
 cargo test -p flood-shared
 ```
 Skrip memakai Python 3 + NumPy, menyimpan setiap respons API di `<dir>`, mencatat bobot panggilan di `<dir>/ledger.jsonl`, dan menahan diri di bawah 3.500 panggilan berbobot per jam (jeda ≥ 1,1 detik).
+
+## 10. Data pembanding Google (statis; tidak memengaruhi level)
+Dua dataset publik Google Research (CC BY 4.0) dibakukan luring. Keduanya tidak dipakai menghitung level indikasi dan tidak diambil saat operasi.
+
+### 10.1 Riwayat genangan (Inundation History, 1999–2020)
+Sumber: `gs://flood-forecasting/inundation_history/data`. Dibuat tim banjir Google dari citra satelit GLAD: seberapa sering tiap piksel 128 m tampak basah selama 1999–2020, setelah derau dibuang dan hasil dihaluskan, **tanpa badan air permanen**. Tiga kelas bersarang: basah ≥ 5% waktu (`high`, di situs "Sering basah"), ≥ 1% (`medium`, "Kadang basah"), ≥ 0,5% (`low`, "Jarang basah"). Di luar poligon, piksel basah < 0,5% waktu.
+
+`scripts/bake_inundation.py` memotong 99 sel sumber berisi poligon (≈ 77 MB termasuk sel laut kosong) ke Indonesia dan sekitarnya (94,5–141,2°BT, 11,5°LS–6,5°LU), menyederhanakan poligon (toleransi 0,002–0,015° menurut kelas dan tingkat zoom), membuang bagian kecil, lalu menulis `public/data/inundation/overview.json` (seluruh Indonesia, zoom < 8,5) dan ubin 1° `t/<lat>_<lon>.json` (zoom ≥ 8,5, dimuat sesuai tampilan setelah pengguna menyalakan lapisan). Penyederhanaan hanya untuk tampilan peta; kelas ≥ 0,5% paling kasar.
+
+Paparan per titik (`inundation_history` di API untuk setiap stasiun dan titik rob) dihitung dari geometri asli sebelum penyederhanaan: luas tiap kelas dalam radius 5 km (78,5 km²) dalam proyeksi LAEA setempat. Kelas bersarang sehingga luas `low ≥ medium ≥ high`; antarmuka memaksakan urutan itu bila pembulatan menggesernya.
+
+Cara membaca: ini **frekuensi permukaan basah pada citra satelit**, bukan peta banjir dan bukan peta rawan banjir resmi. Dapat mencakup sawah tergenang, tambak, waduk, dan dataran pasang surut. Data sumber sudah dihaluskan sehingga kelas ≥ 0,5% dan ≥ 1% mencakup hamparan dataran rendah yang luas (di sekitar Jakarta, seluruh wilayah dalam radius 5 km Ciliwung–Manggarai masuk kelas ini, 93%), dan bentuk poligon kasar. Contoh paparan tinggi yang tidak mencerminkan banjir sungai biasa: radius 5 km Cimanuk–Jatigede (80% kelas `high`; ada waduk) dan Wulan–Demak (78%; pesisir dan tambak, dugaan). Di kota padat, seperti Ciliwung–Manggarai (68% `high`), nilai tinggi perlu dibaca hati-hati; penyebabnya tidak dikaji di sini.
+
+### 10.2 Uji silang ambang terhadap GRRR (Google Runoff Reanalysis & Reforecast)
+Sumber: `gs://flood-forecasting/hydrologic_predictions/distributed_model_2026_11` (`return_periods.parquet`, debit periode ulang 1,01–100 tahun per sub-DAS HydroBASINS dari reanalisis 1980–2023, dan koordinat titik keluar sub-DAS). `scripts/crosscheck_grrr.py` untuk tiap stasiun terkalibrasi (44 stasiun):
+
+1. Menghitung Q2/Q5/Q20 GloFAS dengan rumus yang sama seperti `flood-shared`.
+2. Mengumpulkan titik keluar GRRR dalam radius 12 km dari koordinat pos.
+3. Memberi **putusan** dari seluruh kandidat: `glofas_above` bila Q2 GloFAS > 2 × Q2 GRRR terbesar; `glofas_below` bila < 0,5 × Q2 GRRR terkecil; `within_range` selainnya; `no_outlets` bila tidak ada kandidat.
+4. Mencatat kandidat dengan Q2 terdekat ke Q2 GloFAS (`closest`) beserta Q5, Q20, jarak, dan rasio Q2 GloFAS/GRRR. Berkas GRRR tidak memuat luas DAS sehingga pencocokan ini condong ke kecocokan; hanya dipakai sebagai gambaran bentuk kurva, bukan bukti kecocokan.
+
+Hasil (23 Nov 2026): 33 `within_range`, 9 `glofas_above` (Kali Bekasi, Cimanuk–Jatigede, Krueng Aceh, Deli, Asahan, Batang Anai, Way Sekampung, Walanae, Palu–Sigi), 1 `glofas_below` (Tukad Unda), 1 `no_outlets` (Batumerah Ambon). `within_range` adalah uji kasar karena sub-DAS di sekitar pos berukuran sangat beragam; yang informatif adalah `glofas_above` dan `glofas_below`, yang ditandai di panel stasiun dan berarti ambang perlu diverifikasi dengan pos duga air. Pada 33 pasangan berskala mirip (rasio Q2 0,5–2), median Q20/Q2 adalah 1,49 untuk GloFAS dan 1,32 untuk GRRR: kurva Gumbel GloFAS lebih curam, sehingga level Ekstrem lebih sulit tercapai dibanding bila memakai bentuk kurva GRRR.
+
+Ini perbandingan **model terhadap model**; GRRR bukan pengukuran. Hasil memberi tahu stasiun mana yang paling perlu divalidasi dengan data pos duga air (BBWS/PUPR), bukan stasiun mana yang benar.
 
 ## Rujukan
 - Hosking, J. R. M. (1990). L-moments: analysis and estimation of distributions using linear combinations of order statistics. *Journal of the Royal Statistical Society B*, 52(1), 105–124.
@@ -126,3 +152,5 @@ Skrip memakai Python 3 + NumPy, menyimpan setiap respons API di `<dir>`, mencata
 - Open-Meteo, batas kuota: https://github.com/open-meteo/open-meteo/blob/main/docs/api-rate-limiting.md
 - PetaBencana API: https://docs.petabencana.id/master-1/routes/crowdsourced-reports
 - Kategori hujan BMKG: https://nasional.sindonews.com/read/981399/15/ini-penjelasan-bmkg-soal-perbedaan-hujan-lebat-sangat-lebat-dan-ekstrem-1672215134
+- Google Research, Flood Forecasting resources (Inundation History, GRRR): https://sites.research.google/gr/floodforecasting/resources
+- Cohen, D. dkk. (2024). An improved flood forecasting AI model, trained and evaluated globally: https://research.google/blog/a-flood-forecasting-ai-model-trained-and-evaluated-globally

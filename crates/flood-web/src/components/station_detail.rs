@@ -5,7 +5,10 @@ use crate::format::{
     days_between, fmt_datetime_long, fmt_day, fmt_num, fmt_pct, fmt_q, fmt_ratio, local_date_iso,
     parse_utc_ms, tz_label,
 };
-use flood_shared::model::{Audience, CoastalRobTelemetry, FloodMechanism, StationTelemetry};
+use flood_shared::model::{
+    Audience, CoastalRobTelemetry, FloodMechanism, GrrrCheck, GrrrVerdict, InundationExposure,
+    StationTelemetry,
+};
 use leptos::prelude::*;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -98,6 +101,86 @@ fn ShareRow(id: String, whatsapp: String, quote: String) -> impl IntoView {
                 toast.show("Kutipan untuk media disalin");
             }>"Salin kutipan media"</button>
         </div>
+    }
+}
+
+/// Riwayat genangan Google (Inundation History 1999–2020) dalam radius sekitar titik.
+#[component]
+fn InundationBlock(exposure: InundationExposure, what: &'static str) -> impl IntoView {
+    let (low, medium, high) = exposure.fractions();
+    let pct = |f: f64| fmt_num(f * 100.0, 0);
+    let rows = [
+        ("high", "Sering basah (≥ 5% waktu)", exposure.high_km2, high),
+        (
+            "medium",
+            "Kadang basah (≥ 1% waktu)",
+            exposure.medium_km2,
+            medium,
+        ),
+        ("low", "Jarang basah (≥ 0,5% waktu)", exposure.low_km2, low),
+    ];
+    let aria = format!(
+        "Dalam radius {} km: {} persen sering basah, {} persen kadang basah, {} persen jarang basah",
+        fmt_num(exposure.radius_km, 0),
+        pct(high),
+        pct(medium),
+        pct(low)
+    );
+    view! {
+        <section class="block inund">
+            <h3 class="h-sub">"Riwayat genangan sekitar titik"</h3>
+            <div class="inund-bar" role="img" aria-label=aria>
+                <span class="inund-seg inund-high" style=format!("width:{:.1}%", high * 100.0)></span>
+                <span class="inund-seg inund-medium" style=format!("width:{:.1}%", (medium - high) * 100.0)></span>
+                <span class="inund-seg inund-low" style=format!("width:{:.1}%", (low - medium) * 100.0)></span>
+            </div>
+            <ul class="inund-legend">
+                {rows.into_iter().map(|(cls, lbl, km2, f)| view! {
+                    <li><span class=format!("inund-sw inund-{cls}")></span><span>{lbl}</span>
+                        <b class="num">{format!("{} km² · {}%", fmt_num(km2, 1), pct(f))}</b></li>
+                }).collect_view()}
+            </ul>
+            <p class="fine">{format!(
+                "Dalam radius {} km dari {} ({} km²), citra satelit 1999–2020 menunjukkan permukaan basah pada persentase waktu di atas. Dapat mencakup sawah tergenang, tambak, waduk, dan dataran pasang surut, bukan hanya banjir. Ini riwayat, bukan prakiraan, dan bukan peta rawan banjir resmi. Sumber: Google Research, Inundation History (CC BY 4.0), berdasarkan GLAD.",
+                fmt_num(exposure.radius_km, 0),
+                what,
+                fmt_num(exposure.buffer_km2, 1)
+            )}</p>
+        </section>
+    }
+}
+
+/// Baris lensa Riset: uji kewajaran silang Q2 GloFAS terhadap GRRR (Google).
+fn grrr_facts(g: &GrrrCheck) -> impl IntoView {
+    let radius = fmt_num(g.radius_km, 0);
+    let range = match (g.q2_min_m3s, g.q2_max_m3s) {
+        (Some(lo), Some(hi)) => format!(
+            "{} titik · Q2 {}–{} m³/s",
+            g.n_outlets,
+            fmt_q(lo),
+            fmt_q(hi)
+        ),
+        _ => "tidak ada titik".to_string(),
+    };
+    let verdict = match g.verdict {
+        GrrrVerdict::WithinRange => "Q2 GloFAS dalam rentang Q2 GRRR di sekitar pos (uji kasar, model terhadap model)",
+        GrrrVerdict::GlofasAbove => "Q2 GloFAS lebih dari 2× Q2 GRRR terbesar di sekitar pos: verifikasi dengan pos duga air",
+        GrrrVerdict::GlofasBelow => "Q2 GloFAS kurang dari 0,5× Q2 GRRR terkecil di sekitar pos: verifikasi dengan pos duga air",
+        GrrrVerdict::NoOutlets => "Tidak ada titik keluar sub-DAS GRRR dalam radius pos",
+    };
+    let closest = g.closest.clone().map(|c| {
+        view! {
+            <div><dt>"GRRR dengan Q2 terdekat"</dt><dd class="num">{format!(
+                "Q2 {} · Q5 {} · Q20 {} m³/s, {} km dari pos (GloFAS/GRRR {})",
+                fmt_q(c.q2_m3s), fmt_q(c.q5_m3s), fmt_q(c.q20_m3s), fmt_num(c.distance_km, 1),
+                fmt_ratio(g.ratio_q2.unwrap_or(f64::NAN))
+            )}</dd></div>
+        }
+    });
+    view! {
+        <div><dt>{format!("GRRR Google ≤ {radius} km")}</dt><dd class="num">{range}</dd></div>
+        {closest}
+        <div><dt>"Uji silang Q2"</dt><dd>{verdict}</dd></div>
     }
 }
 
@@ -239,6 +322,7 @@ pub fn StationDetail(
                             <div><dt>"Periode klimatologi"</dt><dd>{format!("{} ({} tahun)", t.period, t.n_years)}</dd></div>
                         })}
                         {st.ratio_q2.map(|r| view! { <div><dt>"Q / Q2"</dt><dd class="num">{fmt_ratio(r)}</dd></div> })}
+                        {st.grrr_check.clone().map(|g| grrr_facts(&g))}
                         <div><dt>"Lengas tanah 0–7 / 28–100 cm"</dt><dd class="num">{format!("{} / {} m³/m³", fmt_num(st.soil_moisture_top, 2), fmt_num(st.soil_moisture_deep, 2))}</dd></div>
                     </dl>
                     <div class="btn-row">
@@ -287,6 +371,11 @@ pub fn StationDetail(
                 fmt_num(c.offset_km, 0)
             )
         });
+    let grrr_note = st.grrr_check.as_ref().and_then(|g| match g.verdict {
+        GrrrVerdict::GlofasAbove => Some("Pembanding model Google (GRRR) memberi debit banjir 2 tahunan di sekitar pos yang jauh lebih rendah; level sungai di sini perlu diverifikasi dengan pos duga air."),
+        GrrrVerdict::GlofasBelow => Some("Pembanding model Google (GRRR) memberi debit banjir 2 tahunan di sekitar pos yang jauh lebih tinggi; level sungai di sini perlu diverifikasi dengan pos duga air."),
+        _ => None,
+    });
     let floodhub = format!(
         "https://sites.research.google/floods/l/{:.4}/{:.4}/11",
         st.lat, st.lon
@@ -305,6 +394,7 @@ pub fn StationDetail(
             </div>
             <p class="reason">{st.level_reason.clone()}</p>
             {offset_note.map(|n| view! { <p class="muted">{n}</p> })}
+            {grrr_note.map(|n| view! { <p class="muted">{n}</p> })}
 
             {if replay {
                 view! {
@@ -362,6 +452,8 @@ pub fn StationDetail(
                 <h3 class="h-sub">"Ambang periode ulang"</h3>
                 {thresholds_view}
             </section>
+
+            {(!replay).then(|| st.inundation_history.clone().map(|e| view! { <InundationBlock exposure=e what="pos"/> }))}
 
             {exceed_view}
 
@@ -460,6 +552,7 @@ pub fn RobDetail(
                     None => view! { <p class="note-unknown">"Belum terkalibrasi: klimatologi muka laut belum tersedia untuk titik ini."</p> }.into_any(),
                 }}
             </section>
+            {(!replay).then(|| rb.inundation_history.clone().map(|e| view! { <InundationBlock exposure=e what="titik ini"/> }))}
             <section class="meaning">
                 <h3 class="h-sub">"Apa artinya?"</h3>
                 <p>{rb.note.clone()}</p>

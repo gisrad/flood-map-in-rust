@@ -58,6 +58,8 @@ flowchart LR
    * **Hujan lokal (drainase)**: hujan model 24 jam terakhir/ke depan terhadap kategori BMKG (lebat ≥ 50 mm, sangat lebat ≥ 100 mm, ekstrem > 150 mm), lengas tanah 2 lapis, dan laporan warga **PetaBencana.id** ≤ 10 km.
    * **Rob pesisir**: puncak muka laut model 48 jam (Open-Meteo Marine) terhadap persentil klimatologi setempat di **12 koridor pesisir** (Jakarta Utara, Muara Gembong, Pekalongan, Semarang–Sayung, Belawan, Pontianak, Banjarmasin, Makassar, Merauke, dll.).
    * **Sungai riil berkelok**: garis sungai diambil dari geometri OpenStreetMap (dua tingkat detail, arah ke hilir), bukan garis lurus antartitik. Tautan "Bandingkan di Google Flood Hub" di setiap detail stasiun.
+   * **Riwayat genangan Google (opsional, mati secara bawaan)**: tombol gelombang di peta menyalakan *Inundation History 1999–2020* (frekuensi piksel 128 m tampak basah pada citra satelit; tiga kelas ≥ 0,5% / ≥ 1% / ≥ 5% waktu), dimuat lazy per ubin. Setiap stasiun dan titik rob juga menampilkan luas genangan historis dalam radius 5 km, dengan catatan bahwa ini bukan peta rawan banjir resmi.
+   * **Uji silang GRRR (lensa Riset)**: ambang Q2 GloFAS dibandingkan dengan *Google Runoff Reanalysis & Reforecast* 1980–2023 di sekitar pos. Hasilnya model-terhadap-model dan menandai stasiun yang perlu diverifikasi dengan pos duga air; tidak memengaruhi level.
 2. **All-Rust + SQLite Durable Object (`FloodHub`)**
    * Data disimpan di **Cloudflare Durable Object SQLite** (`new_sqlite_classes = ["FloodHub"]`) — aktif otomatis di paket gratis Cloudflare Workers tanpa server terpisah.
    * Berbagi tipe data & logika hidrologi antara server dan klien lewat crate `flood-shared`.

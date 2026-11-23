@@ -28,6 +28,9 @@ extern "C" {
     #[wasm_bindgen(js_name = toggle3DTerrain)]
     pub fn js_toggle_3d_terrain(enabled: bool);
 
+    #[wasm_bindgen(js_name = setInundationLayer)]
+    pub fn js_set_inundation_layer(enabled: bool);
+
     #[wasm_bindgen(js_name = setUserLocation)]
     pub fn js_set_user_location(lon: f64, lat: f64);
 

@@ -1,0 +1,384 @@
+{
+ "generated_at_utc": "2026-11-23T03:28:44Z",
+ "source": "Google Research, Inundation History 1999–2020 (CC BY 4.0), berdasarkan GLAD",
+ "radius_km": 5.0,
+ "classes": {
+  "low": "basah ≥ 0.5% waktu",
+  "medium": "basah ≥ 1% waktu",
+  "high": "basah ≥ 5% waktu"
+ },
+ "points": {
+  "ciliwung-katulampa": {
+   "buffer_km2": 78.5,
+   "low_km2": 14.5,
+   "medium_km2": 2.2,
+   "high_km2": 0.0
+  },
+  "ciliwung-manggarai": {
+   "buffer_km2": 78.5,
+   "low_km2": 73.0,
+   "medium_km2": 73.2,
+   "high_km2": 53.6
+  },
+  "cisadane-tangerang": {
+   "buffer_km2": 78.5,
+   "low_km2": 76.1,
+   "medium_km2": 72.9,
+   "high_km2": 17.8
+  },
+  "bekasi-pondokgede": {
+   "buffer_km2": 78.5,
+   "low_km2": 75.6,
+   "medium_km2": 64.4,
+   "high_km2": 5.0
+  },
+  "citarum-nanjung": {
+   "buffer_km2": 78.5,
+   "low_km2": 49.3,
+   "medium_km2": 34.4,
+   "high_km2": 3.8
+  },
+  "citarum-karawang": {
+   "buffer_km2": 78.5,
+   "low_km2": 78.2,
+   "medium_km2": 78.2,
+   "high_km2": 51.8
+  },
+  "cimanuk-jatigede": {
+   "buffer_km2": 78.5,
+   "low_km2": 75.9,
+   "medium_km2": 69.3,
+   "high_km2": 63.0
+  },
+  "citanduy-banjar": {
+   "buffer_km2": 78.5,
+   "low_km2": 55.6,
+   "medium_km2": 42.3,
+   "high_km2": 21.2
+  },
+  "serayu-banyumas": {
+   "buffer_km2": 78.5,
+   "low_km2": 45.4,
+   "medium_km2": 36.8,
+   "high_km2": 22.4
+  },
+  "progo-bantul": {
+   "buffer_km2": 78.5,
+   "low_km2": 32.2,
+   "medium_km2": 21.5,
+   "high_km2": 8.2
+  },
+  "wulan-demak": {
+   "buffer_km2": 78.5,
+   "low_km2": 78.5,
+   "medium_km2": 78.2,
+   "high_km2": 61.0
+  },
+  "solo-sragen": {
+   "buffer_km2": 78.5,
+   "low_km2": 71.4,
+   "medium_km2": 65.2,
+   "high_km2": 40.3
+  },
+  "solo-bojonegoro": {
+   "buffer_km2": 78.5,
+   "low_km2": 62.2,
+   "medium_km2": 50.4,
+   "high_km2": 27.4
+  },
+  "brantas-mojokerto": {
+   "buffer_km2": 78.5,
+   "low_km2": 69.3,
+   "medium_km2": 57.6,
+   "high_km2": 12.8
+  },
+  "sampean-situbondo": {
+   "buffer_km2": 78.5,
+   "low_km2": 44.3,
+   "medium_km2": 24.6,
+   "high_km2": 1.3
+  },
+  "krueng-aceh": {
+   "buffer_km2": 78.5,
+   "low_km2": 73.7,
+   "medium_km2": 66.9,
+   "high_km2": 20.4
+  },
+  "deli-medan": {
+   "buffer_km2": 78.5,
+   "low_km2": 75.0,
+   "medium_km2": 75.3,
+   "high_km2": 21.5
+  },
+  "asahan-tanjungbalai": {
+   "buffer_km2": 78.5,
+   "low_km2": 31.4,
+   "medium_km2": 22.4,
+   "high_km2": 2.7
+  },
+  "rokan-bagansiapiapi": {
+   "buffer_km2": 78.5,
+   "low_km2": 26.7,
+   "medium_km2": 23.8,
+   "high_km2": 16.7
+  },
+  "siak-pekanbaru": {
+   "buffer_km2": 78.5,
+   "low_km2": 71.1,
+   "medium_km2": 55.4,
+   "high_km2": 20.5
+  },
+  "kampar-pelalawan": {
+   "buffer_km2": 78.5,
+   "low_km2": 22.9,
+   "medium_km2": 14.5,
+   "high_km2": 1.1
+  },
+  "indragiri-rengat": {
+   "buffer_km2": 78.5,
+   "low_km2": 16.2,
+   "medium_km2": 15.8,
+   "high_km2": 0.3
+  },
+  "batanghari-jambi": {
+   "buffer_km2": 78.5,
+   "low_km2": 67.9,
+   "medium_km2": 63.3,
+   "high_km2": 11.6
+  },
+  "musi-palembang": {
+   "buffer_km2": 78.5,
+   "low_km2": 76.2,
+   "medium_km2": 74.7,
+   "high_km2": 9.6
+  },
+  "ogan-baturaja": {
+   "buffer_km2": 78.5,
+   "low_km2": 65.8,
+   "medium_km2": 57.3,
+   "high_km2": 25.8
+  },
+  "batang-anai-padang": {
+   "buffer_km2": 78.5,
+   "low_km2": 19.7,
+   "medium_km2": 11.3,
+   "high_km2": 2.4
+  },
+  "air-bengkulu": {
+   "buffer_km2": 78.5,
+   "low_km2": 33.9,
+   "medium_km2": 27.0,
+   "high_km2": 3.3
+  },
+  "way-sekampung": {
+   "buffer_km2": 78.5,
+   "low_km2": 38.5,
+   "medium_km2": 28.2,
+   "high_km2": 17.7
+  },
+  "sambas-kalbar": {
+   "buffer_km2": 78.5,
+   "low_km2": 6.5,
+   "medium_km2": 2.3,
+   "high_km2": 0.0
+  },
+  "kapuas-sintang": {
+   "buffer_km2": 78.5,
+   "low_km2": 28.8,
+   "medium_km2": 15.7,
+   "high_km2": 4.0
+  },
+  "kapuas-pontianak": {
+   "buffer_km2": 78.5,
+   "low_km2": 48.9,
+   "medium_km2": 36.2,
+   "high_km2": 0.0
+  },
+  "sampit-mentaya": {
+   "buffer_km2": 78.5,
+   "low_km2": 6.9,
+   "medium_km2": 3.0,
+   "high_km2": 0.0
+  },
+  "kahayan-palangkaraya": {
+   "buffer_km2": 78.5,
+   "low_km2": 56.7,
+   "medium_km2": 30.4,
+   "high_km2": 11.8
+  },
+  "barito-buntok": {
+   "buffer_km2": 78.5,
+   "low_km2": 6.0,
+   "medium_km2": 2.8,
+   "high_km2": 0.8
+  },
+  "barito-banjarmasin": {
+   "buffer_km2": 78.5,
+   "low_km2": 58.5,
+   "medium_km2": 46.6,
+   "high_km2": 5.7
+  },
+  "mahakam-samarinda": {
+   "buffer_km2": 78.5,
+   "low_km2": 52.8,
+   "medium_km2": 48.2,
+   "high_km2": 7.3
+  },
+  "kayan-tanjungselor": {
+   "buffer_km2": 78.5,
+   "low_km2": 17.7,
+   "medium_km2": 11.6,
+   "high_km2": 0.0
+  },
+  "tukad-unda": {
+   "buffer_km2": 78.5,
+   "low_km2": 53.7,
+   "medium_km2": 44.7,
+   "high_km2": 2.6
+  },
+  "dodokan-lombok": {
+   "buffer_km2": 78.5,
+   "low_km2": 60.3,
+   "medium_km2": 58.4,
+   "high_km2": 33.1
+  },
+  "benanain-malaka": {
+   "buffer_km2": 78.5,
+   "low_km2": 26.1,
+   "medium_km2": 15.9,
+   "high_km2": 1.8
+  },
+  "saddang-pinrang": {
+   "buffer_km2": 78.5,
+   "low_km2": 8.2,
+   "medium_km2": 6.9,
+   "high_km2": 3.8
+  },
+  "jeneberang-bili": {
+   "buffer_km2": 78.5,
+   "low_km2": 16.2,
+   "medium_km2": 7.8,
+   "high_km2": 0.1
+  },
+  "walanae-wajo": {
+   "buffer_km2": 78.5,
+   "low_km2": 44.2,
+   "medium_km2": 37.2,
+   "high_km2": 24.8
+  },
+  "konaweha-kendari": {
+   "buffer_km2": 78.5,
+   "low_km2": 42.9,
+   "medium_km2": 35.6,
+   "high_km2": 18.2
+  },
+  "palu-sigi": {
+   "buffer_km2": 78.5,
+   "low_km2": 8.3,
+   "medium_km2": 5.6,
+   "high_km2": 2.3
+  },
+  "limboto-gorontalo": {
+   "buffer_km2": 78.5,
+   "low_km2": 41.2,
+   "medium_km2": 28.3,
+   "high_km2": 22.1
+  },
+  "tondano-manado": {
+   "buffer_km2": 78.5,
+   "low_km2": 32.8,
+   "medium_km2": 21.0,
+   "high_km2": 0.0
+  },
+  "batumerah-ambon": {
+   "buffer_km2": 78.5,
+   "low_km2": 26.1,
+   "medium_km2": 14.0,
+   "high_km2": 3.9
+  },
+  "mamberamo-papua": {
+   "buffer_km2": 78.5,
+   "low_km2": 2.2,
+   "medium_km2": 1.6,
+   "high_km2": 0.0
+  },
+  "digul-tanahmerah": {
+   "buffer_km2": 78.5,
+   "low_km2": 3.3,
+   "medium_km2": 0.9,
+   "high_km2": 0.0
+  },
+  "rob-jakarta-muarabaru": {
+   "buffer_km2": 78.5,
+   "low_km2": 26.3,
+   "medium_km2": 26.2,
+   "high_km2": 10.6
+  },
+  "rob-muara-gembong": {
+   "buffer_km2": 78.5,
+   "low_km2": 38.4,
+   "medium_km2": 38.4,
+   "high_km2": 35.3
+  },
+  "rob-pekalongan": {
+   "buffer_km2": 78.5,
+   "low_km2": 34.1,
+   "medium_km2": 31.3,
+   "high_km2": 22.2
+  },
+  "rob-semarang-sayung": {
+   "buffer_km2": 78.5,
+   "low_km2": 36.9,
+   "medium_km2": 30.0,
+   "high_km2": 5.1
+  },
+  "rob-surabaya-gresik": {
+   "buffer_km2": 78.5,
+   "low_km2": 22.4,
+   "medium_km2": 18.1,
+   "high_km2": 10.7
+  },
+  "rob-belawan-medan": {
+   "buffer_km2": 78.5,
+   "low_km2": 56.6,
+   "medium_km2": 55.6,
+   "high_km2": 33.3
+  },
+  "rob-tembilahan": {
+   "buffer_km2": 78.5,
+   "low_km2": 24.0,
+   "medium_km2": 18.9,
+   "high_km2": 3.3
+  },
+  "rob-pontianak-muara": {
+   "buffer_km2": 78.5,
+   "low_km2": 42.7,
+   "medium_km2": 21.7,
+   "high_km2": 0.0
+  },
+  "rob-banjarmasin-tabanio": {
+   "buffer_km2": 78.5,
+   "low_km2": 6.5,
+   "medium_km2": 6.5,
+   "high_km2": 5.6
+  },
+  "rob-makassar-losari": {
+   "buffer_km2": 78.5,
+   "low_km2": 28.6,
+   "medium_km2": 28.2,
+   "high_km2": 11.0
+  },
+  "rob-manado-teluk": {
+   "buffer_km2": 78.5,
+   "low_km2": 23.1,
+   "medium_km2": 17.2,
+   "high_km2": 0.0
+  },
+  "rob-merauke": {
+   "buffer_km2": 78.5,
+   "low_km2": 28.2,
+   "medium_km2": 15.9,
+   "high_km2": 0.0
+  }
+ }
+}

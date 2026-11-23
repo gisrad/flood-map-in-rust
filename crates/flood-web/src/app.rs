@@ -1,8 +1,8 @@
 use crate::bridge::{
     build_map_geojsons, copy_text, current_url, js_clear_user_location, js_fly_to_point,
-    js_init_map, js_reset_indonesia_view, js_set_map_theme, js_set_user_location,
-    js_toggle_3d_terrain, js_update_map_data, prefers_dark, read_url_param, remove_splash,
-    set_html_theme, update_url_param,
+    js_init_map, js_reset_indonesia_view, js_set_inundation_layer, js_set_map_theme,
+    js_set_user_location, js_toggle_3d_terrain, js_update_map_data, prefers_dark, read_url_param,
+    remove_splash, set_html_theme, update_url_param,
 };
 use crate::components::header::{AppMenu, Header};
 use crate::components::inspector::{
@@ -104,6 +104,7 @@ pub fn App() -> impl IntoView {
     let lens = RwSignal::new(initial_lens);
     let theme = RwSignal::new(initial_theme);
     let terrain_3d = RwSignal::new(false);
+    let inundation = RwSignal::new(read_url_param("riwayat").is_some());
 
     let replay_active = RwSignal::new(initial_replay.is_some());
     let scenario_id = RwSignal::new(
@@ -220,6 +221,11 @@ pub fn App() -> impl IntoView {
         update_url_param("theme", (th == "dark").then_some("dark"));
     });
     Effect::new(move |_| js_toggle_3d_terrain(terrain_3d.get()));
+    Effect::new(move |_| {
+        let on = inundation.get();
+        js_set_inundation_layer(on);
+        update_url_param("riwayat", on.then_some("1"));
+    });
     Effect::new(move |_| update_url_param("s", selected_id.get().as_deref()));
     Effect::new(move |_| update_url_param("m", mech_filter.get().map(mech_slug)));
     Effect::new(move |_| {
@@ -386,8 +392,8 @@ pub fn App() -> impl IntoView {
 
             <main class="stage">
                 <div id="map-canvas" class="map-canvas" role="region" aria-label="Peta indikasi banjir Indonesia"></div>
-                <MapTools mech_filter=mech_filter terrain_3d=terrain_3d theme=theme on_gps=trigger_gps/>
-                <Legend open=legend_open/>
+                <MapTools mech_filter=mech_filter terrain_3d=terrain_3d inundation=inundation theme=theme on_gps=trigger_gps/>
+                <Legend open=legend_open inundation=inundation/>
 
                 {move || user_msg.get().map(|m| view! {
                     <div class="gps-toast" role="status">

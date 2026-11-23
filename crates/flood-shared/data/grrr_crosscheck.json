@@ -1,0 +1,671 @@
+{
+ "generated_at_utc": "2026-11-23T03:32:54Z",
+ "source": "Google Research, Google Runoff Reanalysis & Reforecast (GRRR) 1980–2023, distributed_model_2026_11/return_periods.parquet (CC BY 4.0)",
+ "radius_km": 12.0,
+ "above_factor": 2.0,
+ "below_factor": 0.5,
+ "summary": {
+  "n_assessed": 44,
+  "verdicts": {
+   "within_range": 33,
+   "glofas_above": 9,
+   "glofas_below": 1,
+   "no_outlets": 1
+  },
+  "n_similar_scale": 33,
+  "median_q20_over_q2_glofas": 1.49,
+  "median_q20_over_q2_grrr": 1.32
+ },
+ "stations": {
+  "ciliwung-katulampa": {
+   "radius_km": 12.0,
+   "n_outlets": 2,
+   "q2_min_m3s": 15.04,
+   "q2_max_m3s": 21.69,
+   "closest": {
+    "id": "subhybas_5120668410",
+    "distance_km": 7.0,
+    "q2_m3s": 15.04,
+    "q5_m3s": 19.64,
+    "q20_m3s": 26.9
+   },
+   "ratio_q2": 0.69,
+   "verdict": "within_range"
+  },
+  "ciliwung-manggarai": {
+   "radius_km": 12.0,
+   "n_outlets": 4,
+   "q2_min_m3s": 2.12,
+   "q2_max_m3s": 93.46,
+   "closest": {
+    "id": "subhybas_5120202090",
+    "distance_km": 12.0,
+    "q2_m3s": 85.01,
+    "q5_m3s": 125.51,
+    "q20_m3s": 188.29
+   },
+   "ratio_q2": 0.58,
+   "verdict": "within_range"
+  },
+  "cisadane-tangerang": {
+   "radius_km": 12.0,
+   "n_outlets": 2,
+   "q2_min_m3s": 33.54,
+   "q2_max_m3s": 202.64,
+   "closest": {
+    "id": "subhybas_5120666850",
+    "distance_km": 1.5,
+    "q2_m3s": 202.64,
+    "q5_m3s": 235.32,
+    "q20_m3s": 278.68
+   },
+   "ratio_q2": 0.74,
+   "verdict": "within_range"
+  },
+  "bekasi-pondokgede": {
+   "radius_km": 12.0,
+   "n_outlets": 2,
+   "q2_min_m3s": 20.67,
+   "q2_max_m3s": 32.66,
+   "closest": {
+    "id": "subhybas_5120203410",
+    "distance_km": 0.3,
+    "q2_m3s": 32.66,
+    "q5_m3s": 41.57,
+    "q20_m3s": 54.04
+   },
+   "ratio_q2": 3.49,
+   "verdict": "glofas_above"
+  },
+  "citarum-nanjung": {
+   "radius_km": 12.0,
+   "n_outlets": 9,
+   "q2_min_m3s": 18.54,
+   "q2_max_m3s": 214.54,
+   "closest": {
+    "id": "subhybas_5120208080",
+    "distance_km": 11.1,
+    "q2_m3s": 103.92,
+    "q5_m3s": 116.39,
+    "q20_m3s": 129.98
+   },
+   "ratio_q2": 0.84,
+   "verdict": "within_range"
+  },
+  "citarum-karawang": {
+   "radius_km": 12.0,
+   "n_outlets": 3,
+   "q2_min_m3s": 98.39,
+   "q2_max_m3s": 495.33,
+   "closest": {
+    "id": "subhybas_5120666910",
+    "distance_km": 10.5,
+    "q2_m3s": 495.33,
+    "q5_m3s": 554.29,
+    "q20_m3s": 619.94
+   },
+   "ratio_q2": 1.79,
+   "verdict": "within_range"
+  },
+  "cimanuk-jatigede": {
+   "radius_km": 12.0,
+   "n_outlets": 2,
+   "q2_min_m3s": 10.72,
+   "q2_max_m3s": 298.23,
+   "closest": {
+    "id": "subhybas_5120667490",
+    "distance_km": 2.5,
+    "q2_m3s": 298.23,
+    "q5_m3s": 341.38,
+    "q20_m3s": 396.86
+   },
+   "ratio_q2": 2.72,
+   "verdict": "glofas_above"
+  },
+  "citanduy-banjar": {
+   "radius_km": 12.0,
+   "n_outlets": 11,
+   "q2_min_m3s": 26.22,
+   "q2_max_m3s": 206.69,
+   "closest": {
+    "id": "subhybas_5120211160",
+    "distance_km": 4.8,
+    "q2_m3s": 206.69,
+    "q5_m3s": 235.35,
+    "q20_m3s": 270.36
+   },
+   "ratio_q2": 1.51,
+   "verdict": "within_range"
+  },
+  "serayu-banyumas": {
+   "radius_km": 12.0,
+   "n_outlets": 4,
+   "q2_min_m3s": 33.79,
+   "q2_max_m3s": 463.21,
+   "closest": {
+    "id": "subhybas_5120212260",
+    "distance_km": 4.4,
+    "q2_m3s": 419.85,
+    "q5_m3s": 490.78,
+    "q20_m3s": 583.93
+   },
+   "ratio_q2": 0.86,
+   "verdict": "within_range"
+  },
+  "progo-bantul": {
+   "radius_km": 12.0,
+   "n_outlets": 5,
+   "q2_min_m3s": 13.63,
+   "q2_max_m3s": 166.83,
+   "closest": {
+    "id": "subhybas_5120214890",
+    "distance_km": 4.9,
+    "q2_m3s": 166.83,
+    "q5_m3s": 184.86,
+    "q20_m3s": 204.75
+   },
+   "ratio_q2": 1.22,
+   "verdict": "within_range"
+  },
+  "wulan-demak": {
+   "radius_km": 12.0,
+   "n_outlets": 3,
+   "q2_min_m3s": 57.07,
+   "q2_max_m3s": 248.32,
+   "closest": {
+    "id": "subhybas_5120668920",
+    "distance_km": 9.1,
+    "q2_m3s": 248.32,
+    "q5_m3s": 293.22,
+    "q20_m3s": 340.99
+   },
+   "ratio_q2": 0.67,
+   "verdict": "within_range"
+  },
+  "solo-sragen": {
+   "radius_km": 12.0,
+   "n_outlets": 7,
+   "q2_min_m3s": 9.94,
+   "q2_max_m3s": 399.98,
+   "closest": {
+    "id": "subhybas_5120211200",
+    "distance_km": 11.9,
+    "q2_m3s": 399.98,
+    "q5_m3s": 480.38,
+    "q20_m3s": 578.95
+   },
+   "ratio_q2": 1.79,
+   "verdict": "within_range"
+  },
+  "solo-bojonegoro": {
+   "radius_km": 12.0,
+   "n_outlets": 6,
+   "q2_min_m3s": 12.5,
+   "q2_max_m3s": 1030.06,
+   "closest": {
+    "id": "subhybas_5120209790",
+    "distance_km": 11.0,
+    "q2_m3s": 1030.06,
+    "q5_m3s": 1183.78,
+    "q20_m3s": 1347.78
+   },
+   "ratio_q2": 1.61,
+   "verdict": "within_range"
+  },
+  "brantas-mojokerto": {
+   "radius_km": 12.0,
+   "n_outlets": 6,
+   "q2_min_m3s": 12.07,
+   "q2_max_m3s": 797.23,
+   "closest": {
+    "id": "subhybas_5120670780",
+    "distance_km": 6.3,
+    "q2_m3s": 797.23,
+    "q5_m3s": 901.29,
+    "q20_m3s": 1011.88
+   },
+   "ratio_q2": 1.78,
+   "verdict": "within_range"
+  },
+  "krueng-aceh": {
+   "radius_km": 12.0,
+   "n_outlets": 2,
+   "q2_min_m3s": 59.79,
+   "q2_max_m3s": 196.92,
+   "closest": {
+    "id": "subhybas_5120002580",
+    "distance_km": 5.6,
+    "q2_m3s": 196.92,
+    "q5_m3s": 282.11,
+    "q20_m3s": 420.29
+   },
+   "ratio_q2": 3.29,
+   "verdict": "glofas_above"
+  },
+  "deli-medan": {
+   "radius_km": 12.0,
+   "n_outlets": 2,
+   "q2_min_m3s": 34.31,
+   "q2_max_m3s": 37.13,
+   "closest": {
+    "id": "subhybas_5120632330",
+    "distance_km": 4.4,
+    "q2_m3s": 37.13,
+    "q5_m3s": 46.22,
+    "q20_m3s": 56.44
+   },
+   "ratio_q2": 2.61,
+   "verdict": "glofas_above"
+  },
+  "asahan-tanjungbalai": {
+   "radius_km": 12.0,
+   "n_outlets": 11,
+   "q2_min_m3s": 0.08,
+   "q2_max_m3s": 286.72,
+   "closest": {
+    "id": "subhybas_5120003520",
+    "distance_km": 1.2,
+    "q2_m3s": 286.72,
+    "q5_m3s": 326.65,
+    "q20_m3s": 362.82
+   },
+   "ratio_q2": 2.18,
+   "verdict": "glofas_above"
+  },
+  "rokan-bagansiapiapi": {
+   "radius_km": 12.0,
+   "n_outlets": 7,
+   "q2_min_m3s": 1.78,
+   "q2_max_m3s": 1990.58,
+   "closest": {
+    "id": "subhybas_5120003690",
+    "distance_km": 8.2,
+    "q2_m3s": 1990.58,
+    "q5_m3s": 2234.43,
+    "q20_m3s": 2520.16
+   },
+   "ratio_q2": 1.23,
+   "verdict": "within_range"
+  },
+  "siak-pekanbaru": {
+   "radius_km": 12.0,
+   "n_outlets": 4,
+   "q2_min_m3s": 16.39,
+   "q2_max_m3s": 632.85,
+   "closest": {
+    "id": "subhybas_5120145550",
+    "distance_km": 1.9,
+    "q2_m3s": 632.85,
+    "q5_m3s": 738.06,
+    "q20_m3s": 863.35
+   },
+   "ratio_q2": 1.18,
+   "verdict": "within_range"
+  },
+  "kampar-pelalawan": {
+   "radius_km": 12.0,
+   "n_outlets": 8,
+   "q2_min_m3s": 9.28,
+   "q2_max_m3s": 1762.67,
+   "closest": {
+    "id": "subhybas_5120147510",
+    "distance_km": 2.4,
+    "q2_m3s": 1762.67,
+    "q5_m3s": 2025.3,
+    "q20_m3s": 2301.22
+   },
+   "ratio_q2": 1.28,
+   "verdict": "within_range"
+  },
+  "indragiri-rengat": {
+   "radius_km": 12.0,
+   "n_outlets": 5,
+   "q2_min_m3s": 14.08,
+   "q2_max_m3s": 1037.48,
+   "closest": {
+    "id": "subhybas_5120153640",
+    "distance_km": 6.8,
+    "q2_m3s": 1037.48,
+    "q5_m3s": 1184.72,
+    "q20_m3s": 1361.36
+   },
+   "ratio_q2": 1.67,
+   "verdict": "within_range"
+  },
+  "batanghari-jambi": {
+   "radius_km": 12.0,
+   "n_outlets": 2,
+   "q2_min_m3s": 4523.86,
+   "q2_max_m3s": 4525.39,
+   "closest": {
+    "id": "subhybas_5120648330",
+    "distance_km": 2.7,
+    "q2_m3s": 4525.39,
+    "q5_m3s": 5071.75,
+    "q20_m3s": 5636.47
+   },
+   "ratio_q2": 1.24,
+   "verdict": "within_range"
+  },
+  "musi-palembang": {
+   "radius_km": 12.0,
+   "n_outlets": 6,
+   "q2_min_m3s": 29.77,
+   "q2_max_m3s": 4634.8,
+   "closest": {
+    "id": "subhybas_5120655370",
+    "distance_km": 10.7,
+    "q2_m3s": 4634.8,
+    "q5_m3s": 5323.76,
+    "q20_m3s": 6053.66
+   },
+   "ratio_q2": 1.33,
+   "verdict": "within_range"
+  },
+  "batang-anai-padang": {
+   "radius_km": 12.0,
+   "n_outlets": 3,
+   "q2_min_m3s": 29.49,
+   "q2_max_m3s": 78.12,
+   "closest": {
+    "id": "subhybas_5120001300",
+    "distance_km": 3.0,
+    "q2_m3s": 78.12,
+    "q5_m3s": 95.6,
+    "q20_m3s": 118.63
+   },
+   "ratio_q2": 2.77,
+   "verdict": "glofas_above"
+  },
+  "air-bengkulu": {
+   "radius_km": 12.0,
+   "n_outlets": 2,
+   "q2_min_m3s": 15.97,
+   "q2_max_m3s": 70.4,
+   "closest": {
+    "id": "subhybas_5120000590",
+    "distance_km": 2.6,
+    "q2_m3s": 70.4,
+    "q5_m3s": 84.08,
+    "q20_m3s": 101.46
+   },
+   "ratio_q2": 0.99,
+   "verdict": "within_range"
+  },
+  "way-sekampung": {
+   "radius_km": 12.0,
+   "n_outlets": 6,
+   "q2_min_m3s": 4.98,
+   "q2_max_m3s": 150.16,
+   "closest": {
+    "id": "subhybas_5120197570",
+    "distance_km": 3.7,
+    "q2_m3s": 150.16,
+    "q5_m3s": 185.44,
+    "q20_m3s": 227.11
+   },
+   "ratio_q2": 2.93,
+   "verdict": "glofas_above"
+  },
+  "sambas-kalbar": {
+   "radius_km": 12.0,
+   "n_outlets": 5,
+   "q2_min_m3s": 36.92,
+   "q2_max_m3s": 1030.12,
+   "closest": {
+    "id": "subhybas_5120138320",
+    "distance_km": 6.7,
+    "q2_m3s": 1030.12,
+    "q5_m3s": 1256.23,
+    "q20_m3s": 1517.99
+   },
+   "ratio_q2": 0.77,
+   "verdict": "within_range"
+  },
+  "kapuas-sintang": {
+   "radius_km": 12.0,
+   "n_outlets": 5,
+   "q2_min_m3s": 41.83,
+   "q2_max_m3s": 8487.28,
+   "closest": {
+    "id": "subhybas_5120149720",
+    "distance_km": 1.5,
+    "q2_m3s": 2952.94,
+    "q5_m3s": 3312.44,
+    "q20_m3s": 3678.0
+   },
+   "ratio_q2": 0.98,
+   "verdict": "within_range"
+  },
+  "sampit-mentaya": {
+   "radius_km": 12.0,
+   "n_outlets": 3,
+   "q2_min_m3s": 1327.96,
+   "q2_max_m3s": 1343.85,
+   "closest": {
+    "id": "subhybas_5120653180",
+    "distance_km": 6.5,
+    "q2_m3s": 1343.85,
+    "q5_m3s": 1548.45,
+    "q20_m3s": 1771.61
+   },
+   "ratio_q2": 1.02,
+   "verdict": "within_range"
+  },
+  "kahayan-palangkaraya": {
+   "radius_km": 12.0,
+   "n_outlets": 5,
+   "q2_min_m3s": 20.15,
+   "q2_max_m3s": 1608.73,
+   "closest": {
+    "id": "subhybas_5120168810",
+    "distance_km": 7.7,
+    "q2_m3s": 1608.73,
+    "q5_m3s": 1798.19,
+    "q20_m3s": 1987.64
+   },
+   "ratio_q2": 0.97,
+   "verdict": "within_range"
+  },
+  "barito-buntok": {
+   "radius_km": 12.0,
+   "n_outlets": 6,
+   "q2_min_m3s": 22.13,
+   "q2_max_m3s": 4622.19,
+   "closest": {
+    "id": "subhybas_5120163370",
+    "distance_km": 10.5,
+    "q2_m3s": 4587.09,
+    "q5_m3s": 5129.28,
+    "q20_m3s": 5634.23
+   },
+   "ratio_q2": 0.99,
+   "verdict": "within_range"
+  },
+  "mahakam-samarinda": {
+   "radius_km": 12.0,
+   "n_outlets": 4,
+   "q2_min_m3s": 15.12,
+   "q2_max_m3s": 10106.33,
+   "closest": {
+    "id": "subhybas_5120154470",
+    "distance_km": 0.5,
+    "q2_m3s": 10086.96,
+    "q5_m3s": 11640.28,
+    "q20_m3s": 13282.72
+   },
+   "ratio_q2": 0.81,
+   "verdict": "within_range"
+  },
+  "kayan-tanjungselor": {
+   "radius_km": 12.0,
+   "n_outlets": 3,
+   "q2_min_m3s": 43.35,
+   "q2_max_m3s": 4826.36,
+   "closest": {
+    "id": "subhybas_5120633550",
+    "distance_km": 6.4,
+    "q2_m3s": 4802.32,
+    "q5_m3s": 5400.2,
+    "q20_m3s": 6159.31
+   },
+   "ratio_q2": 0.69,
+   "verdict": "within_range"
+  },
+  "tukad-unda": {
+   "radius_km": 12.0,
+   "n_outlets": 3,
+   "q2_min_m3s": 28.2,
+   "q2_max_m3s": 57.41,
+   "closest": {
+    "id": "subhybas_5120011740",
+    "distance_km": 4.6,
+    "q2_m3s": 28.2,
+    "q5_m3s": 33.68,
+    "q20_m3s": 39.82
+   },
+   "ratio_q2": 0.23,
+   "verdict": "glofas_below"
+  },
+  "saddang-pinrang": {
+   "radius_km": 12.0,
+   "n_outlets": 3,
+   "q2_min_m3s": 14.97,
+   "q2_max_m3s": 1080.77,
+   "closest": {
+    "id": "subhybas_5120658830",
+    "distance_km": 11.0,
+    "q2_m3s": 1073.13,
+    "q5_m3s": 1281.11,
+    "q20_m3s": 1503.21
+   },
+   "ratio_q2": 0.83,
+   "verdict": "within_range"
+  },
+  "jeneberang-bili": {
+   "radius_km": 12.0,
+   "n_outlets": 4,
+   "q2_min_m3s": 30.11,
+   "q2_max_m3s": 122.86,
+   "closest": {
+    "id": "subhybas_5120196890",
+    "distance_km": 10.1,
+    "q2_m3s": 122.86,
+    "q5_m3s": 161.46,
+    "q20_m3s": 211.24
+   },
+   "ratio_q2": 1.02,
+   "verdict": "within_range"
+  },
+  "walanae-wajo": {
+   "radius_km": 12.0,
+   "n_outlets": 9,
+   "q2_min_m3s": 5.71,
+   "q2_max_m3s": 296.96,
+   "closest": {
+    "id": "subhybas_5120188710",
+    "distance_km": 2.1,
+    "q2_m3s": 296.96,
+    "q5_m3s": 341.36,
+    "q20_m3s": 387.94
+   },
+   "ratio_q2": 2.54,
+   "verdict": "glofas_above"
+  },
+  "konaweha-kendari": {
+   "radius_km": 12.0,
+   "n_outlets": 5,
+   "q2_min_m3s": 71.35,
+   "q2_max_m3s": 533.63,
+   "closest": {
+    "id": "subhybas_5120659700",
+    "distance_km": 8.8,
+    "q2_m3s": 533.63,
+    "q5_m3s": 683.75,
+    "q20_m3s": 923.39
+   },
+   "ratio_q2": 1.51,
+   "verdict": "within_range"
+  },
+  "palu-sigi": {
+   "radius_km": 12.0,
+   "n_outlets": 9,
+   "q2_min_m3s": 5.37,
+   "q2_max_m3s": 312.57,
+   "closest": {
+    "id": "subhybas_5120032110",
+    "distance_km": 4.1,
+    "q2_m3s": 312.57,
+    "q5_m3s": 378.65,
+    "q20_m3s": 453.97
+   },
+   "ratio_q2": 2.1,
+   "verdict": "glofas_above"
+  },
+  "limboto-gorontalo": {
+   "radius_km": 12.0,
+   "n_outlets": 6,
+   "q2_min_m3s": 19.94,
+   "q2_max_m3s": 293.4,
+   "closest": {
+    "id": "subhybas_5120146090",
+    "distance_km": 1.6,
+    "q2_m3s": 171.43,
+    "q5_m3s": 206.18,
+    "q20_m3s": 249.39
+   },
+   "ratio_q2": 1.06,
+   "verdict": "within_range"
+  },
+  "tondano-manado": {
+   "radius_km": 12.0,
+   "n_outlets": 4,
+   "q2_min_m3s": 16.31,
+   "q2_max_m3s": 44.33,
+   "closest": {
+    "id": "subhybas_5120032860",
+    "distance_km": 1.4,
+    "q2_m3s": 44.33,
+    "q5_m3s": 54.47,
+    "q20_m3s": 68.59
+   },
+   "ratio_q2": 1.61,
+   "verdict": "within_range"
+  },
+  "batumerah-ambon": {
+   "radius_km": 12.0,
+   "n_outlets": 0,
+   "verdict": "no_outlets"
+  },
+  "mamberamo-papua": {
+   "radius_km": 12.0,
+   "n_outlets": 7,
+   "q2_min_m3s": 17.5,
+   "q2_max_m3s": 17554.79,
+   "closest": {
+    "id": "subhybas_5120169020",
+    "distance_km": 10.0,
+    "q2_m3s": 17554.79,
+    "q5_m3s": 19420.96,
+    "q20_m3s": 21042.64
+   },
+   "ratio_q2": 1.02,
+   "verdict": "within_range"
+  },
+  "digul-tanahmerah": {
+   "radius_km": 12.0,
+   "n_outlets": 6,
+   "q2_min_m3s": 24.74,
+   "q2_max_m3s": 1886.65,
+   "closest": {
+    "id": "subhybas_5120202260",
+    "distance_km": 9.2,
+    "q2_m3s": 1886.65,
+    "q5_m3s": 2209.54,
+    "q20_m3s": 2548.84
+   },
+   "ratio_q2": 1.21,
+   "verdict": "within_range"
+  }
+ }
+}

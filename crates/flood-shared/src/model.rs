@@ -254,6 +254,12 @@ pub struct StationTelemetry {
     pub gov_action: String,
     pub academic_note: String,
     pub hydrograph: Vec<HydrographPoint>,
+    /// Uji kewajaran silang Q2 GloFAS terhadap GRRR (Google). `null` bila stasiun belum terkalibrasi.
+    #[serde(default)]
+    pub grrr_check: Option<GrrrCheck>,
+    /// Riwayat genangan Google (1999–2020) dalam radius sekitar pos.
+    #[serde(default)]
+    pub inundation_history: Option<InundationExposure>,
 }
 
 /// Ambang muka laut model setempat (Open-Meteo Marine `sea_level_height_msl`).
@@ -283,6 +289,9 @@ pub struct CoastalRobTelemetry {
     pub level: IndicatorLevel,
     pub level_reason: String,
     pub note: String,
+    /// Riwayat genangan Google (1999–2020) dalam radius sekitar titik.
+    #[serde(default)]
+    pub inundation_history: Option<InundationExposure>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,6 +309,67 @@ pub struct CitizenReport {
     pub disaster_type: String,
     #[serde(default)]
     pub url: Option<String>,
+}
+
+/// Putusan uji silang Q2 GloFAS terhadap titik keluar sub-DAS GRRR dalam radius pos.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GrrrVerdict {
+    /// Q2 GloFAS berada di antara Q2 terkecil dan terbesar GRRR sekitar pos (dengan toleransi).
+    WithinRange,
+    /// Q2 GloFAS lebih dari 2× Q2 GRRR terbesar sekitar pos.
+    GlofasAbove,
+    /// Q2 GloFAS kurang dari 0,5× Q2 GRRR terkecil sekitar pos.
+    GlofasBelow,
+    NoOutlets,
+}
+
+/// Titik keluar sub-DAS GRRR dengan Q2 terdekat ke Q2 GloFAS (pencocokan bias menuju kecocokan).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GrrrOutlet {
+    pub id: String,
+    pub distance_km: f64,
+    pub q2_m3s: f64,
+    pub q5_m3s: f64,
+    pub q20_m3s: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GrrrCheck {
+    pub radius_km: f64,
+    pub n_outlets: u32,
+    pub verdict: GrrrVerdict,
+    #[serde(default)]
+    pub q2_min_m3s: Option<f64>,
+    #[serde(default)]
+    pub q2_max_m3s: Option<f64>,
+    #[serde(default)]
+    pub closest: Option<GrrrOutlet>,
+    /// Q2 GloFAS / Q2 titik GRRR terdekat besarannya.
+    #[serde(default)]
+    pub ratio_q2: Option<f64>,
+}
+
+/// Luas (km²) dalam radius yang tampak basah menurut citra satelit 1999–2020; kelas bersarang
+/// (basah ≥ 0,5%, ≥ 1%, ≥ 5% waktu). Mencakup sawah, tambak, waduk, dan dataran pasang surut.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InundationExposure {
+    pub radius_km: f64,
+    pub buffer_km2: f64,
+    pub low_km2: f64,
+    pub medium_km2: f64,
+    pub high_km2: f64,
+}
+
+impl InundationExposure {
+    /// Bagian radius (0..1) untuk kelas ≥ 0,5%, ≥ 1%, ≥ 5%; dibuat menurun monoton.
+    pub fn fractions(&self) -> (f64, f64, f64) {
+        let b = self.buffer_km2.max(f64::EPSILON);
+        let high = (self.high_km2 / b).clamp(0.0, 1.0);
+        let medium = (self.medium_km2 / b).clamp(0.0, 1.0).max(high);
+        let low = (self.low_km2 / b).clamp(0.0, 1.0).max(medium);
+        (low, medium, high)
+    }
 }
 
 impl CitizenReport {

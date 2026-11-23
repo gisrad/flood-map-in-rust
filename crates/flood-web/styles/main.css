@@ -17,6 +17,7 @@ html[data-theme="light"] {
   --line: #D9D5CC;
   --sea: #DCE7EC;
   --river: #2F7FC1;
+  --inund: #1B8A9C;
   --accent: #1F5F8F;
   --accent-ink: #FFFFFF;
   --focus: #1F5F8F;
@@ -34,6 +35,7 @@ html[data-theme="dark"] {
   --line: #2A4250;
   --sea: #0B1820;
   --river: #5DB4E8;
+  --inund: #5CD1D8;
   --accent: #7CC3EE;
   --accent-ink: #0B1820;
   --focus: #7CC3EE;
@@ -337,6 +339,18 @@ a { color: var(--accent); text-underline-offset: 2px; }
 .lg-shapes li, .lg-levels li { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .sw { width: 18px; height: 10px; border-radius: 2px; flex: none; }
 .lg-note { margin: 0; color: var(--ink-soft); }
+.lg-inund { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.lg-title { margin: 0; font-weight: 650; }
+/* Opasitas mengikuti tumpukan kelas bersarang di peta (0,12 / 0,25 / 0,40). */
+.inund-high { background: color-mix(in srgb, var(--inund) 40%, transparent); }
+.inund-medium { background: color-mix(in srgb, var(--inund) 25%, transparent); }
+.inund-low { background: color-mix(in srgb, var(--inund) 12%, transparent); }
+.inund-bar { display: flex; height: 10px; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; background: var(--surface-2); }
+.inund-seg { display: block; height: 100%; }
+.inund-legend { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: var(--fs-14); }
+.inund-legend li { display: flex; align-items: center; gap: 8px; }
+.inund-legend li b { margin-left: auto; font-weight: 650; }
+.inund-sw { width: 18px; height: 10px; border-radius: 2px; flex: none; border: 1px solid color-mix(in srgb, var(--inund) 45%, transparent); }
 
 /* ---------- Level ---------- */
 .glyph { flex: none; display: block; }

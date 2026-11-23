@@ -21,7 +21,8 @@ const THEMES = {
     seaLabel: '#4D7188',
     shadow: '#5B5346',
     highlight: '#FFFFFF',
-    sky: '#DCE7EC'
+    sky: '#DCE7EC',
+    water: '#1B8A9C'
   },
   dark: {
     land: '#122530',
@@ -36,7 +37,8 @@ const THEMES = {
     seaLabel: '#7FA3B8',
     shadow: '#02080C',
     highlight: '#3B5868',
-    sky: '#0B1820'
+    sky: '#0B1820',
+    water: '#5CD1D8'
   }
 };
 
@@ -332,6 +334,7 @@ function riversJoined() {
 let lastDetailMode = null;
 function onMoveEnd() {
   requestVisibleDetails();
+  requestInundationTiles();
   const mode = map.getZoom() >= DETAIL_ZOOM - 1;
   if (mode !== lastDetailMode) {
     lastDetailMode = mode;
@@ -343,6 +346,98 @@ function pushRivers() {
   if (!map || !map.getSource('rivers')) return;
   map.getSource('rivers').setData(riversJoined());
   updateAnimationNeed();
+}
+
+// ---------- Riwayat genangan Google (Inundation History 1999–2020) ----------
+// Berkas statis hasil scripts/bake_inundation.py: gambaran seluruh Indonesia untuk zoom rendah dan
+// ubin 1° (dimuat sesuai tampilan) untuk zoom ≥ INUND_DETAIL_ZOOM. Kelas bersarang: basah ≥ 0,5%, ≥ 1%,
+// dan ≥ 5% waktu. Lapisan hanya dimuat setelah dinyalakan pengguna.
+
+const INUND_BASE = '/data/inundation';
+const INUND_DETAIL_ZOOM = 8.5;
+const EMPTY_FC = { type: 'FeatureCollection', features: [] };
+let inundationOn = false;
+let inundBaseRequested = false;
+let inundIndex = null; // { tiles: Set<string>, deg: number }
+let inundOverview = null;
+const inundTiles = new Map(); // "lat_lon" -> FeatureCollection | null (gagal) | 'loading'
+let inundPushTimer = null;
+
+function fetchJson(url) {
+  return fetch(url, { headers: { accept: 'application/json' } })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+}
+
+function ensureInundationBase() {
+  if (inundBaseRequested) return;
+  inundBaseRequested = true;
+  fetchJson(`${INUND_BASE}/index.json`).then((idx) => {
+    if (idx && Array.isArray(idx.tiles)) {
+      inundIndex = { tiles: new Set(idx.tiles), deg: idx.tile_deg || 1 };
+      requestInundationTiles();
+    } else {
+      inundBaseRequested = false;
+    }
+  });
+  fetchJson(`${INUND_BASE}/overview.json`).then((fc) => {
+    if (isFC(fc)) {
+      inundOverview = fc;
+      if (map && map.getSource('inund-ov')) map.getSource('inund-ov').setData(fc);
+    } else {
+      inundBaseRequested = false;
+    }
+  });
+}
+
+function inundationDetailActive() {
+  return !!map && inundationOn && !!inundIndex && map.getZoom() >= INUND_DETAIL_ZOOM - 0.5;
+}
+
+function inundationDetailData() {
+  if (!inundationDetailActive()) return EMPTY_FC;
+  const b = map.getBounds().toArray();
+  const x0 = Math.floor(b[0][0]) - 1;
+  const x1 = Math.floor(b[1][0]) + 1;
+  const y0 = Math.floor(b[0][1]) - 1;
+  const y1 = Math.floor(b[1][1]) + 1;
+  const features = [];
+  for (const [k, fc] of inundTiles) {
+    if (!isFC(fc)) continue;
+    const [y, x] = k.split('_').map(Number);
+    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) features.push(...fc.features);
+  }
+  return { type: 'FeatureCollection', features };
+}
+
+function scheduleInundationPush() {
+  if (inundPushTimer !== null) return;
+  inundPushTimer = setTimeout(() => {
+    inundPushTimer = null;
+    if (map && map.getSource('inund-dt')) map.getSource('inund-dt').setData(inundationDetailData());
+  }, 80);
+}
+
+function requestInundationTiles() {
+  if (!inundationDetailActive()) {
+    scheduleInundationPush();
+    return;
+  }
+  const b = map.getBounds().toArray();
+  let n = 0;
+  for (let y = Math.floor(b[0][1]); y <= Math.floor(b[1][1]); y++) {
+    for (let x = Math.floor(b[0][0]); x <= Math.floor(b[1][0]); x++) {
+      const k = `${y}_${x}`;
+      if (!inundIndex.tiles.has(k) || inundTiles.has(k)) continue;
+      if (++n > 24) break;
+      inundTiles.set(k, 'loading');
+      fetchJson(`${INUND_BASE}/t/${k}.json`).then((fc) => {
+        inundTiles.set(k, isFC(fc) ? fc : null);
+        scheduleInundationPush();
+      });
+    }
+  }
+  scheduleInundationPush();
 }
 
 // ---------- Lapisan data ----------
@@ -383,6 +478,29 @@ function attachDataLayers() {
         'hillshade-accent-color': t.shadow
       }
     }, firstSymbol ? firstSymbol.id : undefined);
+  }
+
+  // Riwayat genangan: di atas relief, di bawah label dasar, sungai, dan titik.
+  if (!map.getSource('inund-ov')) {
+    const attribution = 'Riwayat genangan © Google Research (CC BY 4.0), berdasarkan GLAD';
+    map.addSource('inund-ov', { type: 'geojson', data: inundOverview || EMPTY_FC, tolerance: 0.4, attribution });
+    map.addSource('inund-dt', { type: 'geojson', data: inundationDetailData(), tolerance: 0.2, attribution });
+  }
+  {
+    const firstSym = map.getStyle().layers.find((l) => l.type === 'symbol');
+    const vis = inundationOn ? 'visible' : 'none';
+    const fillPaint = {
+      'fill-color': t.water,
+      'fill-opacity': ['match', ['get', 'c'], 'high', 0.2, 'medium', 0.15, 0.12],
+      'fill-antialias': false
+    };
+    if (!map.getLayer('inund-ov')) {
+      map.addLayer({ id: 'inund-ov', type: 'fill', source: 'inund-ov', maxzoom: INUND_DETAIL_ZOOM, layout: { visibility: vis }, paint: fillPaint }, firstSym ? firstSym.id : undefined);
+    }
+    if (!map.getLayer('inund-dt')) {
+      map.addLayer({ id: 'inund-dt', type: 'fill', source: 'inund-dt', minzoom: INUND_DETAIL_ZOOM, layout: { visibility: vis }, paint: fillPaint }, firstSym ? firstSym.id : undefined);
+    }
+    if (inundationOn) ensureInundationBase();
   }
 
   const ensure = (id, d) => {
@@ -728,6 +846,18 @@ export function toggle3DTerrain(enabled) {
     if (map.getLayer('hillshade')) map.setLayoutProperty('hillshade', 'visibility', 'none');
     map.easeTo({ pitch: 0, bearing: 0, duration: dur });
   }
+}
+
+export function setInundationLayer(enabled) {
+  const next = !!enabled;
+  if (next === inundationOn) return;
+  inundationOn = next;
+  if (next) ensureInundationBase();
+  if (!map) return;
+  for (const id of ['inund-ov', 'inund-dt']) {
+    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', next ? 'visible' : 'none');
+  }
+  requestInundationTiles();
 }
 
 export function setUserLocation(lon, lat) {

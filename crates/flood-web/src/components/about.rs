@@ -110,6 +110,8 @@ pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) ->
                     <li><b>"OpenStreetMap"</b>" — alur sungai dan peta dasar (via OpenFreeMap/OpenMapTiles). © kontributor OpenStreetMap, ODbL."</li>
                     <li><b>"Terrain Tiles"</b>" (AWS Open Data) — relief untuk tampilan 3D."</li>
                     <li><b>"GEM-15"</b>" — DEM 15 m untuk lensa Riset. GEM-15: This dataset is produced by Google. CC BY 4.0."</li>
+                    <li><b>"Inundation History"</b>" (Google Research, 1999–2020) — seberapa sering tiap piksel 128 m tampak basah pada citra satelit (berdasarkan GLAD); lapisan peta dan ringkasan per titik. CC BY 4.0."</li>
+                    <li><b>"GRRR"</b>" (Google Runoff Reanalysis & Reforecast, 1980–2023) — pembanding silang ambang Q2 di lensa Riset. CC BY 4.0."</li>
                 </ul>
             </section>
 
@@ -120,6 +122,8 @@ pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) ->
                     <li>"Model tidak memuat operasi bendungan, pintu air, tanggul, maupun pompa kota."</li>
                     <li>"Hujan lokal diukur pada satu titik grid; hujan konvektif dapat terlewat."</li>
                     <li>"Hanya laporan warga berstatus confirmed atau verified yang menaikkan level; cakupan bergantung pada partisipasi."</li>
+                    <li>"Riwayat genangan Google adalah frekuensi permukaan basah pada citra satelit 1999–2020. Dapat mencakup sawah tergenang, tambak, dan waduk, dan tidak menunjukkan banjir saat ini."</li>
+                    <li>"Uji silang GRRR membandingkan model dengan model, bukan dengan pos duga air."</li>
                     <li>"Replay historis menjalankan ulang model dengan reanalisis GloFAS v4 dan hujan ERA5. Hasilnya dapat meleset dari kejadian nyata; setiap replay menampilkan perbandingan model terhadap kejadian bersumber."</li>
                 </ul>
             </section>

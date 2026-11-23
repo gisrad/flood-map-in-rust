@@ -665,3 +665,66 @@ fn briefing_markdown_shows_wib_time() {
     assert!(b.markdown.contains(" WIB"), "{}", b.markdown);
     assert!(b.markdown.contains("UTC"), "{}", b.markdown);
 }
+
+#[test]
+fn grrr_crosscheck_is_consistent_with_current_calibration() {
+    use crate::crosscheck::{grrr_check, grrr_file};
+    use crate::model::GrrrVerdict;
+    let f = grrr_file();
+    let mut n = 0;
+    for st in RIVER_STATIONS {
+        let th = crate::calibration::station_calibration(st.id).and_then(|c| c.thresholds());
+        let chk = grrr_check(st.id);
+        // Hanya stasiun terkalibrasi yang diuji, dan semuanya diuji.
+        assert_eq!(th.is_some(), chk.is_some(), "{}", st.id);
+        let (Some(th), Some(chk)) = (th, chk) else {
+            continue;
+        };
+        n += 1;
+        let expected = match (chk.q2_min_m3s, chk.q2_max_m3s) {
+            (Some(_), Some(hi)) if th.q2_m3s > f.above_factor * hi => GrrrVerdict::GlofasAbove,
+            (Some(lo), Some(_)) if th.q2_m3s < f.below_factor * lo => GrrrVerdict::GlofasBelow,
+            (Some(_), Some(_)) => GrrrVerdict::WithinRange,
+            _ => GrrrVerdict::NoOutlets,
+        };
+        assert_eq!(chk.verdict, expected, "{}: Q2 {}", st.id, th.q2_m3s);
+        if let Some(c) = &chk.closest {
+            let ratio = th.q2_m3s / c.q2_m3s;
+            assert!(
+                // Rasio dibulatkan ke 2 desimal oleh skrip; Q2 Rust dibulatkan ke 2 desimal.
+                (chk.ratio_q2.unwrap() - ratio).abs() <= 0.006 + 0.01 * ratio,
+                "{}: rasio {} vs {}",
+                st.id,
+                chk.ratio_q2.unwrap(),
+                ratio
+            );
+            assert!(c.q2_m3s <= c.q5_m3s && c.q5_m3s <= c.q20_m3s, "{}", st.id);
+        }
+    }
+    assert_eq!(n as u32, f.summary.n_assessed);
+}
+
+#[test]
+fn inundation_exposure_covers_every_point_and_is_sane() {
+    use crate::crosscheck::inundation_exposure;
+    let ids = RIVER_STATIONS
+        .iter()
+        .map(|s| s.id)
+        .chain(COASTAL_ROB_POINTS.iter().map(|r| r.id));
+    for id in ids {
+        let e = inundation_exposure(id).unwrap_or_else(|| panic!("tanpa paparan: {id}"));
+        assert!((e.buffer_km2 - 78.5).abs() < 0.2, "{id}: {}", e.buffer_km2);
+        let (low, medium, high) = e.fractions();
+        assert!(
+            (0.0..=1.0).contains(&high) && high <= medium && medium <= low && low <= 1.0,
+            "{id}"
+        );
+    }
+    // Muncul di API untuk stasiun dan titik rob.
+    let st = RIVER_STATIONS
+        .iter()
+        .find(|s| s.id == "ciliwung-manggarai")
+        .unwrap();
+    let t = evaluate_station(st, StationInputs::default());
+    assert!(t.inundation_history.is_some() && t.grrr_check.is_some());
+}

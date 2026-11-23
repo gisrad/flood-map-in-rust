@@ -38,10 +38,12 @@ Field opsional (`?`) selalu ada dan bernilai `null` bila tidak tersedia.
 `exceed_prob_7d? { q2, q5, q20, members }` (fraksi 0..1),
 `trend` (`naik_tajam|naik|stabil|surut`; kecenderungan relatif 1 hari, label "Naik cepat" untuk `naik_tajam`, lihat METODOLOGI §2.3), `rain_24h_mm, rain_72h_mm, rain_next_24h_mm, soil_moisture_top, soil_moisture_deep, nearby_reports_24h` (laporan warga `confirmed`/`verified` ≤ 10 km, 24 jam),
 `fluvial_level, pluvial_level, level, mechanism, level_reason, public_advice, gov_action, academic_note`,
-`hydrograph[] { date, is_forecast, discharge_m3s, discharge_min_m3s?, discharge_p25_m3s?, discharge_p75_m3s?, discharge_max_m3s?, rain_mm? }` — 14 hari lalu, hari ini, 7 hari prakiraan (GMT). Statistik ensemble hanya untuk hari prakiraan.
+`hydrograph[] { date, is_forecast, discharge_m3s, discharge_min_m3s?, discharge_p25_m3s?, discharge_p75_m3s?, discharge_max_m3s?, rain_mm? }` — 14 hari lalu, hari ini, 7 hari prakiraan (GMT). Statistik ensemble hanya untuk hari prakiraan,
+`grrr_check? { radius_km, n_outlets, verdict, q2_min_m3s?, q2_max_m3s?, closest? { id, distance_km, q2_m3s, q5_m3s, q20_m3s }, ratio_q2? }` — uji silang Q2 GloFAS terhadap Google GRRR (`verdict`: `within_range` | `glofas_above` | `glofas_below` | `no_outlets`; `null` untuk stasiun belum terkalibrasi; model terhadap model, lihat METODOLOGI §10.2),
+`inundation_history? { radius_km, buffer_km2, low_km2, medium_km2, high_km2 }` — luas dalam radius 5 km yang basah ≥ 0,5% / ≥ 1% / ≥ 5% waktu menurut citra satelit 1999–2020 (Google Inundation History; kelas bersarang; riwayat, bukan prakiraan, METODOLOGI §10.1).
 
 ### `coastal_rob[]`
-`id, name, province, island, lat, lon, tz_offset_hours, current_msl_m, peak_msl_48h_m, peak_msl_time` (ISO UTC), `wave_height_m` (maksimum 48 jam), `thresholds? { p95_m, p99_m, max_m, period }, level, level_reason, note`.
+`id, name, province, island, lat, lon, tz_offset_hours, current_msl_m, peak_msl_48h_m, peak_msl_time` (ISO UTC), `wave_height_m` (maksimum 48 jam), `thresholds? { p95_m, p99_m, max_m, period }, level, level_reason, note, inundation_history?` (sama seperti pada stasiun).
 
 ### `citizen_reports[]`
 `pkey, created_at, source, status, depth_cm?, title, text, lat, lon, disaster_type` (selalu `flood`), `url?`.
@@ -51,6 +53,9 @@ Field opsional (`?`) selalu ada dan bernilai `null` bila tidak tersedia.
 
 ## `/api/stations.geojson`
 Titik `[lon, lat]`; `properties.kind` = `river` | `rob` | `report`; setiap fitur memuat `id, name, level, level_label, mechanism, updated_at_utc` dan metrik kunci (sungai: `discharge_m3s, ratio_q2, q2_m3s, peak_forecast_m3s, rain_24h_mm, calibrated`; rob: `peak_msl_48h_m, p99_m, wave_height_m`; laporan: `depth_cm, url, created_at`). Membuka di GeoLibre: `https://web.geolibre.app/?data=` + `encodeURIComponent("https://flood.transbulent.id/api/stations.geojson")`.
+
+## Lapisan statis riwayat genangan (Google Inundation History 1999–2020)
+Berkas GeoJSON statis (bukan bagian `/api/*`, tanpa CORS khusus, cache 1 hari): `/data/inundation/index.json` (metadata dan daftar ubin), `/data/inundation/overview.json` (seluruh Indonesia, disederhanakan), `/data/inundation/t/<lat>_<lon>.json` (ubin 1°, `<lat>_<lon>` = lantai lintang dan bujur sudut barat daya). Tiap fitur adalah MultiPolygon dengan `properties.c` = `low` (basah ≥ 0,5% waktu) | `medium` (≥ 1%) | `high` (≥ 5%); kelas bersarang. CC BY 4.0, Google Research, berdasarkan GLAD. Frekuensi permukaan basah pada citra satelit, bukan peta banjir; lihat METODOLOGI §10.1.
 
 ## `POST /api/alerts/subscribe`
 ```json

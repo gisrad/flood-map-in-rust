@@ -6,6 +6,7 @@ use leptos::prelude::*;
 pub fn MapTools(
     mech_filter: RwSignal<Option<FloodMechanism>>,
     terrain_3d: RwSignal<bool>,
+    inundation: RwSignal<bool>,
     theme: RwSignal<String>,
     on_gps: Callback<()>,
 ) -> impl IntoView {
@@ -29,6 +30,14 @@ pub fn MapTools(
                     on:click=move |_| terrain_3d.update(|v| *v = !*v)>
                     <span class="txt-icon">"3D"</span>
                 </button>
+                <button type="button" class="icon-btn" aria-pressed=move || inundation.get().to_string()
+                    title="Riwayat genangan 1999–2020 (Google)" aria-label="Riwayat genangan 1999–2020 (Google)"
+                    on:click=move |_| inundation.update(|v| *v = !*v)>
+                    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                        <path d="M1 5.5c2-2 3-2 5 0s3 2 5 0 3-2 5 0M1 9.5c2-2 3-2 5 0s3 2 5 0 3-2 5 0M1 13.5c2-2 3-2 5 0s3 2 5 0 3-2 5 0"
+                            fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
                 <button type="button" class="icon-btn"
                     title=move || if theme.get() == "dark" { "Mode terang" } else { "Mode gelap" }
                     aria-label=move || if theme.get() == "dark" { "Mode terang" } else { "Mode gelap" }
@@ -51,7 +60,7 @@ pub fn MapTools(
 }
 
 #[component]
-pub fn Legend(open: RwSignal<bool>) -> impl IntoView {
+pub fn Legend(open: RwSignal<bool>, inundation: RwSignal<bool>) -> impl IntoView {
     let levels = [
         IndicatorLevel::Normal,
         IndicatorLevel::High,
@@ -75,6 +84,17 @@ pub fn Legend(open: RwSignal<bool>) -> impl IntoView {
                         <li><span class=format!("sw lvl-bg-{}", l.slug())></span>{l.label_id()}</li>
                     }).collect_view()}
                 </ul>
+                {move || inundation.get().then(|| view! {
+                    <div class="lg-inund">
+                        <p class="lg-title">"Riwayat genangan 1999–2020"</p>
+                        <ul class="lg-levels">
+                            <li><span class="sw inund-sw inund-high"></span>"Sering basah (≥ 5% waktu)"</li>
+                            <li><span class="sw inund-sw inund-medium"></span>"Kadang basah (≥ 1%)"</li>
+                            <li><span class="sw inund-sw inund-low"></span>"Jarang basah (≥ 0,5%)"</li>
+                        </ul>
+                        <p class="lg-note">"Citra satelit, bukan prakiraan dan bukan peta rawan banjir resmi. © Google Research (CC BY 4.0), GLAD."</p>
+                    </div>
+                })}
                 <p class="lg-note">"Indikasi model, bukan status resmi."</p>
             </div>
         </section>
