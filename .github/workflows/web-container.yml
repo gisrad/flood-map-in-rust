@@ -1,0 +1,107 @@
+name: Web preview container
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Verified source/web release tag (draft is allowed)
+        required: true
+        type: string
+        default: v0.3.0
+      image_tag:
+        description: New immutable image tag; never reuse an existing tag
+        required: true
+        type: string
+        default: 0.3.0
+      publish:
+        description: Push tested image to GHCR (does not publish the GitHub Release)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-preview-container
+  cancel-in-progress: false
+
+jobs:
+  container:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      IMAGE: ghcr.io/gisrad/hidrosentinel-web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - name: Download and verify immutable release inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$IMAGE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][a-zA-Z0-9.-]+)?$ ]]
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir target/container-release \
+            --pattern "flood-map-in-rust-${RELEASE_TAG}-web.zip" \
+            --pattern "flood-map-in-rust-${RELEASE_TAG}-source.tar.gz" --pattern SHA256SUMS
+          python3 containers/web/prepare.py --assets target/container-release --tag "$RELEASE_TAG" --out target/web-container
+      - name: Build non-root Linux amd64 image
+        shell: bash
+        run: |
+          set -euo pipefail
+          web_sha=$(jq -r .source_commit target/web-container/release/BUILD_PROVENANCE.json)
+          tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)
+          test "$web_sha" = "$tag_sha"
+          docker build --platform linux/amd64 --tag "$IMAGE:$IMAGE_TAG" \
+            --build-arg "WEB_VERSION=${RELEASE_TAG#v}" --build-arg "WEB_SOURCE_COMMIT=$web_sha" \
+            --build-arg "CONTAINER_COMMIT=$GITHUB_SHA" target/web-container
+          docker run --detach --name web-preview --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --cap-drop ALL --security-opt no-new-privileges --publish 127.0.0.1:8080:8080 "$IMAGE:$IMAGE_TAG"
+      - name: Exercise real container and upstream without subscriptions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npx playwright install --with-deps chromium
+          node scripts/check_web_container.mjs http://127.0.0.1:8080 target/web-container-proof
+      - name: Publish only the tested image
+        if: inputs.publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          if docker manifest inspect "$IMAGE:$IMAGE_TAG" >/dev/null 2>&1; then
+            echo "Refusing to overwrite existing image tag $IMAGE_TAG" >&2
+            exit 1
+          fi
+          docker push "$IMAGE:$IMAGE_TAG"
+          docker tag "$IMAGE:$IMAGE_TAG" "$IMAGE:latest"
+          docker push "$IMAGE:latest"
+          echo "Published $IMAGE:$IMAGE_TAG (web $RELEASE_TAG); GHCR visibility is managed separately." >> "$GITHUB_STEP_SUMMARY"
+      - name: Collect evidence and stop owned container
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p target/web-container-proof
+          docker logs web-preview > target/web-container-proof/container.log 2>&1 || true
+          docker image inspect "$IMAGE:$IMAGE_TAG" > target/web-container-proof/image.json || true
+          docker rm --force web-preview || true
+      - name: Upload container proof
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-container-proof
+          path: target/web-container-proof/
+          if-no-files-found: error
+          retention-days: 14

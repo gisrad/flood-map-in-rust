@@ -1,0 +1,55 @@
+map $uri $shell_cache {
+    default "no-cache";
+    ~^/api/ "";
+    /llms.txt "";
+}
+
+server {
+    listen 8080;
+    server_name _;
+    root /opt/hidrosentinel-release/site;
+    index index.html;
+    server_tokens off;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Permissions-Policy "geolocation=(self)" always;
+    add_header X-Robots-Tag noindex always;
+    add_header Cache-Control $shell_cache always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com @@SCRIPT_HASHES@@; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tiles.openfreemap.org https://s3.amazonaws.com/elevation-tiles-prod/ https://elevation-tiles-prod.s3.amazonaws.com; font-src 'self' data:; connect-src 'self' https://tiles.openfreemap.org https://s3.amazonaws.com/elevation-tiles-prod/ https://elevation-tiles-prod.s3.amazonaws.com https://static.cloudflareinsights.com https://cloudflareinsights.com; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'" always;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "web preview ready\n";
+    }
+
+    # Fixed upstream: no arbitrary proxy destinations, credentials, or local backend.
+    location ~ ^/(api/|llms\.txt$) {
+        proxy_pass https://flood.transbulent.id;
+        proxy_http_version 1.1;
+        proxy_set_header Host flood.transbulent.id;
+        proxy_set_header Connection "";
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+        proxy_set_header X-Forwarded-For "";
+        proxy_ssl_server_name on;
+        proxy_ssl_name flood.transbulent.id;
+        proxy_ssl_verify on;
+        proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 30s;
+        proxy_cache off;
+    }
+
+    location = /manifest.webmanifest {
+        types { application/manifest+json webmanifest; }
+        try_files $uri =404;
+    }
+
+    # Query-string navigation is handled by the app. Missing assets must stay 404.
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
