@@ -405,14 +405,19 @@ pub fn StationDetail(
     });
     let gauge_note = st.gauge_check.as_ref().and_then(|g| {
         let how = match g.verdict {
-            GaugeVerdict::GlofasHigh => "terlalu tinggi",
-            GaugeVerdict::GlofasLow => "terlalu rendah",
+            GaugeVerdict::GlofasHigh => "lebih besar",
+            GaugeVerdict::GlofasLow => "lebih kecil",
             GaugeVerdict::Consistent => return None,
         };
+        // Label GRDC "Sungai · Pos" dibaca "pos Pos, Sungai".
+        let place = match g.gauge.split_once(" · ") {
+            Some((river, gauge)) => format!("{gauge}, {river}"),
+            None => g.gauge.clone(),
+        };
         Some(format!(
-            "Rerata debit model di sel ini {} rerata terukur pos duga air {} (GRDC); angka debit dapat {how}, sedangkan level tetap dihitung terhadap ambang model yang sama.",
-            fmt_ratio(g.ratio),
-            g.gauge
+            "Angka debit di titik ini kemungkinan {how} dari aliran sebenarnya: rata-rata debit model sekitar {} kali rata-rata terukur di pos duga air {place} (data {}). Level tetap dapat dipakai karena dibandingkan dengan ambang dari model yang sama.",
+            fmt_num(g.ratio, 1),
+            g.gauge_years
         ))
     });
     let floodhub = format!(
