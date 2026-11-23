@@ -200,6 +200,32 @@ fn gauge_facts(g: &GaugeCheck) -> impl IntoView {
         ),
         None => format!("{} · {}", g.gauge, g.gauge_years),
     };
+    let flood = g.flood.clone().map(|f| {
+        let verdict = match f.verdict {
+            GaugeVerdict::Consistent => "Dalam toleransi penyaring 1,5× terhadap rentang skala; bukan bukti ambang akurat",
+            GaugeVerdict::GlofasHigh => "Di atas toleransi penyaring terhadap rentang skala",
+            GaugeVerdict::GlofasLow => "Di bawah toleransi penyaring terhadap rentang skala",
+        };
+        view! {
+            <div><dt>{format!("Estimasi Q2 pos ({} tahun)", f.years.len())}</dt><dd class="num">{format!(
+                "{} m³/s di pos → {}–{} m³/s untuk DAS katalog",
+                fmt_q(f.gauge_q2_m3s), fmt_q(f.scaled_q2_low_m3s), fmt_q(f.scaled_q2_high_m3s)
+            )}</dd></div>
+            <div><dt>"Q2 GloFAS / terukur"</dt><dd><span class="num">{fmt_ratio(f.ratio_q2)}</span>{format!(" · {verdict}")}</dd></div>
+            <div><dt>"Q20/Q2 pos · GloFAS"</dt><dd class="num">{format!(
+                "{} · {}",
+                fmt_num(f.gauge_q20_m3s / f.gauge_q2_m3s, 2),
+                fmt_num(f.glofas_q20_m3s / f.glofas_q2_m3s, 2)
+            )}</dd></div>
+            <div><dt>"Mutu uji Q2"</dt><dd>"Pendahuluan: periode dan lokasi berbeda; rentang skala bukan interval kepercayaan. Homogenitas belum dapat diuji (GSIM: NSD)."</dd></div>
+            {f.screened_gauge_q2_m3s.map(|q| view! {
+                <div><dt>"Sensitivitas tahun debit rendah"</dt><dd>{format!(
+                    "Q2 pos {} m³/s bila {} tahun debit rendah tidak disertakan (bukan koreksi data resmi)",
+                    fmt_q(q), f.excluded_low_mean_years.len()
+                )}</dd></div>
+            })}
+        }
+    });
     view! {
         <div><dt>"Pos duga air (GRDC)"</dt><dd>{where_}</dd></div>
         <div><dt>"Rerata terukur"</dt><dd class="num">{format!(
@@ -207,6 +233,15 @@ fn gauge_facts(g: &GaugeCheck) -> impl IntoView {
             fmt_q(g.gauge_mean_m3s), fmt_num(g.gauge_area_km2, 0), fmt_q(g.scaled_mean_m3s)
         )}</dd></div>
         <div><dt>"Sel / terukur"</dt><dd><span class="num">{fmt_ratio(g.ratio)}</span>{format!(" · {verdict}")}</dd></div>
+        {flood}
+    }
+}
+
+/// Label GRDC "Sungai · Pos" dibaca "Pos, Sungai" dalam kalimat publik.
+fn gauge_place(g: &GaugeCheck) -> String {
+    match g.gauge.split_once(" · ") {
+        Some((river, gauge)) => format!("{gauge}, {river}"),
+        None => g.gauge.clone(),
     }
 }
 
@@ -398,25 +433,24 @@ pub fn StationDetail(
                 fmt_num(c.offset_km, 0)
             )
         });
-    let grrr_note = st.grrr_check.as_ref().and_then(|g| match g.verdict {
-        GrrrVerdict::GlofasAbove => Some("Pembanding model Google (GRRR) memberi debit banjir 2 tahunan di sekitar pos yang jauh lebih rendah; level sungai di sini perlu diverifikasi dengan pos duga air."),
-        GrrrVerdict::GlofasBelow => Some("Pembanding model Google (GRRR) memberi debit banjir 2 tahunan di sekitar pos yang jauh lebih tinggi; level sungai di sini perlu diverifikasi dengan pos duga air."),
-        _ => None,
-    });
+    let grrr_note = st
+        .grrr_check
+        .as_ref()
+        .and_then(|g| match g.verdict {
+            GrrrVerdict::GlofasAbove => Some("Pembanding model Google (GRRR) memberi debit banjir 2 tahunan di sekitar pos yang jauh lebih rendah; level sungai di sini perlu diverifikasi dengan pos duga air."),
+            GrrrVerdict::GlofasBelow => Some("Pembanding model Google (GRRR) memberi debit banjir 2 tahunan di sekitar pos yang jauh lebih tinggi; level sungai di sini perlu diverifikasi dengan pos duga air."),
+            _ => None,
+        });
     let gauge_note = st.gauge_check.as_ref().and_then(|g| {
         let how = match g.verdict {
             GaugeVerdict::GlofasHigh => "lebih besar",
             GaugeVerdict::GlofasLow => "lebih kecil",
             GaugeVerdict::Consistent => return None,
         };
-        // Label GRDC "Sungai · Pos" dibaca "pos Pos, Sungai".
-        let place = match g.gauge.split_once(" · ") {
-            Some((river, gauge)) => format!("{gauge}, {river}"),
-            None => g.gauge.clone(),
-        };
         Some(format!(
-            "Angka debit di titik ini kemungkinan {how} dari aliran sebenarnya: rata-rata debit model sekitar {} kali rata-rata terukur di pos duga air {place} (data {}). Level tetap dapat dipakai karena dibandingkan dengan ambang dari model yang sama.",
+            "Angka debit di titik ini kemungkinan {how} dari aliran sebenarnya: rata-rata debit model sekitar {} kali rata-rata terukur di pos duga air {} (data {}). Level tetap dapat dipakai karena dibandingkan dengan ambang dari model yang sama.",
             fmt_num(g.ratio, 1),
+            gauge_place(g),
             g.gauge_years
         ))
     });

@@ -115,6 +115,7 @@ pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) ->
                     <li><b>"Inundation History"</b>" (Google Research, 1999–2020) — seberapa sering tiap piksel 128 m tampak basah pada citra satelit (berdasarkan GLAD); lapisan peta dan ringkasan per titik. CC BY 4.0."</li>
                     <li><b>"GRRR"</b>" (Google Runoff Reanalysis & Reforecast, 1980–2023) — pembanding silang ambang Q2 di lensa Riset. CC BY 4.0."</li>
                     <li><b>"GRDC"</b>" (Global Runoff Data Centre) — rerata debit terukur pos duga air untuk validasi sel GloFAS di lensa Riset. The Global Runoff Data Centre, 56068 Koblenz, Germany."</li>
+                    <li><b>"GSIM"</b>" (Do dkk. dan Gudmundsson dkk., 2018) — indeks maksimum tahunan debit harian pos GRDC untuk uji pendahuluan Q2. CC BY-SA 3.0."</li>
                 </ul>
             </section>
 
@@ -126,7 +127,7 @@ pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) ->
                     <li>"Hujan lokal diukur pada satu titik grid; hujan konvektif dapat terlewat."</li>
                     <li>"Hanya laporan warga berstatus confirmed atau verified yang menaikkan level; cakupan bergantung pada partisipasi."</li>
                     <li>"Riwayat genangan Google adalah frekuensi permukaan basah pada citra satelit 1999–2020. Dapat mencakup sawah tergenang, tambak, dan waduk, dan tidak menunjukkan banjir saat ini."</li>
-                    <li>"Uji silang GRRR membandingkan model dengan model. Validasi pos duga air (GRDC) baru mencakup 5 stasiun dan hanya rerata debit, bukan ambang banjir."</li>
+                    <li>"Uji silang GRRR membandingkan model dengan model. Pembanding pos GRDC mencakup rerata debit 5 stasiun dan uji pendahuluan Q2 3 stasiun dari GSIM; rekaman pendek dan periode berbeda, belum validasi operasional."</li>
                     <li>"Replay historis menjalankan ulang model dengan reanalisis GloFAS v4 dan hujan ERA5. Hasilnya dapat meleset dari kejadian nyata; setiap replay menampilkan perbandingan model terhadap kejadian bersumber."</li>
                 </ul>
             </section>

@@ -117,7 +117,7 @@ python scripts/calibrate_rob.py    --cache-dir <dir> --report rob.md
 python scripts/bake_replays.py     --cache-dir <dir>
 python scripts/bake_inundation.py  --cache-dir <dir>
 python scripts/crosscheck_grrr.py  --cache-dir <dir>
-python scripts/validate_gauges.py  --catalogue <GRDC_Stations.xlsx>
+python scripts/validate_gauges.py  --catalogue <GRDC_Stations.xlsx> --cache-dir <dir>
 cargo test -p flood-shared
 ```
 Skrip memakai Python 3 + NumPy, menyimpan setiap respons API di `<dir>`, mencatat bobot panggilan di `<dir>/ledger.jsonl`, dan menahan diri di bawah 3.500 panggilan berbobot per jam (jeda ≥ 1,1 detik).
@@ -170,7 +170,27 @@ Cara membaca:
 - Brantas–Mojokerto dan Tondano–Manado: rerata sel ±1,6× rerata terukur. Pada Brantas, data Jabon berasal dari 1951–1983 dan sungainya banyak dimanfaatkan untuk irigasi; pada Tondano, sel berjarak 12,9 km dari pos. Kedua stasiun ditandai di panel stasiun. Level tetap dihitung terhadap ambang model yang sama sehingga bias rerata sebagian saling meniadakan.
 - Debit spesifik pos GRDC dengan DAS ≥ 1.000 km²: Jawa median 25,7 L/s/km² (3 pos; asumsi pemilihan sel 30), Sulawesi 21,5 (1 pos; asumsi 35), Sumatera 61,1 (1 pos; asumsi 40). Pos hulu kecil jauh lebih basah (median Jawa seluruh pos 58,0), sehingga asumsi per pulau tidak berlaku untuk DAS kecil.
 
-Keterbatasan: periode GRDC tidak sama dengan GloFAS; penskalaan luas mengabaikan beda hujan hulu–hilir; ini rerata debit, bukan ambang banjir. Validasi Q2 memerlukan maksimum tahunan terukur: deret harian GRDC untuk Jurug, Sempajeruk, dan Kairagi dapat diminta lewat portal GRDC (formulir dengan nama dan surel, penggunaan nonkomersial, tidak boleh diredistribusi), atau data pos duga air BBWS/PUPR.
+Keterbatasan: periode GRDC tidak sama dengan GloFAS; penskalaan luas mengabaikan beda hujan hulu–hilir; analisis rerata di atas tidak memvalidasi ambang banjir. Uji pendahuluan Q2 dengan indeks tahunan terbuka dijelaskan di §12.
+
+## 12. Uji pendahuluan ambang Q2 terhadap maksimum tahunan pos (GSIM)
+GSIM menyediakan indeks tahunan yang dihitung dari debit harian terukur GRDC, termasuk `MAX` (maksimum debit harian per tahun), sehingga tidak perlu meminta ulang deret harian untuk menghitung estimasi Q2. Sumber: Do dkk. (2018), metadata, https://doi.org/10.1594/PANGAEA.887477; Gudmundsson dkk. (2018), indeks, https://doi.org/10.1594/PANGAEA.887470. Lisensi CC BY-SA 3.0. Statistik adaptasi GSIM dalam `gauge_validation.json` mengikuti lisensi tersebut; bukan perubahan lisensi kode program.
+
+Metode (`validate_gauges.py`):
+1. Identitas pos dicocokkan berdasarkan nomor GRDC dalam metadata GSIM, bukan koordinat terdekat. Bojonegoro dan Jabon tidak memiliki indeks maksimum harian pada arsip ini: Q2 tetap tidak dinilai untuk kedua pos.
+2. Analisis utama memakai tahun dengan maksimum tersedia dan ≤30 hari hilang/meragukan menurut GSIM. Hari hilang masih dapat mencakup puncak banjir: ini bukan jaminan maksimum lengkap. Minimal 8 tahun adalah batas hitung eksploratif, bukan syarat kecukupan validasi.
+3. Estimasi Gumbel L-moment Q2/Q5/Q20 memakai rumus yang sama dengan reanalisis GloFAS. Periode tidak disamakan karena rekaman pendek dan terputus; hasil menggabungkan perbedaan periode, model, serta lokasi.
+4. Untuk membandingkan DAS berbeda, Q2 pos diskalakan menurut Q ∝ A^b, b=0,5–1,0; b=0,75 untuk rasio ringkasan. Eksponen adalah asumsi sensitivitas, bukan hasil kalibrasi lokal; rentang bukan interval kepercayaan. `consistent` hanya berarti Q2 GloFAS berada dalam rentang skala yang diperlebar toleransi 1,5× di kedua sisi.
+5. Sensitivitas terpisah mengeluarkan tahun dengan rerata <25% median rerata tahunan. Ini bukan penghapusan dalam analisis utama dan bukan bukti kerusakan alat: Jurug 1998 dan Sempajeruk 2009 tetap disertakan di hasil utama.
+
+| Stasiun / pos | Tahun dipakai | Estimasi Q2 pos (m³/s) | Q2 skala DAS katalog (m³/s) | Q2 GloFAS (m³/s) |
+|---|---:|---:|---:|---:|
+| Solo–Sragen / Jurug | 13 | 544 | 748–1.029 | 716 |
+| Walanae–Wajo / Sempajeruk | 13 | 665 | 1.071–1.724 | 753 |
+| Tondano–Manado / Kairagi | 9 | 43 | 49–56 | 71 |
+
+Ketiganya masuk toleransi penyaring lebar, **bukan berarti ambang tervalidasi akurat**. Tanpa tahun debit sangat rendah, Q2 Jurug menjadi 602 dan Sempajeruk 733 m³/s; pada Sempajeruk, putusan berubah menjadi `glofas_low`. Kesimpulan Walanae sensitif terhadap mutu rekaman dan asumsi pemindahan debit antarlokasi. Danau, waduk, dataran banjir, serta perubahan hujan dapat membuat penskalaan luas tidak berlaku.
+
+Keempat uji homogenitas `MAX` GSIM untuk ketiga pos berstatus **NSD** (kurang data untuk pengujian), bukan homogen. Q20 dari hanya 9–13 tahun adalah ekstrapolasi yang lebih tidak pasti. Karena itu `flood.status` tetap `preliminary`, hasil ditampilkan di lensa Riset, tidak mengganti catatan GRRR, tidak mengubah Q2 operasional, level, atau notifikasi. Validasi operasional masih memerlukan rekaman lebih panjang, keterhubungan DAS yang terverifikasi, periode tumpang tindih, dan data/QC BBWS/PUPR atau penyedia pos.
 
 ## Rujukan
 - Hosking, J. R. M. (1990). L-moments: analysis and estimation of distributions using linear combinations of order statistics. *Journal of the Royal Statistical Society B*, 52(1), 105–124.
@@ -182,3 +202,5 @@ Keterbatasan: periode GRDC tidak sama dengan GloFAS; penskalaan luas mengabaikan
 - Google Research, Flood Forecasting resources (Inundation History, GRRR): https://sites.research.google/gr/floodforecasting/resources
 - Cohen, D. dkk. (2024). An improved flood forecasting AI model, trained and evaluated globally: https://research.google/blog/a-flood-forecasting-ai-model-trained-and-evaluated-globally
 - Global Runoff Data Centre (GRDC), katalog stasiun dan portal data: https://grdc.bafg.de/data/data_portal/ (The Global Runoff Data Centre, 56068 Koblenz, Germany)
+- Do, H. X. dkk. (2018), GSIM metadata, https://doi.org/10.1594/PANGAEA.887477 (CC BY-SA 3.0).
+- Gudmundsson, L. dkk. (2018), GSIM indeks tahunan dan homogenitas, https://doi.org/10.1594/PANGAEA.887470 (CC BY-SA 3.0).

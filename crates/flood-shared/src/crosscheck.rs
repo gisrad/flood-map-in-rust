@@ -54,8 +54,10 @@ pub struct InundationFile {
 pub struct GaugeFile {
     pub generated_at_utc: String,
     pub source: String,
+    pub flood_source: String,
     pub max_area_ratio: f64,
     pub tolerance: f64,
+    pub area_exponents: Vec<f64>,
     pub stations: HashMap<String, GaugeCheck>,
 }
 

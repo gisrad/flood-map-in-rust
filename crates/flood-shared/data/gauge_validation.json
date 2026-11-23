@@ -1,8 +1,14 @@
 {
- "generated_at_utc": "2026-11-23T05:19:07Z",
+ "generated_at_utc": "2026-11-23T06:02:20Z",
  "source": "The Global Runoff Data Centre, 56068 Koblenz, Germany (katalog stasiun GRDC, lta_discharge)",
+ "flood_source": "GSIM (Do dkk. 2018, doi:10.1594/PANGAEA.887477; Gudmundsson dkk. 2018, doi:10.1594/PANGAEA.887470), CC BY-SA 3.0, dari data GRDC",
  "max_area_ratio": 3.0,
  "tolerance": 1.5,
+ "area_exponents": [
+  0.5,
+  0.75,
+  1.0
+ ],
  "summary": {
   "n_pairs": 10,
   "n_assessed": 5,
@@ -79,7 +85,8 @@
    "scaled_mean_m3s": 445.7,
    "cell_mean_m3s": 460.33,
    "ratio": 1.03,
-   "verdict": "consistent"
+   "verdict": "consistent",
+   "flood": null
   },
   "solo-sragen": {
    "grdc_no": 5141201,
@@ -92,7 +99,41 @@
    "scaled_mean_m3s": 155.99,
    "cell_mean_m3s": 198.81,
    "ratio": 1.27,
-   "verdict": "consistent"
+   "verdict": "consistent",
+   "flood": {
+    "gsim_no": "ID_0000008",
+    "years": [
+     1975,
+     1976,
+     1992,
+     1994,
+     1995,
+     1996,
+     1997,
+     1998,
+     1999,
+     2003,
+     2006,
+     2008,
+     2009
+    ],
+    "excluded_low_mean_years": [
+     1998
+    ],
+    "screened_gauge_q2_m3s": 601.64,
+    "max_missing_days": 30,
+    "status": "preliminary",
+    "gauge_q2_m3s": 543.61,
+    "gauge_q5_m3s": 756.14,
+    "gauge_q20_m3s": 1031.84,
+    "scaled_q2_low_m3s": 748.0,
+    "scaled_q2_m3s": 877.42,
+    "scaled_q2_high_m3s": 1029.24,
+    "glofas_q2_m3s": 715.62,
+    "glofas_q20_m3s": 994.18,
+    "ratio_q2": 0.82,
+    "verdict": "consistent"
+   }
   },
   "brantas-mojokerto": {
    "grdc_no": 5141100,
@@ -105,7 +146,8 @@
    "scaled_mean_m3s": 250.9,
    "cell_mean_m3s": 404.24,
    "ratio": 1.61,
-   "verdict": "glofas_high"
+   "verdict": "glofas_high",
+   "flood": null
   },
   "walanae-wajo": {
    "grdc_no": 5148800,
@@ -118,7 +160,41 @@
    "scaled_mean_m3s": 158.42,
    "cell_mean_m3s": 163.45,
    "ratio": 1.03,
-   "verdict": "consistent"
+   "verdict": "consistent",
+   "flood": {
+    "gsim_no": "ID_0000022",
+    "years": [
+     1990,
+     1991,
+     1992,
+     1993,
+     1994,
+     1995,
+     1996,
+     1997,
+     1998,
+     1999,
+     2004,
+     2006,
+     2009
+    ],
+    "excluded_low_mean_years": [
+     2009
+    ],
+    "screened_gauge_q2_m3s": 733.33,
+    "max_missing_days": 30,
+    "status": "preliminary",
+    "gauge_q2_m3s": 665.0,
+    "gauge_q5_m3s": 996.31,
+    "gauge_q20_m3s": 1426.07,
+    "scaled_q2_low_m3s": 1070.86,
+    "scaled_q2_m3s": 1358.9,
+    "scaled_q2_high_m3s": 1724.42,
+    "glofas_q2_m3s": 753.06,
+    "glofas_q20_m3s": 1308.37,
+    "ratio_q2": 0.55,
+    "verdict": "consistent"
+   }
   },
   "tondano-manado": {
    "grdc_no": 5148250,
@@ -131,7 +207,35 @@
    "scaled_mean_m3s": 15.16,
    "cell_mean_m3s": 24.49,
    "ratio": 1.62,
-   "verdict": "glofas_high"
+   "verdict": "glofas_high",
+   "flood": {
+    "gsim_no": "ID_0000021",
+    "years": [
+     1991,
+     1995,
+     1996,
+     1997,
+     1998,
+     2002,
+     2003,
+     2008,
+     2009
+    ],
+    "excluded_low_mean_years": [],
+    "screened_gauge_q2_m3s": 43.44,
+    "max_missing_days": 30,
+    "status": "preliminary",
+    "gauge_q2_m3s": 43.44,
+    "gauge_q5_m3s": 70.83,
+    "gauge_q20_m3s": 106.36,
+    "scaled_q2_low_m3s": 49.18,
+    "scaled_q2_m3s": 52.32,
+    "scaled_q2_high_m3s": 55.67,
+    "glofas_q2_m3s": 71.34,
+    "glofas_q20_m3s": 112.65,
+    "ratio_q2": 1.36,
+    "verdict": "consistent"
+   }
   }
  }
 }

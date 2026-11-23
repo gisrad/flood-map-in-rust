@@ -61,6 +61,7 @@ flowchart LR
    * **Riwayat genangan Google (opsional, mati secara bawaan)**: tombol gelombang di peta menyalakan *Inundation History 1999–2020* (frekuensi piksel 128 m tampak basah pada citra satelit; tiga kelas ≥ 0,5% / ≥ 1% / ≥ 5% waktu), dimuat lazy per ubin. Setiap stasiun dan titik rob juga menampilkan luas genangan historis dalam radius 5 km, dengan catatan bahwa ini bukan peta rawan banjir resmi.
    * **Uji silang GRRR (lensa Riset)**: ambang Q2 GloFAS dibandingkan dengan *Google Runoff Reanalysis & Reforecast* 1980–2023 di sekitar pos. Hasilnya model-terhadap-model dan menandai stasiun yang perlu diverifikasi dengan pos duga air; tidak memengaruhi level.
    * **Validasi pos duga air (lensa Riset)**: rerata debit sel GloFAS dibandingkan dengan rerata terukur pos GRDC di sungai yang sama (5 stasiun: Bengawan Solo Bojonegoro dan Sragen, Brantas, Walanae, Tondano). Menguji apakah sel mewakili sungai yang benar, bukan ambang banjir.
+   * **Uji pendahuluan Q2 terukur**: maksimum tahunan debit harian GSIM/GRDC untuk Jurug, Sempajeruk, dan Kairagi dibanding ambang GloFAS; mutu rekaman dan sensitivitas ditampilkan di Riset. Belum validasi operasional; tidak mengubah level.
 2. **All-Rust + SQLite Durable Object (`FloodHub`)**
    * Data disimpan di **Cloudflare Durable Object SQLite** (`new_sqlite_classes = ["FloodHub"]`) — aktif otomatis di paket gratis Cloudflare Workers tanpa server terpisah.
    * Berbagi tipe data & logika hidrologi antara server dan klien lewat crate `flood-shared`.

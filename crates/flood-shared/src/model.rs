@@ -381,6 +381,35 @@ pub struct GaugeCheck {
     pub cell_mean_m3s: f64,
     pub ratio: f64,
     pub verdict: GaugeVerdict,
+    /// Q2 terukur dari maksimum tahunan harian pos (GSIM); `null` bila data pos tidak cukup.
+    #[serde(default)]
+    pub flood: Option<GaugeFlood>,
+}
+
+/// Q2 GloFAS dibanding Q2 pos duga air yang diskalakan ke luas DAS katalog (Q ∝ A^b, b 0,5–1,0).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GaugeFlood {
+    pub gsim_no: String,
+    /// Tahun dengan maksimum harian yang lolos uji kelengkapan.
+    pub years: Vec<u16>,
+    pub excluded_low_mean_years: Vec<u16>,
+    pub screened_gauge_q2_m3s: Option<f64>,
+    pub max_missing_days: u32,
+    /// Selalu `preliminary`: rekaman pendek, periode dan lokasi tidak sama.
+    pub status: String,
+    pub gauge_q2_m3s: f64,
+    pub gauge_q5_m3s: f64,
+    pub gauge_q20_m3s: f64,
+    pub scaled_q2_low_m3s: f64,
+    /// Nilai tengah (b = 0,75).
+    pub scaled_q2_m3s: f64,
+    pub scaled_q2_high_m3s: f64,
+    pub glofas_q2_m3s: f64,
+    pub glofas_q20_m3s: f64,
+    /// Q2 GloFAS / Q2 skala nilai tengah.
+    pub ratio_q2: f64,
+    /// `consistent` bila Q2 GloFAS dalam [rendah / 1,5, tinggi × 1,5].
+    pub verdict: GaugeVerdict,
 }
 
 /// Luas (km²) dalam radius yang tampak basah menurut citra satelit 1999–2020; kelas bersarang

@@ -23,29 +23,43 @@ Metode:
      1/TOLERANCE ≤ rasio ≤ TOLERANCE, `glofas_high` bila di atas, `glofas_low` bila di bawah.
   4. Ringkasan per pulau: median debit spesifik seluruh pos GRDC Indonesia dibanding asumsi
      pemilihan sel.
+  5. Ambang banjir (bila pos punya maksimum tahunan harian): indeks tahunan GSIM (Global Streamflow
+     Indices and Metadata Archive; Do dkk. 2018, Gudmundsson dkk. 2018; PANGAEA, CC BY-SA 3.0), yang
+     dihitung dari deret harian GRDC. `MAX` = debit harian tertinggi per tahun, setara dengan maksimum
+     tahunan reanalisis GloFAS. Analisis utama memakai semua tahun dengan hari hilang
+     ≤ MAX_MISSING_DAYS. Sensitivitas terpisah mengeluarkan tahun dengan rerata < MIN_MEAN_FRACTION
+     × median rerata tahunan; nilai rendah tidak otomatis berarti alat rusak.
+     Q2/Q5/Q20 dengan Gumbel L-moment yang sama seperti GloFAS bila ≥ MIN_FLOOD_YEARS tahun.
+     Q2 pos diskalakan ke luas DAS katalog dengan Q ∝ A^b, b = 0,5–1,0 (rentang), nilai tengah b = 0,75.
+     Putusan: `consistent` bila Q2 GloFAS dalam [Q2_b0,5 / TOLERANCE, Q2_b1,0 × TOLERANCE].
+     Berkas GSIM diambil per pos lewat HTTP range dari arsip zip PANGAEA dan disimpan di --cache-dir.
 Keterbatasan: periode data GRDC (1951–2010) tidak sama dengan GloFAS (1997–2024); penskalaan luas
-mengabaikan perbedaan hujan antara hulu dan hilir. Ini menguji rerata debit, bukan ambang banjir Q2.
+mengabaikan perbedaan hujan antara hulu dan hilir serta peredaman danau dan dataran banjir; Q2 pos dari
+9–13 tahun data; homogenitas GSIM berstatus NSD (data tidak cukup), bukan terbukti homogen.
 
 Keluaran: crates/flood-shared/data/gauge_validation.json
 
 Pemakaian:
-  python scripts/validate_gauges.py --catalogue <GRDC_Stations.xlsx>
-Dibutuhkan: pandas, openpyxl.
+  python scripts/validate_gauges.py --catalogue <GRDC_Stations.xlsx> --cache-dir <dir>
+Dibutuhkan: numpy, pandas, openpyxl.
 """
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import io
 import json
-import math
 import statistics
 import sys
+import urllib.request
+import zipfile
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from calibrate_glofas import SPECIFIC_Q_LPS_KM2, haversine_km, parse_catalog  # noqa: E402
+from calibrate_glofas import SPECIFIC_Q_LPS_KM2, gumbel_lmoments, gumbel_q, haversine_km, parse_catalog  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
 CATALOG_RS = REPO / "crates/flood-shared/src/catalog.rs"
@@ -56,6 +70,17 @@ SOURCE = "The Global Runoff Data Centre, 56068 Koblenz, Germany (katalog stasiun
 MAX_AREA_RATIO = 3.0
 TOLERANCE = 1.5
 LARGE_BASIN_KM2 = 1000.0  # stasiun katalog umumnya DAS besar; pos hulu kecil cenderung lebih basah
+
+GSIM_META_ZIP = "https://store.pangaea.de/Publications/DoH-etal_2018/GSIM_metadata.zip"
+GSIM_INDEX_ZIP = "https://store.pangaea.de/Publications/GudmundssonL-etal_2018/GSIM_indices.zip"
+GSIM_SOURCE = (
+    "GSIM (Do dkk. 2018, doi:10.1594/PANGAEA.887477; Gudmundsson dkk. 2018, doi:10.1594/PANGAEA.887470), "
+    "CC BY-SA 3.0, dari data GRDC"
+)
+MAX_MISSING_DAYS = 30
+MIN_MEAN_FRACTION = 0.25
+MIN_FLOOD_YEARS = 8
+AREA_EXPONENTS = (0.5, 0.75, 1.0)
 
 # Stasiun katalog → nomor GRDC pada sungai yang sama. Catatan: koordinat GRDC Kairagi (124,483°BT)
 # jatuh di laut barat Manado; nama pos (Kairagi, Manado), sungai, dan luas DAS cocok dengan Tondano
@@ -93,10 +118,111 @@ def years(row: pd.Series) -> str:
     return ""
 
 
+class HttpRange(io.RawIOBase):
+    """Berkas jarak jauh yang dibaca per rentang byte, agar zip besar tidak diunduh utuh."""
+
+    def __init__(self, url: str):
+        self.url, self.pos = url, 0
+        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=60) as r:
+            self.size = int(r.headers["Content-Length"])
+
+    def readable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return True
+
+    def tell(self) -> int:
+        return self.pos
+
+    def seek(self, off: int, whence: int = 0) -> int:
+        self.pos = off if whence == 0 else self.pos + off if whence == 1 else self.size + off
+        return self.pos
+
+    def readinto(self, buf) -> int:
+        if self.pos >= self.size or len(buf) == 0:
+            return 0
+        end = min(self.size, self.pos + len(buf)) - 1
+        req = urllib.request.Request(self.url, headers={"Range": f"bytes={self.pos}-{end}"})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            if r.status != 206:
+                raise ValueError("Server tidak mendukung HTTP range; unduhan dibatalkan")
+            b = r.read()
+        if len(b) != end - self.pos + 1:
+            raise ValueError("Respons HTTP range tidak lengkap")
+        buf[: len(b)] = b
+        self.pos += len(b)
+        return len(b)
+
+
+def remote_member(cache: Path, url: str, member: str) -> Path:
+    out = cache / member.rsplit("/", 1)[-1]
+    if not out.exists():
+        with zipfile.ZipFile(io.BufferedReader(HttpRange(url), buffer_size=1 << 20)) as z:
+            out.write_bytes(z.read(member))
+    return out
+
+
+def gsim_yearly(cache: Path, grdc_no: int) -> tuple[str, pd.DataFrame] | None:
+    meta = pd.read_csv(remote_member(cache, GSIM_META_ZIP, "GSIM_metadata/GSIM_catalog/GSIM_metadata.csv"), low_memory=False)
+    row = meta[meta["grdb.no"] == grdc_no]
+    if row.empty:
+        return None
+    gsim_no = str(row.iloc[0]["gsim.no"])
+    f = remote_member(cache, GSIM_INDEX_ZIP, f"GSIM_indices/TIMESERIES/yearly/{gsim_no}.year")
+    df = pd.read_csv(f, comment="#", sep=r",\s*", engine="python", na_values=["NA"])
+    df.columns = [c.strip().strip('"') for c in df.columns]
+    df["year"] = df["date"].str[:4].astype(int)
+    return gsim_no, df[["year", "MEAN", "MAX", "n.missing"]].dropna(subset=["MAX", "MEAN"])
+
+
+def flood_check(cache: Path, grdc_no: int, area_ratio: float, glofas_amax: list[float]) -> dict | None:
+    got = gsim_yearly(cache, grdc_no)
+    if not got or len(glofas_amax) < MIN_FLOOD_YEARS:
+        return None
+    gsim_no, y = got
+    y = y[y["n.missing"] <= MAX_MISSING_DAYS]
+    if len(y) < MIN_FLOOD_YEARS:
+        return None
+    xi, alpha = gumbel_lmoments(y.MAX.to_numpy(dtype=float))
+    q2, q5, q20 = (gumbel_q(xi, alpha, t) for t in (2, 5, 20))
+    screened = y[y.MEAN >= MIN_MEAN_FRACTION * y.MEAN.median()]
+    screened_q2 = None
+    if len(screened) >= MIN_FLOOD_YEARS:
+        sx, sa = gumbel_lmoments(screened.MAX.to_numpy(dtype=float))
+        screened_q2 = round(gumbel_q(sx, sa, 2), 2)
+    gxi, galpha = gumbel_lmoments(np.array(glofas_amax, dtype=float))
+    g2, g5, g20 = (gumbel_q(gxi, galpha, t) for t in (2, 5, 20))
+    lo, mid, hi = (q2 * area_ratio**b for b in AREA_EXPONENTS)
+    lo, hi = min(lo, hi), max(lo, hi)
+    verdict = "glofas_high" if g2 > hi * TOLERANCE else "glofas_low" if g2 < lo / TOLERANCE else "consistent"
+    return {
+        "gsim_no": gsim_no,
+        "years": [int(v) for v in y.year],
+        "excluded_low_mean_years": [int(v) for v in y.loc[~y.year.isin(screened.year), "year"]],
+        "screened_gauge_q2_m3s": screened_q2,
+        "max_missing_days": MAX_MISSING_DAYS,
+        "status": "preliminary",
+        "gauge_q2_m3s": round(q2, 2),
+        "gauge_q5_m3s": round(q5, 2),
+        "gauge_q20_m3s": round(q20, 2),
+        "scaled_q2_low_m3s": round(lo, 2),
+        "scaled_q2_m3s": round(mid, 2),
+        "scaled_q2_high_m3s": round(hi, 2),
+        "glofas_q2_m3s": round(g2, 2),
+        "glofas_q20_m3s": round(g20, 2),
+        "ratio_q2": round(g2 / mid, 2),
+        "verdict": verdict,
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--catalogue", required=True, type=Path, help="GRDC_Stations.xlsx")
+    ap.add_argument("--cache-dir", required=True, type=Path, help="tempat berkas GSIM yang diunduh")
     args = ap.parse_args()
+    cache = args.cache_dir / "gsim"
+    cache.mkdir(parents=True, exist_ok=True)
 
     cat = pd.read_excel(args.catalogue, sheet_name="station_catalogue")
     idn = cat[cat.country == "ID"].copy()
@@ -134,6 +260,7 @@ def main() -> int:
             "cell_mean_m3s": cell["mean_q_m3s"],
             "ratio": round(ratio, 2),
             "verdict": verdict,
+            "flood": flood_check(cache, no, area_ratio, cal.get("annual_max_m3s", [])),
         }
 
     specific = {}
@@ -158,8 +285,10 @@ def main() -> int:
             {
                 "generated_at_utc": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "source": SOURCE,
+                "flood_source": GSIM_SOURCE,
                 "max_area_ratio": MAX_AREA_RATIO,
                 "tolerance": TOLERANCE,
+                "area_exponents": list(AREA_EXPONENTS),
                 "summary": {"n_pairs": len(PAIRS), "n_assessed": len(out), "verdicts": counts, "islands": islands},
                 "not_assessed": skipped,
                 "stations": out,
@@ -175,6 +304,12 @@ def main() -> int:
             f"{sid:<18} {v['gauge']:<30} A {v['area_ratio']:4.2f}×  Q_GRDC {v['gauge_mean_m3s']:7.1f} → {v['scaled_mean_m3s']:7.1f}"
             f"  sel {v['cell_mean_m3s']:7.1f}  rasio {v['ratio']:4.2f}  {v['verdict']}"
         )
+        f = v["flood"]
+        if f:
+            print(
+                f"{'':<18} Q2 pos {f['gauge_q2_m3s']:7.1f} ({len(f['years'])} th) → {f['scaled_q2_low_m3s']:.0f}–{f['scaled_q2_high_m3s']:.0f}"
+                f"  Q2 GloFAS {f['glofas_q2_m3s']:7.1f}  rasio {f['ratio_q2']:4.2f}  {f['verdict']}"
+            )
     for s in skipped:
         print(f"{s['id']:<18} {s['gauge']:<30} A {s['area_ratio']:4.2f}×  tidak dinilai")
     print(json.dumps(islands, ensure_ascii=False))

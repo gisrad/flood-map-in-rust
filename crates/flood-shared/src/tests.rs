@@ -737,6 +737,36 @@ fn gauge_validation_is_consistent_with_current_calibration_and_catalog() {
             GaugeVerdict::Consistent
         };
         assert_eq!(chk.verdict, expected, "{id}: rasio {ratio}");
+        if let Some(fl) = &chk.flood {
+            // Q2 GloFAS harus sama dengan ambang yang dipakai situs.
+            let th = crate::calibration::station_calibration(id)
+                .and_then(|c| c.thresholds())
+                .unwrap();
+            assert!(
+                (fl.glofas_q2_m3s - th.q2_m3s).abs() <= 0.02 + 1e-3 * th.q2_m3s,
+                "{id}"
+            );
+            assert!(fl.years.len() >= 8, "{id}");
+            let scale = |b: f64| fl.gauge_q2_m3s * area_ratio.powf(b);
+            let (lo, hi) = {
+                let (a, b) = (scale(f.area_exponents[0]), scale(f.area_exponents[2]));
+                (a.min(b), a.max(b))
+            };
+            assert!((fl.scaled_q2_low_m3s - lo).abs() < 0.02 + 1e-3 * lo, "{id}");
+            assert!(
+                (fl.scaled_q2_high_m3s - hi).abs() < 0.02 + 1e-3 * hi,
+                "{id}"
+            );
+            let expected = if fl.glofas_q2_m3s > hi * f.tolerance {
+                GaugeVerdict::GlofasHigh
+            } else if fl.glofas_q2_m3s < lo / f.tolerance {
+                GaugeVerdict::GlofasLow
+            } else {
+                GaugeVerdict::Consistent
+            };
+            assert_eq!(fl.verdict, expected, "{id}: Q2 banjir");
+            assert!(fl.gauge_q2_m3s <= fl.gauge_q5_m3s && fl.gauge_q5_m3s <= fl.gauge_q20_m3s);
+        }
         let t = evaluate_station(st, StationInputs::default());
         assert_eq!(t.gauge_check.as_ref(), Some(chk), "{id}");
     }
