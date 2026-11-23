@@ -108,7 +108,7 @@ jobs:
       - name: Tauri system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev python3.11
       - name: Install pinned Rust toolchain
         run: |
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update
@@ -125,7 +125,7 @@ jobs:
         working-directory: desktop/src-tauri
         run: |
           cargo fetch --locked
-          python3 ../../scripts/release_licenses.py --manifest-dir . --out third-party
+          python3.11 ../../scripts/release_licenses.py --manifest-dir . --out third-party
           cargo test --locked
       - name: Build Debian package
         working-directory: desktop
