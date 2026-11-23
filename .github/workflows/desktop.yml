@@ -156,7 +156,7 @@ jobs:
           test -x /usr/bin/hidrosentinel
           test -s /usr/share/doc/hidrosentinel-nusantara/copyright
           test -s "/usr/lib/Hidrosentinel Nusantara/third-party/DEPENDENCY_LICENSES.json"
-          test -f /usr/share/applications/*.desktop
+          ls /usr/share/applications/ | grep -i 'hidrosentinel.*\.desktop$'
       - name: Launch under Xvfb and capture the window
         run: |
           mkdir -p evidence
