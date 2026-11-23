@@ -8,6 +8,12 @@ const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await context.newPage();
 const errors = [];
+const failedResponses = [];
+page.on('response', async response => {
+  if (response.url().startsWith(base) && response.status() >= 400) {
+    failedResponses.push({ url: response.url(), status: response.status(), headers: response.headers(), body: await response.text() });
+  }
+});
 page.on('pageerror', error => errors.push(String(error)));
 page.on('console', message => {
   if (message.type() === 'error' && /Content Security Policy|Refused to execute/i.test(message.text())) {
@@ -44,6 +50,10 @@ try {
   const report = { source_commit: provenance.source_commit, api: 'https://flood.transbulent.id', pageErrors: errors, responses };
   await writeFile(`${out}/report.json`, JSON.stringify(report, null, 2));
   console.log(`Container web UI, live API, MIME, CSP and missing-asset checks passed; web source ${provenance.source_commit}`);
+} catch (error) {
+  await page.screenshot({ path: `${out}/failure.png` });
+  await writeFile(`${out}/failure.json`, JSON.stringify({ error: String(error), pageErrors: errors, failedResponses }, null, 2));
+  throw error;
 } finally {
   await browser.close();
 }
