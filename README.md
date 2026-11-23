@@ -6,6 +6,26 @@ Observatorium banjir dan hidrometeorologi seluruh Indonesia yang memisahkan tiga
 
 > **Indikasi model, bukan peringatan resmi.** Peringatan dini resmi berasal dari BNPB/BPBD, BMKG, dan Balai (Besar) Wilayah Sungai. Situs ini tidak memakai status Waspada/Siaga/Awas. Metodologi lengkap: [`docs/METODOLOGI.md`](docs/METODOLOGI.md); kontrak API: [`docs/API.md`](docs/API.md).
 
+[English](#english) · [中文](#中文) · [Bahasa Indonesia](#bahasa-indonesia)
+
+### English
+
+**Hidrosentinel Nusantara** is an all-Rust flood observatory for Indonesia. It separates three flood mechanisms: **river floods** from upstream basins, **local rainfall** that overwhelms urban drainage, and **coastal tidal flooding (rob)**. It monitors 50 major rivers (44 calibrated GloFAS cells) and 12 coastal corridors on a 3D MapLibre map, combining Copernicus GloFAS v4 discharge ensembles, Open-Meteo rainfall, soil moisture and sea level, PetaBencana.id citizen reports, BMKG nowcasts and regional flood news. It also offers free alerts (ntfy, RSS, WhatsApp share), historical replays and an AI-agent-friendly API (`/llms.txt`, `/api/openapi.json`). Stack: Leptos WebAssembly, Cloudflare Workers and SQLite Durable Objects.
+
+> **Model indication, not an official warning.** Official flood warnings in Indonesia come from BNPB/BPBD, BMKG and the river basin authorities (BBWS/BWS). Q2 comparisons with gauges are still preliminary.
+
+### 中文
+
+**Hidrosentinel Nusantara（努山塔拉水文哨兵）** 是一个完全用 Rust 构建的印度尼西亚洪水观测平台，区分三种洪水机制：上游流域来水造成的**河流洪水**、超出城市排水能力的**局地降雨内涝**，以及**沿海潮汐洪水（rob）**。平台在 MapLibre 三维地图上监测 50 条主要河流（其中 44 个 GloFAS 网格已校准）和 12 个沿海区段，融合 Copernicus GloFAS v4 流量集合预报、Open-Meteo 降雨、土壤湿度与海平面数据、PetaBencana.id 民众报告、BMKG 临近预警以及地区洪水新闻。另提供免费提醒（ntfy、RSS、WhatsApp 分享）、历史事件回放，以及便于 AI 智能体调用的 API（`/llms.txt`、`/api/openapi.json`）。技术栈：Leptos WebAssembly、Cloudflare Workers 与 SQLite Durable Objects。
+
+> **模型指示，非官方预警。** 印度尼西亚的官方洪水预警由 BNPB/BPBD、BMKG 及流域管理机构（BBWS/BWS）发布。与水文站数据的 Q2 对比仍属初步结果。
+
+### Bahasa Indonesia
+
+**Hidrosentinel Nusantara** adalah observatorium banjir Indonesia yang seluruhnya dibangun dengan Rust. Situs ini memisahkan tiga mekanisme banjir: **banjir sungai** kiriman hulu DAS, **hujan lokal** yang melampaui kapasitas drainase kota, dan **rob pesisir**. Pemantauan mencakup 50 sungai utama (44 sel GloFAS terkalibrasi) dan 12 koridor pesisir di peta 3D MapLibre. Datanya memadukan ensemble debit Copernicus GloFAS v4, hujan, lengas tanah dan muka laut Open-Meteo, laporan warga PetaBencana.id, nowcast BMKG, dan berita banjir regional. Tersedia juga notifikasi gratis (ntfy, RSS, bagikan WhatsApp), replay kejadian historis, dan API ramah agen AI (`/llms.txt`, `/api/openapi.json`). Teknologi: Leptos WebAssembly, Cloudflare Workers, dan SQLite Durable Objects.
+
+> Perbandingan Q2 dengan pos duga air masih pendahuluan; status resmi tetap mengikuti peringatan di atas.
+
 ---
 
 ## Architecture / Arsitektur
@@ -40,7 +60,7 @@ flowchart LR
 
 > Live URL: **[https://flood.transbulent.id/](https://flood.transbulent.id/)**
 
-*(Tangkapan layar build v2, 22 Nov 2026)*
+*(Tangkapan layar situs live v0.2.1, 23 Nov 2026)*
 
 | Desktop (`1440×900`) | Mobile (`390×844`) |
 |---|---|
