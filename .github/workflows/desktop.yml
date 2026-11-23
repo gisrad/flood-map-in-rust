@@ -1,0 +1,180 @@
+name: Desktop (Tauri thin client)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - "scripts/release_licenses.py"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/desktop.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - "scripts/release_licenses.py"
+      - ".github/workflows/desktop.yml"
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Exact source ref/SHA to build (empty uses the triggering ref)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}-${{ inputs.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_TOOLCHAIN: "1.97.1"
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update
+          rustup default "$RUST_TOOLCHAIN"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+          package-manager-cache: false
+      - name: Install locked Tauri CLI
+        run: npm ci
+      - name: Desktop unit tests (navigation policy)
+        working-directory: desktop/src-tauri
+        run: |
+          cargo fetch --locked
+          python ../../scripts/release_licenses.py --manifest-dir . --out third-party
+          cargo test --locked
+      - name: Build unsigned NSIS installer
+        working-directory: desktop
+        run: npx tauri build --bundles nsis
+      - name: Install, launch and uninstall silently
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem desktop/src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          if (-not $setup) { throw 'NSIS installer missing' }
+          Start-Process $setup.FullName -ArgumentList '/S' -Wait
+          $dir = Join-Path $env:LOCALAPPDATA 'Hidrosentinel Nusantara'
+          $exe = Join-Path $dir 'hidrosentinel.exe'
+          if (-not (Test-Path $exe)) { Get-ChildItem $env:LOCALAPPDATA -Directory | Out-String | Write-Host; throw "Installed app missing: $exe" }
+          if (-not (Test-Path (Join-Path $dir 'third-party/DEPENDENCY_LICENSES.json'))) { throw 'Bundled dependency licenses missing' }
+          $app = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($app.HasExited) { throw "App exited early with code $($app.ExitCode)" }
+          Stop-Process -Id $app.Id -Force
+          Start-Sleep -Seconds 2
+          Start-Process (Join-Path $dir 'uninstall.exe') -ArgumentList '/S' -Wait
+          Start-Sleep -Seconds 5
+          if (Test-Path $exe) { throw 'Uninstaller left the app executable behind' }
+          "Installed size check: $([math]::Round($setup.Length / 1MB, 2)) MB installer" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-windows
+          path: desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
+
+  linux:
+    # Older glibc than Debian 12 (2.36) so the .deb installs there.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --no-self-update
+          rustup default "$RUST_TOOLCHAIN"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+          package-manager-cache: false
+      - name: Install locked Tauri CLI
+        run: npm ci
+      - name: License evidence and unit tests
+        working-directory: desktop/src-tauri
+        run: |
+          cargo fetch --locked
+          python3 ../../scripts/release_licenses.py --manifest-dir . --out third-party
+          cargo test --locked
+      - name: Build Debian package
+        working-directory: desktop
+        run: npx tauri build --bundles deb
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-debian
+          path: desktop/src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
+
+  debian12:
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: debian:12
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: desktop-debian
+          path: deb
+      - name: Install on clean Debian 12 via apt (resolves declared dependencies)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ./deb/*.deb xvfb xauth imagemagick dbus-x11 ca-certificates
+          dpkg -s hidrosentinel-nusantara | grep -E '^(Version|Depends):'
+          test -x /usr/bin/hidrosentinel
+          test -s /usr/share/doc/hidrosentinel-nusantara/copyright
+          test -s "/usr/lib/Hidrosentinel Nusantara/third-party/DEPENDENCY_LICENSES.json"
+          test -f /usr/share/applications/*.desktop
+      - name: Launch under Xvfb and capture the window
+        run: |
+          mkdir -p evidence
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          xvfb-run -a -s "-screen 0 1280x820x24" sh -c '
+            dbus-launch --exit-with-session hidrosentinel > evidence/app.log 2>&1 &
+            pid=$!
+            sleep 45
+            import -window root evidence/debian12-window.png
+            kill -0 "$pid" || { echo "app exited early"; cat evidence/app.log; exit 1; }
+            kill "$pid"
+          '
+          cat evidence/app.log || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: desktop-debian12-evidence
+          path: evidence/
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 14

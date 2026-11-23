@@ -49,6 +49,8 @@ REQUIRED = DOCS + (
     "crates/flood-web/Trunk.toml", "crates/flood-web/index.html",
     "crates/flood-worker/wrangler.toml.example",
     "scripts/package_release.py", "scripts/check_wasm_size.mjs", "scripts/release_licenses.py",
+    "desktop/src-tauri/Cargo.toml", "desktop/src-tauri/Cargo.lock", "desktop/src-tauri/tauri.conf.json",
+    "desktop/src-tauri/src/main.rs", "desktop/launcher/index.html", ".github/workflows/desktop.yml",
 )
 GENERATED_DIRS = {
     "target", "dist", "build", "node_modules", ".git", ".wrangler", "__pycache__",
@@ -168,6 +170,18 @@ def validate_source(source: Source, tag: str | None) -> tuple[str, str]:
     cff = re.findall(r"^version:\s*['\"]?([^\s'\"]+)['\"]?\s*$", source.text("CITATION.cff"), re.M)
     if cff != [version]:
         raise ValueError(f"CITATION.cff version must be {version}")
+    desktop_crate = tomllib.loads(source.text("desktop/src-tauri/Cargo.toml"))["package"]
+    desktop_conf = json.loads(source.text("desktop/src-tauri/tauri.conf.json"))
+    if desktop_crate.get("version") != version or desktop_conf.get("version") != version:
+        raise ValueError(f"Desktop Cargo.toml and tauri.conf.json versions must be {version}")
+    if desktop_conf.get("identifier") != "id.transbulent.hidrosentinel":
+        raise ValueError("Desktop identifier must stay id.transbulent.hidrosentinel (installed-app identity)")
+    desktop_lock = tomllib.loads(source.text("desktop/src-tauri/Cargo.lock"))
+    shell = [p for p in desktop_lock["package"] if p["name"] == desktop_crate["name"] and "source" not in p]
+    if len(shell) != 1 or shell[0]["version"] != version:
+        raise ValueError("desktop/src-tauri/Cargo.lock version mismatch")
+    if json.loads(source.text("package.json")).get("version") != version:
+        raise ValueError(f"package.json version must be {version}")
     changelog = source.text("CHANGELOG.md")
     heading = re.compile(rf"^##\s+\[?{re.escape(version)}\]?(?:\s.*)?$", re.M)
     matches = list(heading.finditer(changelog))

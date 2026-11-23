@@ -92,6 +92,13 @@ pub async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let headers = resp.headers_mut();
     if is_html {
         headers.set("cache-control", "public, max-age=300")?;
+    } else if path == "/sw.js" {
+        // Service worker harus selalu diperiksa ulang agar pembaruan cangkang cepat terpasang.
+        headers.set("cache-control", "no-cache")?;
+        headers.set("content-type", "text/javascript; charset=utf-8")?;
+    } else if path == "/manifest.webmanifest" {
+        headers.set("cache-control", "public, max-age=3600")?;
+        headers.set("content-type", "application/manifest+json")?;
     } else if path.contains(".wasm") || path.contains(".woff2") || path.contains("/vendor/") {
         headers.set("cache-control", "public, max-age=604800")?;
     } else if path.starts_with("/art/") || path.starts_with("/data/") {

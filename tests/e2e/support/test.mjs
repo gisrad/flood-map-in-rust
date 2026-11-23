@@ -33,6 +33,9 @@ export const test = base.extend({
       const text = request.failure()?.errorText || '';
       // Navigation and theme changes legitimately cancel superseded resource requests.
       if (/ERR_ABORTED/.test(text) || allowed(request.url())) return;
+      // While offline the service worker tries the network first and then answers from its cache;
+      // a page-level failure would still be reported by the page request/console handlers.
+      if (request.serviceWorker() && /ERR_INTERNET_DISCONNECTED/.test(text)) return;
       issues.push({ type: 'requestfailed', url: request.url(), text });
     });
     context.on('response', (response) => {

@@ -123,11 +123,21 @@ flowchart LR
 
 ## Rilis
 
-Versi sumber saat ini: **0.2.1**. Catatan perubahan: [`CHANGELOG.md`](CHANGELOG.md); prosedur build, checksum, rilis draf dan deploy: [`docs/RELEASING.md`](docs/RELEASING.md).
+Versi sumber saat ini: **0.3.0**. Catatan perubahan: [`CHANGELOG.md`](CHANGELOG.md); prosedur build, checksum, rilis draf dan deploy: [`docs/RELEASING.md`](docs/RELEASING.md).
 
-Artefak tahap ini adalah arsip sumber dan paket frontend web yang membutuhkan backend `/api/*`; **belum ada installer Linux/Windows/macOS atau APK Android**. Tag rilis harus lolos CI sebelum menghasilkan draf GitHub Release. Publikasi draf dan deploy produksi adalah langkah terpisah.
+### Pasang sebagai aplikasi
 
-Web menandai koneksi terputus, refresh gagal, snapshot ≥30 menit dan sumber gagal/kedaluwarsa. Data terakhir tetap dapat dibaca dengan waktu aslinya, bukan dianggap pembaruan terkini. Ini belum menyediakan cache/PWA untuk membuka aplikasi dari kondisi luring.
+| Cara | Platform | Catatan |
+|---|---|---|
+| **PWA** | Edge/Chrome di Windows, Linux, Android | Buka situs → menu peramban → *Instal aplikasi* |
+| **`Hidrosentinel-Nusantara_<versi>_x64-setup.exe`** | Windows 10/11 | Unduh dari [Releases](https://github.com/gisrad/flood-map-in-rust/releases/latest). **Belum ditandatangani**: SmartScreen → *More info* → *Run anyway*. Terpasang per pengguna, tanpa admin. Cocokkan dengan `SHA256SUMS-desktop`. |
+| **`hidrosentinel-nusantara_<versi>_amd64.deb`** | Debian 12+, Ubuntu 22.04+, Linux Mint 21+ | `sudo apt install ./hidrosentinel-nusantara_<versi>_amd64.deb` |
+
+Aplikasi desktop (Tauri 2, ID `id.transbulent.hidrosentinel`) adalah klien tipis: membuka https://flood.transbulent.id dalam jendela sendiri, tautan luar dibuka di peramban, dan memerlukan internet. Data atau frontend tidak dibundel, jadi fitur baru di situs langsung ikut tanpa memperbarui aplikasi. Belum ada paket macOS, APK Android, atau pembaruan otomatis cangkang aplikasi.
+
+Web menandai koneksi terputus, refresh gagal, snapshot ≥30 menit dan sumber gagal/kedaluwarsa. Data terakhir tetap dapat dibaca dengan waktu aslinya, bukan dianggap pembaruan terkini. Service worker PWA hanya menyimpan cangkang aplikasi; data `/api/*` tidak pernah disajikan dari cache.
+
+Tag rilis harus lolos CI sebelum menghasilkan draf GitHub Release. Publikasi draf dan deploy produksi adalah langkah terpisah.
 
 
 ## Local Development & Deployment

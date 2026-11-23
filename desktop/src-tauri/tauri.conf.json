@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Hidrosentinel Nusantara",
+  "mainBinaryName": "hidrosentinel",
+  "version": "0.3.0",
+  "identifier": "id.transbulent.hidrosentinel",
+  "build": {
+    "frontendDist": "../launcher"
+  },
+  "app": {
+    "windows": [],
+    "withGlobalTauri": false,
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src https://flood.transbulent.id; object-src 'none'; base-uri 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "deb"],
+    "publisher": "Evans Azka Fajrianshah",
+    "homepage": "https://flood.transbulent.id",
+    "copyright": "Kode MIT. Data pihak ketiga mengikuti lisensinya masing-masing.",
+    "license": "MIT",
+    "licenseFile": "../../LICENSE",
+    "category": "Weather",
+    "shortDescription": "Peta indikasi banjir sungai, hujan lokal, dan rob Indonesia",
+    "longDescription": "Klien desktop untuk https://flood.transbulent.id. Menampilkan indikasi banjir sungai (GloFAS), hujan lokal, rob pesisir, dan laporan warga. Indikasi model, bukan peringatan resmi; ikuti BPBD, BMKG, dan BBWS setempat. Memerlukan koneksi internet.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "resources": {
+      "third-party/": "third-party/"
+    },
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": true },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"]
+      }
+    },
+    "linux": {
+      "deb": {
+        "section": "science",
+        "files": {
+          "/usr/share/doc/hidrosentinel-nusantara/copyright": "../../LICENSE"
+        }
+      }
+    }
+  }
+}

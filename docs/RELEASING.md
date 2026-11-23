@@ -1,12 +1,12 @@
 # Rilis sumber dan web
 
-Distribusi tetap sumber dan web, bukan installer desktop/Android, PWA, kontainer/npm/crate publik. Draf `v0.2.0` tidak ditimpa: perbaikan ini disiapkan sebagai patch `v0.2.1`, dengan tag/commit dan aset baru. Membuat paket lokal tidak menerbitkan rilis.
+Distribusi: arsip sumber, paket web, PWA (dari situs), serta klien tipis desktop Tauri 2: Windows NSIS `.exe` tanpa tanda tangan dan Debian `.deb`. Belum ada macOS, Android, kontainer/npm/crate publik. Tag dan aset rilis yang sudah ada tidak pernah ditimpa; perbaikan memakai versi baru. Membuat paket lokal tidak menerbitkan rilis.
 
 **Indikasi model, bukan peringatan resmi.** Gunakan informasi resmi BPBD/BNPB, BMKG dan pengelola sungai untuk keputusan keselamatan. Validasi Q2 masih pendahuluan.
 
 ## Versi dan batas paket
 
-- Sumber versi: `[workspace.package].version` di `Cargo.toml`; crate anggota mewarisi versi. Sinkronkan tiga entri workspace dalam `Cargo.lock` serta `version` dalam `CITATION.cff`.
+- Sumber versi: `[workspace.package].version` di `Cargo.toml`; crate anggota mewarisi versi. Sinkronkan tiga entri workspace dalam `Cargo.lock`, `version` dalam `CITATION.cff` dan `package.json`/`package-lock.json`, serta `desktop/src-tauri/Cargo.toml`, `desktop/src-tauri/Cargo.lock` dan `desktop/src-tauri/tauri.conf.json`. `package_release.py --check-only` menolak versi yang tidak sama dan ID aplikasi selain `id.transbulent.hidrosentinel`.
 - Tag format `vMAJOR.MINOR.PATCH` harus sama dengan versi tersebut. Tidak ada publikasi otomatis dari push cabang atau pull request.
 - Catatan tiap versi ada di `CHANGELOG.md`. Sebelum menandai rilis, isi tanggal aktual dan tinjau batasan, bukan hanya daftar fitur. `date-released` di `CITATION.cff` boleh ditambahkan saat tanggal publikasi sudah pasti.
 - Rilis sumber berasal dari berkas yang dilacak Git pada tag; konfigurasi lokal `wrangler.toml`, token, `target/`, hasil tes dan `node_modules/` tidak boleh ikut.
@@ -103,6 +103,24 @@ Konfigurasi sementara dibuat dari `wrangler.toml.example`; backend dibangun sebe
 
 Sesudah deploy, periksa halaman sebenarnya (desktop/mobile, replay dan lensa Riset), header CSP, `/api/health` dan `/api/flood`. Data kalibrasi tersemat baru masuk snapshot Durable Object setelah ingest berikutnya (:00/:15/:30/:45 UTC, biasanya sekitar 90 detik tambahan). Jangan memanggil jalur ingest publik atau mengirim notifikasi uji untuk mempercepatnya. Jika pemeriksaan gagal, pulihkan versi Worker sebelumnya melalui Cloudflare; jangan menghapus database.
 
+## Aplikasi desktop (Tauri 2)
+
+Kode di `desktop/` (workspace Cargo terpisah agar dependensi native tidak masuk build web/worker). Peluncur lokal `desktop/launcher/` memeriksa `https://flood.transbulent.id/api/health`, lalu membuka situs; tanpa koneksi menampilkan pesan dan mencoba lagi. Navigasi jendela dibatasi ke `https://flood.transbulent.id` (diuji `cargo test` di `desktop/src-tauri`); tautan lain dan `target=_blank` dibuka di peramban sistem. Situs jarak jauh tidak mendapat izin IPC Tauri.
+
+Build lokal Windows (Rust 1.97.1, Node 22; NSIS diunduh otomatis oleh Tauri CLI):
+
+```bash
+npm ci
+cd desktop/src-tauri && cargo fetch --locked
+python ../../scripts/release_licenses.py --manifest-dir . --out third-party   # direktori harus kosong/baru
+cargo test --locked
+cd .. && npx tauri build --bundles nsis
+```
+
+Linux `.deb` dibangun di Ubuntu 22.04 (glibc lebih tua dari Debian 12) dengan `libwebkit2gtk-4.1-dev`; lihat `.github/workflows/desktop.yml`. Workflow itu juga memasang `.exe` secara senyap, menjalankan dan menghapusnya, lalu memasang `.deb` lewat `apt` di kontainer Debian 12 bersih dan meluncurkannya di Xvfb (tangkapan layar sebagai artefak). Rilis tag menyertakan `.exe`, `.deb` dan `SHA256SUMS-desktop`.
+
+Batasan: `.exe` belum ditandatangani (SmartScreen memperingatkan); tidak ada pembaruan otomatis cangkang; WebGL di Linux bergantung pada driver dan WebKitGTK. `third-party/DEPENDENCY_LICENSES.json` mencakup dependensi Rust desktop, bukan WebView2/WebKitGTK sistem.
+
 ## Tahap berikutnya
 
-PWA dan penanganan data basi/luring → uji awal Tauri Windows/Linux → Android TWA/APK → macOS bila toolchain, perangkat dan penandatanganan memungkinkan. ID aplikasi, kustodi keystore, akun toko dan biaya signing harus diputuskan sebelum paket native. Tidak ada janji dukungan OS sebelum artefak benar-benar dibangun dan diuji pada OS target.
+Android TWA/APK dan macOS bila toolchain, perangkat dan penandatanganan memungkinkan. Kustodi keystore, akun toko dan biaya signing harus diputuskan sebelum paket tersebut. Tidak ada janji dukungan OS sebelum artefak benar-benar dibangun dan diuji pada OS target.

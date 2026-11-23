@@ -12,6 +12,7 @@ const mime = {
   '.css': 'text/css; charset=utf-8', '.wasm': 'application/wasm', '.json': 'application/json',
   '.geojson': 'application/geo+json', '.svg': 'image/svg+xml', '.png': 'image/png',
   '.webp': 'image/webp', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
+  '.webmanifest': 'application/manifest+json',
 };
 
 // Read the actual worker policy rather than maintaining a second policy. These literals are

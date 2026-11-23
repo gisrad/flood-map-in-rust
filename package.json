@@ -1,15 +1,17 @@
 {
   "name": "hidrosentinel-browser-tests",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "license": "MIT",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "test:e2e": "playwright test --config tests/e2e/playwright.config.mjs"
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.mjs",
+    "tauri": "tauri"
   },
   "devDependencies": {
-    "@playwright/test": "1.65.1"
+    "@playwright/test": "1.65.1",
+    "@tauri-apps/cli": "2.12.6"
   }
 }

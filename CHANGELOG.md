@@ -2,6 +2,21 @@
 
 Perubahan yang memengaruhi pengguna dicatat per versi mengikuti SemVer. Sebelum 1.0, versi minor dapat membawa perubahan kontrak API; `schema_version` snapshot tetap harus diperiksa konsumen.
 
+## [0.3.0] - 2026-11-23
+
+### Added
+- **PWA**: manifest web, ikon 192/512/maskable/apple, dan service worker cangkang aplikasi. Situs dapat dipasang dari Edge/Chrome. Service worker hanya menyimpan HTML/JS/WASM/CSS/font/data statis; `/api/*` dan ubin peta tidak pernah disimpan, sehingga data banjir lama tidak disajikan sebagai data terkini. Saat dibuka tanpa koneksi, cangkang tampil dengan pesan "Data belum dapat dimuat".
+- **Aplikasi desktop Tauri 2 (klien tipis, ID `id.transbulent.hidrosentinel`)**: installer Windows NSIS `.exe` (±1,5 MB, per pengguna, **tanpa tanda tangan kode**) dan paket Debian `.deb` (Debian 12+/Ubuntu 22.04+, memakai WebKitGTK sistem). Jendela membuka https://flood.transbulent.id; navigasi dibatasi ke domain itu, tautan lain dibuka di peramban bawaan. Tanpa koneksi, peluncur lokal menampilkan pesan jujur dan mencoba lagi otomatis. Bukti lisensi dependensi Rust desktop dibundel di `third-party/`.
+- Workflow `desktop.yml`: build `.exe` dan `.deb`, uji pasang/jalankan/hapus senyap di Windows, dan uji pasang `apt` serta peluncuran di kontainer Debian 12 bersih.
+
+### Fixed
+- Pengumpul lisensi rilis kini membaca `cargo metadata` sebagai UTF-8 (sebelumnya gagal di Windows) dan mendukung ekspresi `WITH LLVM-exception` serta ID 0BSD/MIT-0/ISC/MPL-2.0 setelah ditinjau.
+
+### Limitations
+- `.exe` belum ditandatangani: Windows SmartScreen akan menampilkan peringatan "Windows protected your PC" (pilih *More info* → *Run anyway*). Verifikasi dengan `SHA256SUMS`.
+- Aplikasi desktop memerlukan internet dan tidak membundel data atau frontend; pembaruan fitur mengikuti situs. Belum ada pembaruan otomatis cangkang aplikasi, paket macOS, atau Android.
+- WebGL (peta 3D) di Linux bergantung pada driver GPU dan WebKitGTK; bila peta tidak tampil, buka situs di peramban.
+
 ## [0.2.1] - 2026-11-23
 
 ### Fixed

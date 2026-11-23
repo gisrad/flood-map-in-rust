@@ -48,6 +48,14 @@ jobs:
       ref: ${{ needs.verify.outputs.source-sha }}
       no-cache: true
 
+  desktop:
+    needs: verify
+    permissions:
+      contents: read
+    uses: ./.github/workflows/desktop.yml
+    with:
+      ref: ${{ needs.verify.outputs.source-sha }}
+
   package:
     needs: [verify, ci]
     runs-on: ubuntu-24.04
@@ -95,7 +103,7 @@ jobs:
           retention-days: 14
 
   draft:
-    needs: package
+    needs: [package, desktop]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -107,6 +115,12 @@ jobs:
           name: release-bundle
           path: target
           digest-mismatch: error
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: desktop-{windows,debian}
+          path: target/desktop
+          merge-multiple: true
+          digest-mismatch: error
       - name: Create draft for maintainer review (never publish automatically)
         working-directory: target/release-assets
         env:
@@ -115,6 +129,14 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           sha256sum --check --strict SHA256SUMS
+          version="${TAG#v}"
+          shopt -s nullglob
+          exes=(../desktop/*"_${version}_x64-setup.exe"); debs=(../desktop/*"_${version}_amd64.deb")
+          test "${#exes[@]}" = 1 && test "${#debs[@]}" = 1 || { ls -la ../desktop >&2; exit 1; }
+          # Publish stable names without spaces.
+          cp "${exes[0]}" "Hidrosentinel-Nusantara_${version}_x64-setup.exe"
+          cp "${debs[0]}" "hidrosentinel-nusantara_${version}_amd64.deb"
+          sha256sum "Hidrosentinel-Nusantara_${version}_x64-setup.exe" "hidrosentinel-nusantara_${version}_amd64.deb" > SHA256SUMS-desktop
           # Refuse to overwrite a published release or edits to an existing draft.
           existing=$(gh api --paginate "repos/${GH_REPO}/releases" | jq -s --arg tag "$TAG" 'add | any(.tag_name == $tag)')
           test "$existing" = false || { echo "Release/draft already exists; inspect it manually before retrying." >&2; exit 1; }
@@ -123,5 +145,7 @@ jobs:
             --title "Hidrosentinel Nusantara ${TAG}" \
             --notes-file ../release-notes.md \
             "flood-map-in-rust-${TAG}-web.zip" \
-            "flood-map-in-rust-${TAG}-source.tar.gz" SHA256SUMS
-          echo "Draft created for ${TAG}; review archives, checksums, licenses and limitations before publishing." >> "$GITHUB_STEP_SUMMARY"
+            "flood-map-in-rust-${TAG}-source.tar.gz" SHA256SUMS \
+            "Hidrosentinel-Nusantara_${version}_x64-setup.exe" \
+            "hidrosentinel-nusantara_${version}_amd64.deb" SHA256SUMS-desktop
+          echo "Draft created for ${TAG}; review archives, desktop installers, checksums, licenses and limitations before publishing." >> "$GITHUB_STEP_SUMMARY"

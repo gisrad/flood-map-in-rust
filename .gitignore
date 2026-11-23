@@ -13,3 +13,7 @@ __pycache__/
 
 # Browser reports, screenshots and traces are never production assets.
 tests/e2e/results/
+
+# Desktop: generated Tauri schemas and dependency-license evidence (built per release).
+desktop/src-tauri/gen/
+desktop/src-tauri/third-party/

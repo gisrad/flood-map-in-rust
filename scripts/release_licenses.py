@@ -3,9 +3,12 @@
 
 Standard library only. No SBOM or linked-binary/compliance completeness claim.
 Reads checksum-verified Cargo cache archives; never builds dependency code.
+
+CLI (desktop bundle): python scripts/release_licenses.py --manifest-dir desktop/src-tauri --out <empty dir>
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import io
 import json
@@ -18,7 +21,11 @@ from urllib.request import Request, urlopen
 
 SPDX_REVISION = "d46e94e2c78ceede1cfc63cfa0396472d2798d4c"  # SPDX license-list-data v3.27.0
 SUPPORTED = {"MIT", "Apache-2.0", "Unicode-3.0", "Zlib", "Unlicense", "CC0-1.0",
-             "BSD-3-Clause", "LGPL-2.1-or-later", "BSL-1.0"}
+             "BSD-3-Clause", "LGPL-2.1-or-later", "BSL-1.0",
+             # Desktop (Tauri) tree, reviewed 2026-11-23.
+             "0BSD", "MIT-0", "ISC", "MPL-2.0"}
+# SPDX license exceptions, only valid after WITH; their standard text is shipped alongside.
+EXCEPTIONS = {"LLVM-exception"}
 NOTICE = re.compile(r"^(?:licen[cs]e|copying|copyright|notice|unlicense)(?:[._-].*)?$", re.I)
 TERMS = re.compile(r"^(?:licen[cs]e|copying|unlicense)(?:[._-].*)?$", re.I)
 
@@ -27,9 +34,13 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def collect_licenses(root: Path, lock_bytes: bytes) -> dict[str, bytes]:
+WORKSPACE_SCOPE = ("All external packages in workspace Cargo.lock, including backend, host/build and "
+                   "optional/target-specific dependencies; not proof of linkage in frontend WASM.")
+
+
+def collect_licenses(root: Path, lock_bytes: bytes, scope: str = WORKSPACE_SCOPE) -> dict[str, bytes]:
     result = subprocess.run(["cargo", "metadata", "--locked", "--offline", "--format-version", "1"],
-                            cwd=root, capture_output=True, text=True)
+                            cwd=root, capture_output=True, text=True, encoding="utf-8")
     if result.returncode:
         raise ValueError("License collection needs cached locked Cargo packages; run cargo fetch --locked: " + result.stderr.strip())
     metadata = json.loads(result.stdout)
@@ -80,9 +91,13 @@ def collect_licenses(root: Path, lock_bytes: bytes) -> dict[str, bytes]:
         declaration = package.get("license") or ""
         # Cargo's legacy slash syntax means OR; retain the original declaration too.
         normalized = declaration.replace("/", " OR ")
-        atoms = set(re.findall(r"[A-Za-z0-9][A-Za-z0-9.+-]*", normalized)) - {"AND", "OR"}
-        grammar = r"\s*(?:\(|\)|AND\b|OR\b|" + "|".join(re.escape(x) for x in sorted(SUPPORTED, key=len, reverse=True)) + r")\s*"
-        if not atoms or not atoms <= SUPPORTED or re.sub(grammar, "", normalized):
+        atoms = set(re.findall(r"[A-Za-z0-9][A-Za-z0-9.+-]*", normalized)) - {"AND", "OR", "WITH"}
+        known = SUPPORTED | EXCEPTIONS
+        grammar = r"\s*(?:\(|\)|AND\b|OR\b|WITH\b|" + "|".join(re.escape(x) for x in sorted(known, key=len, reverse=True)) + r")\s*"
+        exceptions_used = atoms & EXCEPTIONS
+        exceptions_after_with = set(re.findall(r"\bWITH\s+([A-Za-z0-9.+-]+)", normalized))
+        if (not atoms or not atoms <= known or re.sub(grammar, "", normalized)
+                or not (atoms - EXCEPTIONS) or exceptions_after_with != exceptions_used):
             raise ValueError(f"Unsupported/unknown license declaration for {identity}: {declaration!r}")
         if not has_terms:
             for license_id in sorted(atoms):
@@ -107,10 +122,35 @@ def collect_licenses(root: Path, lock_bytes: bytes) -> dict[str, bytes]:
                         "license": declaration, "authors": package["authors"], "repository": package.get("repository"),
                         "missing_upstream_notice": not has_terms, "standard_terms_used": not has_terms,
                         "files": notices})
-    inventory = {"schema": 1, "scope": "All external packages in workspace Cargo.lock, including backend, host/build and optional/target-specific dependencies; not proof of linkage in frontend WASM.",
+    inventory = {"schema": 1, "scope": scope,
                  "limitations": "Not an SBOM, legal clearance, or complete upstream notice reconstruction. missing_upstream_notice/standard_terms_used require maintainer review before publication. NPM test/deploy tools, Rust sysroot and external map/API services are outside this Cargo inventory; MapLibre/font/data notices ship separately.",
                  "spdx_standard_text_revision": SPDX_REVISION, "cargo_lock_sha256": digest(lock_bytes), "packages": records}
     entries["DEPENDENCY_LICENSES.json"] = (json.dumps(inventory, ensure_ascii=False, indent=2) + "\n").encode()
     missing = [p for p in records if p["missing_upstream_notice"]]
     print(f"Dependency license evidence: {len(records)} locked registry packages; {len(missing)} missing upstream texts use labelled SPDX terms (review before publication)")
     return entries
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest-dir", required=True, help="Cargo workspace root with Cargo.lock")
+    parser.add_argument("--out", required=True, help="New or empty output directory")
+    args = parser.parse_args()
+    root = Path(args.manifest_dir).resolve()
+    out = Path(args.out).resolve()
+    if out.exists() and any(out.iterdir()):
+        raise SystemExit(f"Output directory must be empty: {out}")
+    scope = (f"All external packages in {root.name}/Cargo.lock (desktop shell), including build and "
+             "target-specific dependencies for other platforms; not proof of linkage in a given binary. "
+             "Operating-system WebView (WebView2/WebKitGTK) and system libraries are not included.")
+    entries = collect_licenses(root, (root / "Cargo.lock").read_bytes(), scope)
+    for relative, data in entries.items():
+        path = out / PurePosixPath(relative)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    print(f"Wrote {len(entries)} license evidence files to {out}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
