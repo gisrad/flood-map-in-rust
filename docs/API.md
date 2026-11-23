@@ -1,6 +1,6 @@
 # API Hidrosentinel Nusantara (schema v2)
 
-Basis: `https://flood.transbulent.id`. Semua respons `/api/*` memuat `Access-Control-Allow-Origin: *`. Isi API adalah **indikasi model, bukan peringatan resmi**. Metode: [METODOLOGI.md](METODOLOGI.md). Spesifikasi mesin: `/api/openapi.json`; ringkasan untuk agen AI: `/llms.txt`.
+Basis: `https://flood.transbulent.id`. Endpoint baca (`GET`/`HEAD`: `/api/flood`, `/api/stations.geojson`, `/api/station/{id}`, `/api/health`, `/api/openapi.json`, `/api/ai/*`, `/api/alerts.rss`) memuat `Access-Control-Allow-Origin: *`; `POST /api/alerts/subscribe` tidak. Isi API adalah **indikasi model, bukan peringatan resmi**. Metode: [METODOLOGI.md](METODOLOGI.md). Spesifikasi mesin: `/api/openapi.json`; ringkasan untuk agen AI: `/llms.txt`.
 
 | Metode | Path | Isi | Cache |
 |---|---|---|---|
@@ -36,7 +36,7 @@ Field opsional (`?`) selalu ada dan bernilai `null` bila tidak tersedia.
 `thresholds? { q2_m3s, q5_m3s, q20_m3s, p90_m3s, p99_m3s, period, n_years }`,
 `current_discharge_m3s, ratio_q2?, peak_forecast_m3s, peak_forecast_date, peak_forecast_level`,
 `exceed_prob_7d? { q2, q5, q20, members }` (fraksi 0..1),
-`trend` (`naik_tajam|naik|stabil|surut`), `rain_24h_mm, rain_72h_mm, rain_next_24h_mm, soil_moisture_top, soil_moisture_deep, nearby_reports_24h`,
+`trend` (`naik_tajam|naik|stabil|surut`; kecenderungan relatif 1 hari, label "Naik cepat" untuk `naik_tajam`, lihat METODOLOGI §2.3), `rain_24h_mm, rain_72h_mm, rain_next_24h_mm, soil_moisture_top, soil_moisture_deep, nearby_reports_24h` (laporan warga `confirmed`/`verified` ≤ 10 km, 24 jam),
 `fluvial_level, pluvial_level, level, mechanism, level_reason, public_advice, gov_action, academic_note`,
 `hydrograph[] { date, is_forecast, discharge_m3s, discharge_min_m3s?, discharge_p25_m3s?, discharge_p75_m3s?, discharge_max_m3s?, rain_mm? }` — 14 hari lalu, hari ini, 7 hari prakiraan (GMT). Statistik ensemble hanya untuk hari prakiraan.
 
@@ -47,7 +47,7 @@ Field opsional (`?`) selalu ada dan bernilai `null` bila tidak tersedia.
 `pkey, created_at, source, status, depth_cm?, title, text, lat, lon, disaster_type` (selalu `flood`), `url?`.
 
 ### `news[]`
-`title, link, source, pub_date` (ISO 8601 UTC, ≤ 72 jam), `region_hint`.
+`title, link` (selalu `https://`), `source, pub_date` (ISO 8601 UTC, ≤ 72 jam), `region_hint`.
 
 ## `/api/stations.geojson`
 Titik `[lon, lat]`; `properties.kind` = `river` | `rob` | `report`; setiap fitur memuat `id, name, level, level_label, mechanism, updated_at_utc` dan metrik kunci (sungai: `discharge_m3s, ratio_q2, q2_m3s, peak_forecast_m3s, rain_24h_mm, calibrated`; rob: `peak_msl_48h_m, p99_m, wave_height_m`; laporan: `depth_cm, url, created_at`). Membuka di GeoLibre: `https://web.geolibre.app/?data=` + `encodeURIComponent("https://flood.transbulent.id/api/stations.geojson")`.
@@ -56,8 +56,9 @@ Titik `[lon, lat]`; `properties.kind` = `river` | `rob` | `report`; setiap fitur
 ```json
 { "topic": "banjir-semarang-utara", "region": "Jawa Tengah", "min_level": "high", "send_test": true }
 ```
+- `Content-Type: application/json` wajib (`415` bila tidak).
 - `topic`: `^[A-Za-z0-9_-]{8,64}$`, bukan deret angka (mencegah nomor telepon). Topik ntfy.sh bersifat publik; pakai nama yang sulit ditebak.
 - `min_level`: `high` | `very_high` | `extreme` (bawaan `high`).
-- Batas: 5 permintaan per jam per IP (disimpan sebagai hash SHA-256 IP + tanggal, dihapus setelah 1 jam), 1.000 langganan total. Kirim ulang topik yang sama memperbarui wilayah/level (idempoten).
-- Respons: `200 { ok, topic, region, min_level, updated, test_pushed, ntfy_url, rss_url }`, `400` topik tidak valid, `429` batas IP, `503` kuota penuh.
-- Notifikasi dikirim paling sering 6 jam sekali per topik dan selalu memuat “Indikasi model, bukan peringatan resmi”.
+- Batas: 5 permintaan per jam per IP (disimpan sebagai hash SHA-256 IP + bulan, dihapus setelah 1 jam), 1.000 langganan total. Topik yang sudah terdaftar ditolak (`409`) karena langganan tidak berautentikasi dan tidak boleh ditimpa pihak lain.
+- Respons: `200 { ok, topic, region, min_level, test_pushed, ntfy_url, rss_url }`, `400` topik tidak valid, `409` topik sudah terdaftar, `415` tipe konten, `429` batas IP, `503` kuota penuh.
+- Notifikasi dikirim paling sering 6 jam sekali per topik, kecuali level tertinggi di wilayah naik sejak dorongan terakhir; paling banyak 5 dorongan per siklus 15 menit, level tertinggi dahulu. Setiap pesan memuat “Indikasi model, bukan peringatan resmi”.

@@ -1,3 +1,4 @@
+mod csp;
 mod hub;
 
 use flood_shared::ai::{build_llms_txt, build_openapi_spec};
@@ -56,28 +57,57 @@ pub async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
     // Route all dynamic /api/* traffic to the SQLite-backed FloodHub Durable Object
     if path.starts_with("/api/") {
+        // CORS hanya untuk endpoint baca GET/HEAD; POST (langganan) tidak boleh dipanggil lintas situs.
+        let cors = matches!(req.method(), Method::Get | Method::Head) && is_public_read(path);
         let ns = env.durable_object("FLOOD_HUB")?;
         let stub = ns.id_from_name("nusantara-v1")?.get_stub()?;
         let raw = stub.fetch_with_request(req).await?;
         let mut resp = make_mutable(raw)?;
         let headers = resp.headers_mut();
-        headers.set("access-control-allow-origin", "*")?;
+        if cors {
+            headers.set("access-control-allow-origin", "*")?;
+        }
         apply_security_headers(headers, true)?;
         return Ok(resp);
     }
 
     // Delegate static frontend (Leptos WASM + MapLibre GL + fonts + SEO files) to ASSETS
     let fetcher = env.assets("ASSETS")?;
-    let raw = fetcher.fetch_request(req).await?;
-    let mut resp = make_mutable(raw)?;
+    let mut raw = fetcher.fetch_request(req).await?;
     let is_html = path == "/" || path.ends_with(".html") || !path.contains('.');
+    let html_body = raw.status_code() == 200
+        && raw
+            .headers()
+            .get("content-type")?
+            .is_some_and(|ct| ct.contains("text/html"));
+    // Skrip inline (pemuat Trunk) diizinkan lewat hash, bukan 'unsafe-inline'. Hash dihitung dari
+    // HTML yang benar-benar disajikan, sehingga tetap sah setelah setiap build.
+    let (mut resp, script_hashes) = if html_body {
+        let html = raw.text().await?;
+        let hashes = csp::inline_script_hashes(&html);
+        (Response::from_html(html)?, hashes)
+    } else {
+        (make_mutable(raw)?, Vec::new())
+    };
     let headers = resp.headers_mut();
     if is_html {
         headers.set("cache-control", "public, max-age=300")?;
     } else if path.contains(".wasm") || path.contains(".woff2") || path.contains("/vendor/") {
         headers.set("cache-control", "public, max-age=604800")?;
+    } else if path.starts_with("/art/") || path.starts_with("/data/") {
+        // Nama berkas tanpa hash: segarkan di latar belakang.
+        headers.set(
+            "cache-control",
+            "public, max-age=86400, stale-while-revalidate=604800",
+        )?;
     }
     apply_security_headers(headers, false)?;
+    if !script_hashes.is_empty() {
+        headers.set(
+            "content-security-policy",
+            &csp::content_security_policy(&script_hashes),
+        )?;
+    }
     Ok(resp)
 }
 
@@ -108,29 +138,34 @@ fn make_mutable(resp: Response) -> Result<Response> {
         .with_headers(headers))
 }
 
+/// Endpoint baca publik yang boleh dipanggil dari situs lain.
+fn is_public_read(path: &str) -> bool {
+    matches!(
+        path,
+        "/api/flood"
+            | "/api/stations.geojson"
+            | "/api/health"
+            | "/api/openapi.json"
+            | "/api/ai/briefing"
+            | "/api/ai/query"
+            | "/api/alerts.rss"
+    ) || path.starts_with("/api/station/")
+}
+
 fn apply_security_headers(headers: &mut Headers, is_api: bool) -> Result<()> {
     headers.set("x-content-type-options", "nosniff")?;
     headers.set("referrer-policy", "strict-origin-when-cross-origin")?;
     headers.set("permissions-policy", "geolocation=(self)")?;
     headers.set("x-frame-options", "SAMEORIGIN")?;
+    // Tanpa includeSubDomains: subdomain lain transbulent.id dilayani di luar Worker ini.
+    headers.set("strict-transport-security", "max-age=31536000")?;
     if is_api {
         headers.set("x-robots-tag", "noindex")?;
     } else {
-        // Strict CSP allowing Leptos WASM ('wasm-unsafe-eval'), Trunk inline loader, MapLibre WebGL workers (blob:), and map tiles
-        let csp = concat!(
-            "default-src 'self'; ",
-            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; ",
-            "style-src 'self' 'unsafe-inline'; ",
-            "img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://tiles.openfreemap.org https://s3.amazonaws.com https://elevation-tiles-prod.s3.amazonaws.com; ",
-            "font-src 'self' data:; ",
-            "connect-src 'self' https://*.basemaps.cartocdn.com https://tiles.openfreemap.org https://s3.amazonaws.com https://elevation-tiles-prod.s3.amazonaws.com https://static.cloudflareinsights.com https://cloudflareinsights.com; ",
-            "worker-src 'self' blob:; ",
-            "child-src 'self' blob:; ",
-            "object-src 'none'; ",
-            "base-uri 'self'; ",
-            "frame-ancestors 'self'"
-        );
-        headers.set("content-security-policy", csp)?;
+        headers.set(
+            "content-security-policy",
+            &csp::content_security_policy(&[]),
+        )?;
     }
     Ok(())
 }

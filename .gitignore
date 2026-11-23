@@ -9,3 +9,4 @@ crates/flood-worker/wrangler.toml
 node_modules/
 docs/qa-*
 *.log
+__pycache__/

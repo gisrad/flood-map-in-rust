@@ -571,7 +571,7 @@ a { color: var(--accent); text-underline-offset: 2px; }
 .refs { display: grid; gap: 8px; }
 .ref-list, .tel-list, .fine-list, .source-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .ref-list a { font-weight: 550; }
-.tel-list { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.tel-list { grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .tel-list li {
   display: grid;
   padding: 8px;
@@ -728,7 +728,7 @@ a.news-item:hover { background: var(--surface-2); }
 
 /* ---------- Hidrograf ---------- */
 .hydro { margin: 0; display: grid; gap: 6px; }
-.hydro-cap { display: flex; justify-content: space-between; font-size: var(--fs-12); font-weight: 650; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; }
+.hydro-cap { display: flex; justify-content: space-between; font-size: var(--fs-12); font-weight: 650; color: var(--ink-soft); letter-spacing: 0.02em; }
 .hydro-svg { width: 100%; height: auto; display: block; overflow: visible; }
 .hg-grid { stroke: var(--line); stroke-width: 0.8; }
 .hg-axis { stroke: var(--ink-soft); stroke-width: 1; }

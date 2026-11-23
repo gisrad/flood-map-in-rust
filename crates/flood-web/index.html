@@ -21,13 +21,13 @@
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Relief Indonesia dengan sungai utama berwarna menurut level indikasi banjir" />
+    <meta property="og:image:alt" content="Relief tiga dimensi kepulauan Indonesia dengan judul Hidrosentinel Nusantara: indikasi banjir sungai, hujan, dan rob" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Hidrosentinel Nusantara — Peta Indikasi Banjir Indonesia" />
     <meta name="twitter:description" content="Debit sungai, hujan lebat, rob, dan laporan warga. Indikasi model, bukan peringatan resmi." />
     <meta name="twitter:image" content="https://flood.transbulent.id/art/og-flood.jpg" />
-    <meta name="twitter:image:alt" content="Relief Indonesia dengan sungai utama berwarna menurut level indikasi banjir" />
+    <meta name="twitter:image:alt" content="Relief tiga dimensi kepulauan Indonesia dengan judul Hidrosentinel Nusantara: indikasi banjir sungai, hujan, dan rob" />
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="/assets/fonts/SchibstedGrotesk-wght.woff2" as="font" type="font/woff2" crossorigin />
@@ -36,15 +36,9 @@
     <link data-trunk rel="copy-dir" href="assets" />
     <link rel="stylesheet" href="/vendor/maplibre-gl.css" />
     <link data-trunk rel="css" href="styles/main.css" />
-    <link data-trunk rel="rust" data-wasm-opt="z" data-bindgen-target="web" />
+    <link data-trunk rel="rust" data-wasm-opt="z" data-bindgen-target="web" data-integrity="none" />
 
-    <script>
-      (function () {
-        var p = new URLSearchParams(location.search).get('theme');
-        var dark = p ? p === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-      })();
-    </script>
+    <script src="/assets/theme.js"></script>
     <noscript><style>.splash { display: none; }</style></noscript>
 
     <script type="application/ld+json">

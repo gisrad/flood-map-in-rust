@@ -119,7 +119,7 @@ pub fn AboutPane(snapshot: Signal<Option<FloodSnapshot>>, now: RwSignal<f64>) ->
                     <li>"Debit adalah simulasi model global pada sel 0,05° (±5 km), bukan pengukuran pos duga air. Sel dapat jatuh pada anak sungai yang berbeda; jarak sel–pos ditampilkan di lensa Riset."</li>
                     <li>"Model tidak memuat operasi bendungan, pintu air, tanggul, maupun pompa kota."</li>
                     <li>"Hujan lokal diukur pada satu titik grid; hujan konvektif dapat terlewat."</li>
-                    <li>"Laporan warga belum tentu terverifikasi dan bergantung pada partisipasi."</li>
+                    <li>"Hanya laporan warga berstatus confirmed atau verified yang menaikkan level; cakupan bergantung pada partisipasi."</li>
                     <li>"Replay historis menjalankan ulang model dengan reanalisis GloFAS v4 dan hujan ERA5. Hasilnya dapat meleset dari kejadian nyata; setiap replay menampilkan perbandingan model terhadap kejadian bersumber."</li>
                 </ul>
             </section>

@@ -76,7 +76,7 @@ pub fn OfficialRefs() -> impl IntoView {
         <div class="refs">
             <h3 class="h-sub">"Rujukan resmi"</h3>
             <ul class="ref-list">
-                <li><a href="https://bnpb.go.id/bpbd-propinsi" target="_blank" rel="noopener">"Daftar BPBD provinsi"</a></li>
+                <li><a href="https://www.bnpb.go.id/bpbd-propinsi" target="_blank" rel="noopener">"Daftar BPBD provinsi"</a></li>
                 <li><a href="https://www.bmkg.go.id/peringatan-dini" target="_blank" rel="noopener">"Peringatan dini cuaca BMKG"</a></li>
                 <li><a href="https://sda.pu.go.id/" target="_blank" rel="noopener">"Ditjen Sumber Daya Air (BBWS/BWS)"</a></li>
                 <li><a href="https://petabencana.id/" target="_blank" rel="noopener">"Laporkan banjir: PetaBencana.id"</a></li>
@@ -84,6 +84,7 @@ pub fn OfficialRefs() -> impl IntoView {
             <ul class="tel-list">
                 <li><a href="tel:112"><b>"112"</b></a><span>"Panggilan darurat"</span></li>
                 <li><a href="tel:117"><b>"117"</b></a><span>"Pusdalops BNPB"</span></li>
+                <li><a href="tel:115"><b>"115"</b></a><span>"Basarnas (SAR)"</span></li>
                 <li><a href="tel:196"><b>"196"</b></a><span>"Contact Center BMKG"</span></li>
             </ul>
         </div>

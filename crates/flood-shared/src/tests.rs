@@ -589,3 +589,79 @@ fn indonesian_number_format() {
     assert_eq!(fmt_dec(-12.0, 0), "-12");
     assert_eq!(fmt_dec(f64::NAN, 1), "–");
 }
+
+#[test]
+fn news_filter_rejects_prevention_and_names_but_keeps_flood_impacts() {
+    assert!(!is_flood_headline(
+        "Aksi Bersih Sungai untuk Antisipasi Banjir Luapan"
+    ));
+    assert!(!is_flood_headline(
+        "Simulasi Evakuasi Banjir di Jakarta Timur"
+    ));
+    assert!(!is_flood_headline("Rob Rock Gelar Konser di Bandung"));
+    assert!(is_flood_headline(
+        "Banjir Rendam Pejaten Timur, Warga Kesulitan Air Bersih"
+    ));
+    assert!(is_flood_headline("Rob Rendam Permukiman Pesisir Semarang"));
+}
+
+#[test]
+fn news_with_non_https_link_is_dropped() {
+    let now = parse_rss_date("Sun, 22 Nov 2026 12:00:00 +0700").unwrap();
+    let item = |link: &str| {
+        format!(
+            "<rss><channel><item><title>Banjir Rendam Pejaten Timur</title><link>{link}</link><pubDate>Sun, 22 Nov 2026 09:00:00 +0700</pubDate></item></channel></rss>"
+        )
+    };
+    assert!(parse_flood_news(&item("javascript:alert(1)"), "Uji", now).is_empty());
+    assert!(parse_flood_news(&item("http://a/1"), "Uji", now).is_empty());
+    let ok = parse_flood_news(&item("https://a/1"), "Uji", now);
+    assert_eq!(ok.len(), 1);
+    assert_eq!(ok[0].region_hint, "Jawa");
+}
+
+#[test]
+fn rfc2822_dates_and_rss_items_are_well_formed() {
+    use crate::rss::epoch_to_rfc2822;
+    assert_eq!(epoch_to_rfc2822(0), "Thu, 01 Jan 1970 00:00:00 GMT");
+    let ts = parse_rss_date("Sun, 22 Nov 2026 16:00:00 +0700").unwrap();
+    assert_eq!(epoch_to_rfc2822(ts), "Sun, 22 Nov 2026 09:00:00 GMT");
+
+    let xml = build_alerts_rss_xml(&sample_snapshot(), "", "https://flood.transbulent.id");
+    let pub_dates: Vec<&str> = xml
+        .split("<pubDate>")
+        .skip(1)
+        .map(|s| s.split("</pubDate>").next().unwrap())
+        .collect();
+    assert!(!pub_dates.is_empty());
+    assert!(
+        pub_dates
+            .iter()
+            .all(|d| d.ends_with(" GMT") && d.contains(", ")),
+        "{pub_dates:?}"
+    );
+    assert!(xml.contains("/?s="));
+    assert!(!xml.contains("?basin="));
+}
+
+#[test]
+fn only_confirmed_or_verified_citizen_reports_count() {
+    let report = |status: &str| -> crate::model::CitizenReport {
+        serde_json::from_value(serde_json::json!({
+            "pkey": "1", "created_at": "", "source": "petabencana", "status": status,
+            "title": "t", "text": "", "lat": 0.0, "lon": 100.0, "disaster_type": "flood"
+        }))
+        .unwrap()
+    };
+    assert!(report("confirmed").is_verified());
+    assert!(report("Verified").is_verified());
+    assert!(!report("unconfirmed").is_verified());
+    assert!(!report("").is_verified());
+}
+
+#[test]
+fn briefing_markdown_shows_wib_time() {
+    let b = generate_briefing(&sample_snapshot(), "", Audience::Public);
+    assert!(b.markdown.contains(" WIB"), "{}", b.markdown);
+    assert!(b.markdown.contains("UTC"), "{}", b.markdown);
+}

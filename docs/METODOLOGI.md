@@ -12,7 +12,7 @@ Versi metodologi: **2026-11-22** (`methodology_version` di setiap snapshot API).
 | Model cuaca Open-Meteo (`best_match`) | Hujan per jam, kelembapan tanah 0–7 cm dan 28–100 cm | Open-Meteo Forecast API | CC BY 4.0, Open-Meteo dan penyedia model | tiap 1 jam |
 | ERA5 (Copernicus Climate Change Service) | Hujan harian dan kelembapan tanah untuk replay | Open-Meteo Archive API | CC BY 4.0 | dibakukan |
 | MeteoFrance SMOC (Copernicus Marine Service) | Muka laut model per jam `sea_level_height_msl` (pasang surut, efek barometrik terbalik, tinggi muka laut), tinggi gelombang | Open-Meteo Marine API | Atribusi E.U. Copernicus Marine Service + Open-Meteo | tiap 1 jam |
-| PetaBencana.id | Laporan banjir warga terverifikasi 24 jam (`disaster=flood`) | `data.petabencana.id/reports` | Atribusi PetaBencana.id (lihat info.petabencana.id/data) | tiap 15 menit |
+| PetaBencana.id | Laporan banjir warga 24 jam (`disaster=flood`); hanya status `confirmed`/`verified` yang dihitung untuk menaikkan level | `data.petabencana.id/reports` | Atribusi PetaBencana.id (lihat info.petabencana.id/data) | tiap 15 menit |
 | BMKG | Nowcast cuaca ekstrem (RSS CAP) | `bmkg.go.id/alerts/nowcast/id` | Atribusi BMKG | tiap 15 menit |
 | Media daring | Judul berita banjir (CNN Indonesia, Tempo, Republika, Antara, detikNews) | RSS resmi tiap media | Hak cipta media; hanya judul dan tautan | tiap 15 menit |
 
@@ -57,6 +57,10 @@ Debit hari ini (hari GMT, `river_discharge` Open-Meteo) dibandingkan dengan amba
 
 `peak_forecast_level` memakai puncak prakiraan 7 hari dengan aturan yang sama. `exceed_prob_7d` = fraksi anggota ensemble GloFAS (Open-Meteo `ensemble=true`) yang puncak 7 harinya melampaui Q2, Q5, dan Q20. `ratio_q2` = Q hari ini / Q2.
 
+`trend` adalah kecenderungan relatif debit simulasi satu hari, bukan ambang bahaya dan tidak ikut menentukan level. Dengan Q kemarin, hari ini, dan besok (dasar penyebut minimal 1 m³/s): `naik_tajam` (label tampilan "Naik cepat") bila kenaikan ke hari ini ≥ 25% atau ke besok ≥ 30%; `naik` bila ≥ 8% atau ≥ 10%; `surut` bila turun ≥ 10% ke hari ini dan ≥ 5% lagi ke besok; selain itu `stabil`. Batas-batas ini ditetapkan sebagai konvensi pelaporan, bukan hasil kalibrasi. Teks publik hanya menyebut tren bila Q ≥ 0,5 Q2, karena perubahan relatif pada debit kecil tidak berarti.
+
+Stasiun `unknown` (sel belum terkalibrasi): debit mutlak sel tidak ditampilkan di antarmuka karena bukan debit sungai di pos itu; nilainya tetap ada di API (`current_discharge_m3s`) dengan `thresholds = null`. Bila jarak sel–pos `glofas_cell.offset_km` > 10 km, detail stasiun menyebutnya.
+
 ## 3. Indikator drainase (genangan hujan lokal)
 Kategori intensitas hujan harian BMKG (Kepala BMKG, dikutip SINDOnews 28 Des 2022): lebat 50–100 mm, sangat lebat 100–150 mm, ekstrem > 150 mm per 24 jam.
 
@@ -66,7 +70,7 @@ Kategori intensitas hujan harian BMKG (Kepala BMKG, dikutip SINDOnews 28 Des 202
 | Sangat tinggi | ≥ 100 mm |
 | Ekstrem | > 150 mm |
 
-Hujan 24 jam = jumlah presipitasi per jam model Open-Meteo di koordinat pos. Bila ada ≥ 1 laporan banjir warga PetaBencana dalam radius 10 km selama 24 jam terakhir, level drainase minimal Tinggi.
+Hujan 24 jam = jumlah presipitasi per jam model Open-Meteo di koordinat pos. Bila ada ≥ 1 laporan banjir warga PetaBencana berstatus `confirmed` atau `verified` dalam radius 10 km selama 24 jam terakhir, level drainase minimal Tinggi (`nearby_reports_24h` menghitung laporan semacam itu). Laporan belum dikonfirmasi tetap tampil di peta tetapi tidak menaikkan level.
 
 ## 4. Level stasiun dan mekanisme
 `level = max(level sungai, level drainase)`, dengan satu pengecualian: bila level sungai `unknown` dan level drainase di bawah Tinggi, level stasiun tetap `unknown` (tidak ditampilkan sebagai Normal). `mechanism` = komponen penentu (`fluvial_basin` bila sungai ≥ drainase, selain itu `urban_pluvial`).

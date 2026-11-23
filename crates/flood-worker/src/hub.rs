@@ -21,8 +21,9 @@ use worker::*;
 
 const SNAPSHOT_KEY: &str = "live-v2";
 const STALE_MS: i64 = 20 * 60 * 1000;
-const MANUAL_COOLDOWN_MS: i64 = 60 * 1000;
 const PUSH_COOLDOWN_MS: i64 = 6 * 3600 * 1000;
+/// Dorongan ntfy per siklus ingest (≈ 20 per jam bila cron */15).
+const PUSH_PER_CYCLE: usize = 5;
 const MIN_MS: i64 = 60 * 1000;
 
 /// Jadwal per sumber. Cron `*/15` memicu ingest; sumber hanya diambil bila sudah jatuh tempo.
@@ -191,6 +192,8 @@ impl DurableObject for FloodHub {
                 ip_hash TEXT NOT NULL,
                 ts_ms INTEGER NOT NULL
             );",
+            // Level tertinggi pada dorongan terakhir: kenaikan level menembus masa jeda.
+            "ALTER TABLE subscriptions ADD COLUMN last_level TEXT NOT NULL DEFAULT '';",
             // Migrasi v1 → v2: level lama (Waspada/Siaga/Awas) dipetakan ke level indikasi baru.
             "UPDATE subscriptions SET min_level = 'high' WHERE min_level NOT IN ('high', 'very_high', 'extreme');",
             "DELETE FROM snapshots WHERE key <> 'live-v2';",
@@ -205,31 +208,17 @@ impl DurableObject for FloodHub {
         let url = req.url()?;
         let path = url.path().to_string();
 
-        match (req.method(), path.as_str()) {
+        // HEAD diperlakukan seperti GET; runtime Workers membuang badan respons HEAD.
+        let method = match req.method() {
+            Method::Head => Method::Get,
+            other => other,
+        };
+        match (method, path.as_str()) {
             (Method::Post, "/internal/ingest") => {
                 let snap = self.run_ingest().await?;
                 self.ensure_alarm_scheduled().await;
                 Response::from_json(&serde_json::json!({
                     "ok": true,
-                    "generated_at_utc": snap.generated_at_utc,
-                    "upstream": snap.upstream,
-                }))
-            }
-            (Method::Post, "/api/ingest") => {
-                let now_ms = now_ms();
-                if let Some((_ts, last_ms, _)) = self.load_raw_snapshot()? {
-                    if now_ms - last_ms < MANUAL_COOLDOWN_MS {
-                        return Response::from_json(&serde_json::json!({
-                            "ok": true,
-                            "cached": true,
-                            "message": "Ingest baru saja berjalan (<60 detik lalu)."
-                        }));
-                    }
-                }
-                let snap = self.run_ingest().await?;
-                Response::from_json(&serde_json::json!({
-                    "ok": true,
-                    "cached": false,
                     "generated_at_utc": snap.generated_at_utc,
                     "upstream": snap.upstream,
                 }))
@@ -311,6 +300,13 @@ impl DurableObject for FloodHub {
                 Ok(resp)
             }
             (Method::Post, "/api/alerts/subscribe") => {
+                let is_json = req
+                    .headers()
+                    .get("content-type")?
+                    .is_some_and(|ct| ct.to_ascii_lowercase().starts_with("application/json"));
+                if !is_json {
+                    return Response::error("Content-Type harus application/json", 415);
+                }
                 let ip = req.headers().get("cf-connecting-ip")?.unwrap_or_default();
                 let body: AlertSubscriptionReq = match req.json().await {
                     Ok(b) => b,
@@ -555,7 +551,10 @@ impl FloodHub {
             let (hydrograph, today_idx) = build_hydrograph(series.as_ref(), w.as_ref(), &today);
             let nearby = reports
                 .iter()
-                .filter(|r| haversine_km(st.lat, st.lon, r.lat, r.lon) <= REPORT_RADIUS_KM)
+                .filter(|r| {
+                    r.is_verified()
+                        && haversine_km(st.lat, st.lon, r.lat, r.lon) <= REPORT_RADIUS_KM
+                })
                 .count() as u32;
             stations.push(evaluate_station(
                 st,
@@ -701,7 +700,9 @@ impl FloodHub {
             "DELETE FROM sub_rate WHERE ts_ms < ?;",
             Some(vec![((now - 3600 * 1000) as f64).into()]),
         );
-        let ip_hash = hash_ip(ip, &iso_from_ms(now)[..10]);
+        // Garam bulanan: baris sub_rate dihapus setelah 1 jam, jadi hash tidak dapat dikaitkan
+        // antarwaktu, dan batas per jam tidak lagi tereset setiap 00.00 UTC.
+        let ip_hash = hash_ip(ip, &iso_from_ms(now)[..7]);
         let recent = count(
             &sql,
             "SELECT COUNT(*) AS n FROM sub_rate WHERE ip_hash = ?;",
@@ -724,9 +725,14 @@ impl FloodHub {
             "SELECT COUNT(*) AS n FROM subscriptions WHERE topic = ?;",
             vec![topic.clone().into()],
         ) > 0;
-        if !exists
-            && count(&sql, "SELECT COUNT(*) AS n FROM subscriptions;", vec![]) >= SUB_MAX_TOTAL
-        {
+        if exists {
+            // Tanpa autentikasi, mengubah langganan topik yang sudah ada dapat dipakai pihak lain.
+            return Response::error(
+                "Topik sudah terdaftar. Gunakan topik lain yang sulit ditebak.",
+                409,
+            );
+        }
+        if count(&sql, "SELECT COUNT(*) AS n FROM subscriptions;", vec![]) >= SUB_MAX_TOTAL {
             return Response::error(
                 "Kuota langganan penuh. Gunakan feed RSS sebagai alternatif.",
                 503,
@@ -734,8 +740,7 @@ impl FloodHub {
         }
         sql.exec(
             "INSERT INTO subscriptions (topic, region, min_level, created_at, last_sent_ms)
-             VALUES (?, ?, ?, ?, 0)
-             ON CONFLICT(topic) DO UPDATE SET region = excluded.region, min_level = excluded.min_level;",
+             VALUES (?, ?, ?, ?, 0);",
             Some(vec![
                 topic.clone().into(),
                 region.clone().into(),
@@ -745,7 +750,7 @@ impl FloodHub {
         )?;
 
         let mut test_pushed = false;
-        if body.send_test && !exists {
+        if body.send_test {
             let msg = format!(
                 "Langganan aktif untuk {region}, level {} ke atas. Pesan ini berisi indikasi model, bukan peringatan resmi.",
                 min_level.label_id().to_lowercase()
@@ -769,7 +774,6 @@ impl FloodHub {
             "topic": topic,
             "region": region,
             "min_level": min_level,
-            "updated": exists,
             "test_pushed": test_pushed,
             "ntfy_url": format!("https://ntfy.sh/{topic}"),
             "rss_url": format!("{base}/api/alerts.rss{rss_region}"),
@@ -783,12 +787,19 @@ impl FloodHub {
             region: String,
             min_level: String,
             last_sent_ms: i64,
+            last_level: String,
+        }
+        struct Pending {
+            topic: String,
+            region: String,
+            top: IndicatorLevel,
+            hits: Vec<String>,
         }
         let sql = self.state.storage().sql();
         let rows: Vec<SubRow> = match sql
             .exec(
-                "SELECT topic, region, min_level, last_sent_ms FROM subscriptions WHERE last_sent_ms < ? ORDER BY last_sent_ms LIMIT 30;",
-                Some(vec![((now - PUSH_COOLDOWN_MS) as f64).into()]),
+                "SELECT topic, region, min_level, last_sent_ms, last_level FROM subscriptions ORDER BY last_sent_ms;",
+                None,
             )
             .and_then(|c| c.to_array())
         {
@@ -796,14 +807,10 @@ impl FloodHub {
             Err(_) => return,
         };
 
-        let mut sent = 0usize;
+        // Kandidat: ada indikasi di wilayah pelanggan, di luar masa jeda 6 jam atau levelnya
+        // naik sejak dorongan terakhir. Level tertinggi dikirim lebih dulu.
+        let mut pending: Vec<Pending> = Vec::new();
         for sub in rows {
-            if sent >= 5 {
-                break;
-            }
-            if now - sub.last_sent_ms < PUSH_COOLDOWN_MS {
-                continue;
-            }
             let min_lvl = IndicatorLevel::from_slug(&sub.min_level)
                 .filter(|l| l.is_elevated())
                 .unwrap_or(IndicatorLevel::High);
@@ -815,36 +822,73 @@ impl FloodHub {
                     || prov.to_lowercase().contains(&rf)
                     || isl.to_lowercase().contains(&rf)
             };
-            let mut hits: Vec<String> = snapshot
+            let mut st_hits: Vec<&StationTelemetry> = snapshot
                 .stations
                 .iter()
                 .filter(|s| s.level >= min_lvl && region_match(&s.province, &s.island))
+                .collect();
+            st_hits.sort_by_key(|s| std::cmp::Reverse(s.level));
+            let mut rob_hits: Vec<&CoastalRobTelemetry> = snapshot
+                .coastal_rob
+                .iter()
+                .filter(|r| r.level >= min_lvl && region_match(&r.province, &r.island))
+                .collect();
+            rob_hits.sort_by_key(|r| std::cmp::Reverse(r.level));
+            let top = st_hits
+                .iter()
+                .map(|s| s.level)
+                .chain(rob_hits.iter().map(|r| r.level))
+                .max();
+            let Some(top) = top else {
+                continue;
+            };
+            let cooling = now - sub.last_sent_ms < PUSH_COOLDOWN_MS;
+            let escalated =
+                IndicatorLevel::from_slug(&sub.last_level).is_some_and(|prev| top > prev);
+            if cooling && !escalated {
+                continue;
+            }
+            let mut hits: Vec<String> = st_hits
+                .iter()
                 .take(3)
                 .map(|s| format!("[{}] {} — {}", s.level.label_id(), s.name, s.level_reason))
                 .collect();
             hits.extend(
-                snapshot
-                    .coastal_rob
+                rob_hits
                     .iter()
-                    .filter(|r| r.level >= min_lvl && region_match(&r.province, &r.island))
                     .take(2)
                     .map(|r| format!("[Rob · {}] {}", r.level.label_id(), r.name)),
             );
-            if hits.is_empty() {
-                continue;
+            pending.push(Pending {
+                topic: sub.topic,
+                region: sub.region,
+                top,
+                hits,
+            });
+        }
+        pending.sort_by_key(|p| std::cmp::Reverse(p.top));
+
+        let mut sent = 0usize;
+        for p in pending {
+            if sent >= PUSH_PER_CYCLE {
+                break;
             }
             let body = format!(
                 "{}\nIndikasi model, bukan peringatan resmi. Ikuti BPBD dan BMKG setempat.\nhttps://flood.transbulent.id/",
-                hits.join("\n")
+                p.hits.join("\n")
             );
-            let title = format!("Indikasi banjir ({})", sub.region);
-            if send_ntfy_push(&sub.topic, &title, &body, "default")
+            let title = format!("Indikasi banjir ({})", p.region);
+            if send_ntfy_push(&p.topic, &title, &body, "default")
                 .await
                 .is_ok()
             {
                 let _ = sql.exec(
-                    "UPDATE subscriptions SET last_sent_ms = ? WHERE topic = ?;",
-                    Some(vec![(now as f64).into(), sub.topic.into()]),
+                    "UPDATE subscriptions SET last_sent_ms = ?, last_level = ? WHERE topic = ?;",
+                    Some(vec![
+                        (now as f64).into(),
+                        p.top.slug().into(),
+                        p.topic.into(),
+                    ]),
                 );
                 sent += 1;
             }
@@ -1214,11 +1258,11 @@ fn count(sql: &SqlStorage, q: &str, params: Vec<SqlStorageValue>) -> i64 {
     .unwrap_or(0)
 }
 
-/// Hash IP + tanggal UTC. IP mentah tidak pernah disimpan; baris dihapus setelah 1 jam.
-fn hash_ip(ip: &str, day: &str) -> String {
+/// Hash IP + bulan UTC. IP mentah tidak pernah disimpan; baris dihapus setelah 1 jam.
+fn hash_ip(ip: &str, month: &str) -> String {
     let mut h = Sha256::new();
     h.update(b"hidrosentinel-sub-rate|");
-    h.update(day.as_bytes());
+    h.update(month.as_bytes());
     h.update(b"|");
     h.update(ip.as_bytes());
     h.finalize()

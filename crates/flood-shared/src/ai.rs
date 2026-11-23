@@ -35,6 +35,26 @@ pub fn sanitize_region(raw: &str) -> String {
     kept.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// `2026-11-22T13:51:00Z` → `22 Nov 2026, 20.51 WIB`; teks asli bila tidak dapat diurai.
+fn wib_label(iso_utc: &str) -> String {
+    const MONTHS: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+    ];
+    let Some(ts) = crate::rss::parse_iso8601(iso_utc) else {
+        return iso_utc.to_string();
+    };
+    let wib = crate::rss::epoch_to_iso(ts + 7 * 3600);
+    let month: usize = wib[5..7].parse().unwrap_or(1);
+    format!(
+        "{} {} {}, {}.{} WIB",
+        wib[8..10].trim_start_matches('0'),
+        MONTHS[month.clamp(1, 12) - 1],
+        &wib[0..4],
+        &wib[11..13],
+        &wib[14..16]
+    )
+}
+
 pub fn generate_briefing(
     snapshot: &FloodSnapshot,
     region_filter: &str,
@@ -233,7 +253,12 @@ pub fn generate_briefing(
                 st.id,
                 st.level.slug(),
                 st.mechanism.slug(),
-                st.current_discharge_m3s,
+                // Debit sel yang belum terkalibrasi bukan debit sungai ini.
+                if st.thresholds.is_some() {
+                    st.current_discharge_m3s.to_string()
+                } else {
+                    "null".into()
+                },
                 st.ratio_q2
                     .map(|r| r.to_string())
                     .unwrap_or_else(|| "null".into()),
@@ -246,22 +271,29 @@ pub fn generate_briefing(
     }
     if priority_actions.is_empty() {
         if let Some(t) = stations.iter().find(|s| s.ratio_q2.is_some()) {
+            let ratio = t.ratio_q2.unwrap_or(0.0);
+            // Tren relatif 1 hari hanya bermakna bila debit sudah berarti terhadap Q2.
+            let trend = if ratio >= 0.5 {
+                format!(", tren {} (relatif 1 hari)", t.trend.label().to_lowercase())
+            } else {
+                String::new()
+            };
             priority_actions.push(format!(
-                "Rasio Q/Q2 tertinggi: {} ({} m³/s, {}× Q2, tren {}).",
+                "Rasio Q/Q2 tertinggi: {} ({} m³/s, {}× Q2{trend}).",
                 t.name,
                 fmt_num(t.current_discharge_m3s),
-                fmt_dec(t.ratio_q2.unwrap_or(0.0), 2),
-                t.trend.label().to_lowercase()
+                fmt_dec(ratio, 2)
             ));
         }
     }
 
     let mut md = format!(
-        "# Ringkasan banjir — {scope_label}\n\n**{headline}**\n\n- Waktu data (UTC): `{}`\n- Pembaca: {}\n- Mekanisme: {}\n\n{}\n\n## Poin utama\n",
+        "# Ringkasan banjir — {scope_label}\n\n**{headline}**\n\n- Waktu data: {wib} (`{}` UTC)\n- Pembaca: {}\n- Mekanisme: {}\n\n{}\n\n## Poin utama\n",
         snapshot.generated_at_utc,
         audience.label(),
         mechanism_breakdown,
-        sitrep_summary
+        sitrep_summary,
+        wib = wib_label(&snapshot.generated_at_utc)
     );
     for act in &priority_actions {
         md.push_str(&format!("- {act}\n"));

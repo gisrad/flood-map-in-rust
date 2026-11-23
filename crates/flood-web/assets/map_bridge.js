@@ -196,6 +196,15 @@ function makeIcon(shape, level, theme) {
   const ctx = canvas.getContext('2d');
   const c = size / 2;
   const r = shape === 'drop' ? 7 * ratio : 8 * ratio;
+  // Level tidak hanya dikodekan warna: cincin luar makin tebal untuk Tinggi, Sangat tinggi, Ekstrem.
+  const ringSteps = { high: 1, very_high: 2, extreme: 3 }[level] || 0;
+  if (ringSteps > 0) {
+    shapePath(ctx, shape, c, r);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = (2 + 1.2 * ringSteps) * ratio;
+    ctx.strokeStyle = theme === 'dark' ? '#E8EEF1' : '#0E1C24';
+    ctx.stroke();
+  }
   shapePath(ctx, shape, c, r);
   ctx.fillStyle = LEVEL_COLORS[level];
   ctx.fill();

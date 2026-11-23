@@ -12,8 +12,10 @@ pub fn parse_bmkg_nowcast_rss(xml: &str) -> Vec<BmkgNowcast> {
         }
         let province = infer_bmkg_province(&title);
         let desc = clean_whitespace(&strip_html_tags(&extract_tag(raw_item, "description")));
-        let summary: String = desc.chars().take(260).collect();
-        let link = extract_tag(raw_item, "link");
+        let summary = truncate_words(&desc, 260);
+        let link = Some(extract_tag(raw_item, "link"))
+            .filter(|l| l.starts_with("https://"))
+            .unwrap_or_default();
         let pub_date = extract_tag(raw_item, "pubDate");
         out.push(BmkgNowcast {
             title,
@@ -54,6 +56,35 @@ const FIGURATIVE_AFTER_BANJIR: &[&str] = &[
     "barang",
 ];
 
+/// Kata yang menandai berita pencegahan atau latihan, bukan kejadian banjir:
+/// "Aksi bersih sungai untuk antisipasi banjir luapan".
+const NON_EVENT_WORDS: &[&str] = &[
+    "antisipasi",
+    "mengantisipasi",
+    "simulasi",
+    "mitigasi",
+    "sosialisasi",
+    "edukasi",
+    "pelatihan",
+];
+
+/// Frasa kegiatan pencegahan. "bersih" saja tidak dipakai: "kesulitan air bersih" adalah
+/// dampak banjir sungguhan.
+const NON_EVENT_PHRASES: &[&str] = &["aksi bersih", "bersih sungai", "kerja bakti"];
+
+/// "rob" juga nama orang; dihitung hanya bila konteks pesisir/genangan ada di judul.
+const ROB_CONTEXT: &[&str] = &[
+    "pasang",
+    "pesisir",
+    "laut",
+    "genang",
+    "banjir",
+    "air",
+    "tanggul",
+    "warga",
+    "permukiman",
+];
+
 fn words(text: &str) -> Vec<String> {
     text.to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
@@ -63,10 +94,16 @@ fn words(text: &str) -> Vec<String> {
 }
 
 /// Judul berita dianggap tentang banjir bila memuat banjir (bukan kiasan), banjir bandang,
-/// rob, genangan, luapan/meluap, atau tanggul jebol.
+/// rob (dengan konteks pesisir), genangan, luapan/meluap, atau tanggul jebol. Judul
+/// pencegahan/latihan (`NON_EVENT_WORDS`) ditolak.
 pub fn is_flood_headline(title: &str) -> bool {
     let w = words(title);
     let lower = w.join(" ");
+    if w.iter().any(|x| NON_EVENT_WORDS.contains(&x.as_str()))
+        || NON_EVENT_PHRASES.iter().any(|p| lower.contains(p))
+    {
+        return false;
+    }
     for (i, word) in w.iter().enumerate() {
         match word.as_str() {
             "banjir" | "kebanjiran" => {
@@ -81,7 +118,8 @@ pub fn is_flood_headline(title: &str) -> bool {
                 }
                 return true;
             }
-            "rob" | "genangan" | "tergenang" | "luapan" | "meluap" => return true,
+            "rob" if ROB_CONTEXT.iter().any(|c| lower.contains(c)) => return true,
+            "genangan" | "tergenang" | "luapan" | "meluap" => return true,
             _ => {}
         }
     }
@@ -95,7 +133,7 @@ pub fn parse_flood_news(xml: &str, default_source: &str, now_epoch_s: i64) -> Ve
     for raw_item in split_items(xml).into_iter().take(60) {
         let title = clean_whitespace(&strip_html_tags(&extract_tag(raw_item, "title")));
         let link = extract_tag(raw_item, "link");
-        if title.is_empty() || link.is_empty() || !is_flood_headline(&title) {
+        if title.is_empty() || !link.starts_with("https://") || !is_flood_headline(&title) {
             continue;
         }
         let Some(ts) = parse_rss_date(&extract_tag(raw_item, "pubDate")) else {
@@ -254,6 +292,41 @@ pub fn epoch_to_iso(ts: i64) -> String {
     )
 }
 
+/// Potong pada batas kata bila lebih panjang dari `max` karakter dan tambahkan "…".
+fn truncate_words(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        return s.to_string();
+    }
+    let cut: String = s.chars().take(max).collect();
+    let cut = match cut.rfind(char::is_whitespace) {
+        Some(pos) => cut[..pos].to_string(),
+        None => cut,
+    };
+    format!(
+        "{}…",
+        cut.trim_end_matches(|c: char| c.is_ascii_punctuation() || c.is_whitespace())
+    )
+}
+
+/// Detik epoch UTC → RFC 2822 (`Sun, 22 Nov 2026 13:51:00 GMT`) untuk `<pubDate>` RSS.
+pub fn epoch_to_rfc2822(ts: i64) -> String {
+    const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const MONTHS: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    let iso = epoch_to_iso(ts);
+    let days = ts.div_euclid(86400);
+    let weekday = DAYS[(days + 4).rem_euclid(7) as usize];
+    let month: usize = iso[5..7].parse().unwrap_or(1);
+    format!(
+        "{weekday}, {} {} {} {} GMT",
+        &iso[8..10],
+        MONTHS[month.clamp(1, 12) - 1],
+        &iso[0..4],
+        &iso[11..19]
+    )
+}
+
 const RSS_DISCLAIMER: &str =
     "Indikasi model, bukan peringatan resmi. Ikuti informasi BPBD, BMKG, dan BBWS setempat.";
 
@@ -270,11 +343,14 @@ pub fn build_alerts_rss_xml(
             || prov.to_lowercase().contains(&rf)
             || island.to_lowercase().contains(&rf)
     };
-    let item = |title: &str, link: &str, guid: &str, desc: &str| {
+    let generated_ts = parse_iso8601(&snapshot.generated_at_utc).unwrap_or(0);
+    let generated_rfc = epoch_to_rfc2822(generated_ts);
+    let item = |title: &str, link: &str, guid: &str, pub_date: &str, desc: &str| {
         format!(
-            "    <item>\n      <title>{}</title>\n      <link>{}</link>\n      <guid isPermaLink=\"false\">{}</guid>\n      <description>{}</description>\n    </item>\n",
+            "    <item>\n      <title>{}</title>\n      <link>{}</link>\n      <pubDate>{}</pubDate>\n      <guid isPermaLink=\"false\">{}</guid>\n      <description>{}</description>\n    </item>\n",
             xml_escape(title),
             xml_escape(link),
+            xml_escape(pub_date),
             xml_escape(guid),
             xml_escape(desc)
         )
@@ -288,13 +364,14 @@ pub fn build_alerts_rss_xml(
     {
         items_xml.push_str(&item(
             &format!("[{}] {} ({})", st.level.label_id(), st.name, st.province),
-            &format!("{base_url}/?basin={}", st.id),
+            &format!("{base_url}/?s={}", st.id),
             &format!(
                 "{}-{}-{}",
                 st.id,
                 st.level.slug(),
                 snapshot.generated_at_utc
             ),
+            &generated_rfc,
             &format!(
                 "{} — {} {RSS_DISCLAIMER}",
                 st.mechanism.label_id(),
@@ -314,13 +391,14 @@ pub fn build_alerts_rss_xml(
                 rb.name,
                 rb.province
             ),
-            &format!("{base_url}/?basin={}", rb.id),
+            &format!("{base_url}/?s={}", rb.id),
             &format!(
                 "{}-{}-{}",
                 rb.id,
                 rb.level.slug(),
                 snapshot.generated_at_utc
             ),
+            &generated_rfc,
             &format!("{} {RSS_DISCLAIMER}", rb.level_reason),
         ));
     }
@@ -337,12 +415,15 @@ pub fn build_alerts_rss_xml(
     {
         items_xml.push_str(&item(
             &format!("[Nowcast BMKG] {}", nc.title),
-            if nc.link.is_empty() {
-                base_url
+            "https://www.bmkg.go.id/peringatan-dini",
+            &if nc.link.is_empty() {
+                format!("bmkg-{}-{}", nc.title, nc.pub_date)
             } else {
-                &nc.link
+                nc.link.clone()
             },
-            &format!("bmkg-{}", nc.title),
+            &parse_rss_date(&nc.pub_date)
+                .map(epoch_to_rfc2822)
+                .unwrap_or_else(|| generated_rfc.clone()),
             &nc.summary,
         ));
     }
@@ -466,6 +547,13 @@ fn infer_region_hint(text: &str) -> String {
             "Jawa",
             &[
                 "jakarta",
+                "pejaten",
+                "pesanggrahan",
+                "kemang",
+                "kampung melayu",
+                "bukit duri",
+                "cipinang",
+                "cawang",
                 "jabodetabek",
                 "bogor",
                 "depok",

@@ -242,7 +242,7 @@ fn bmkg_block(snap: &FloodSnapshot, limit: usize) -> AnyView {
                 view! {
                     <div class="chip-wrap">
                         {items.into_iter().map(|nc| view! {
-                            <a class="bmkg-chip" href=nc.link target="_blank" rel="noopener" title=nc.summary>{nc.province}</a>
+                            <a class="bmkg-chip" href="https://www.bmkg.go.id/peringatan-dini" target="_blank" rel="noopener" title=nc.summary>{nc.province}</a>
                         }).collect_view()}
                     </div>
                 }.into_any()

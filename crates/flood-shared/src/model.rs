@@ -118,6 +118,8 @@ impl Audience {
     }
 }
 
+/// Kecenderungan relatif debit simulasi satu hari (kemarin → hari ini → besok); bukan ambang
+/// dan tidak menunjukkan tingkat bahaya. Pengenal `naik_tajam` dipertahankan demi kompatibilitas API.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Trend {
@@ -130,7 +132,7 @@ pub enum Trend {
 impl Trend {
     pub fn label(self) -> &'static str {
         match self {
-            Self::NaikTajam => "Naik Tajam",
+            Self::NaikTajam => "Naik cepat",
             Self::Naik => "Naik",
             Self::Stabil => "Stabil",
             Self::Surut => "Surut",
@@ -241,6 +243,7 @@ pub struct StationTelemetry {
     pub rain_next_24h_mm: f64,
     pub soil_moisture_top: f64,
     pub soil_moisture_deep: f64,
+    /// Laporan banjir warga berstatus `confirmed`/`verified` dalam radius 10 km/24 jam.
     pub nearby_reports_24h: u32,
     pub fluvial_level: IndicatorLevel,
     pub pluvial_level: IndicatorLevel,
@@ -297,6 +300,16 @@ pub struct CitizenReport {
     pub disaster_type: String,
     #[serde(default)]
     pub url: Option<String>,
+}
+
+impl CitizenReport {
+    /// Hanya laporan yang sudah dikonfirmasi/diverifikasi yang menaikkan level drainase.
+    pub fn is_verified(&self) -> bool {
+        matches!(
+            self.status.trim().to_ascii_lowercase().as_str(),
+            "confirmed" | "verified"
+        )
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

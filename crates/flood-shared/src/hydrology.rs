@@ -110,7 +110,8 @@ pub fn rain_category_id(mm_24h: f64) -> &'static str {
 }
 
 /// Level drainase: maksimum dari hujan 24 jam terakhir dan 24 jam ke depan;
-/// ≥1 laporan banjir warga dalam radius 10 km/24 jam menaikkan level minimal ke `high`.
+/// ≥1 laporan banjir warga terverifikasi (`confirmed`/`verified`) dalam radius 10 km/24 jam
+/// menaikkan level minimal ke `high`. Laporan belum dikonfirmasi tidak dihitung.
 pub fn pluvial_level(
     rain_24h_mm: f64,
     rain_next_24h_mm: f64,
@@ -388,7 +389,7 @@ fn station_reason(
         }
         if inp.nearby_reports_24h > 0 {
             parts.push(format!(
-                "{} laporan banjir warga dalam radius {} km pada 24 jam terakhir.",
+                "{} laporan banjir warga terverifikasi dalam radius {} km pada 24 jam terakhir.",
                 inp.nearby_reports_24h, REPORT_RADIUS_KM as u32
             ));
         }

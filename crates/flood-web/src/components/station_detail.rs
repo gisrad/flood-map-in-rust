@@ -264,6 +264,29 @@ pub fn StationDetail(
     };
 
     let id_share = st.id.clone();
+    // Debit sel yang belum terkalibrasi bukan debit sungai di pos ini: tidak ditampilkan.
+    let calibrated = st.thresholds.is_some();
+    let q_unit = if calibrated { " m³/s" } else { "" };
+    let q_now = if calibrated {
+        fmt_q(st.current_discharge_m3s)
+    } else {
+        "–".to_string()
+    };
+    let q_peak = if calibrated {
+        fmt_q(st.peak_forecast_m3s)
+    } else {
+        "–".to_string()
+    };
+    let offset_note = st
+        .glofas_cell
+        .as_ref()
+        .filter(|c| c.offset_km > 10.0)
+        .map(|c| {
+            format!(
+                "Sel model GloFAS berjarak {} km dari pos; indikasi sungai dapat berbeda dari kondisi di pos.",
+                fmt_num(c.offset_km, 0)
+            )
+        });
     let floodhub = format!(
         "https://sites.research.google/floods/l/{:.4}/{:.4}/11",
         st.lat, st.lon
@@ -281,13 +304,14 @@ pub fn StationDetail(
                 <span class="muted">{st.mechanism.label_id()}</span>
             </div>
             <p class="reason">{st.level_reason.clone()}</p>
+            {offset_note.map(|n| view! { <p class="muted">{n}</p> })}
 
             {if replay {
                 view! {
                     <div class="metrics">
                         <div class="metric">
                             <span class="m-lbl">"Debit simulasi"</span>
-                            <b class="m-val">{fmt_q(st.current_discharge_m3s)}<small>" m³/s"</small></b>
+                            <b class="m-val">{q_now.clone()}<small>{q_unit}</small></b>
                             <span class="m-sub">{match (st.ratio_q2, st.thresholds.is_some()) {
                                 (Some(r), _) => format!("{} Q2", fmt_ratio(r)),
                                 (None, false) => "Sel belum terkalibrasi".into(),
@@ -307,7 +331,7 @@ pub fn StationDetail(
                     <div class="metrics">
                         <div class="metric">
                             <span class="m-lbl">"Debit simulasi hari ini"</span>
-                            <b class="m-val">{fmt_q(st.current_discharge_m3s)}<small>" m³/s"</small></b>
+                            <b class="m-val">{q_now.clone()}<small>{q_unit}</small></b>
                             <span class="m-sub">{match (st.ratio_q2, st.thresholds.is_some()) {
                                 (Some(r), _) => format!("{} Q2", fmt_ratio(r)),
                                 (None, false) => "Sel belum terkalibrasi".into(),
@@ -316,7 +340,7 @@ pub fn StationDetail(
                         </div>
                         <div class="metric">
                             <span class="m-lbl">"Puncak prakiraan 7 hari"</span>
-                            <b class="m-val">{fmt_q(st.peak_forecast_m3s)}<small>" m³/s"</small></b>
+                            <b class="m-val">{q_peak.clone()}<small>{q_unit}</small></b>
                             <span class="m-sub">{format!("{} · {}", fmt_day(&st.peak_forecast_date), lead_label(lead))}</span>
                         </div>
                         <div class="metric">
