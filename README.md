@@ -94,6 +94,13 @@ flowchart LR
 
 ---
 
+## Rilis
+
+Versi sumber saat ini: **0.2.0**. Catatan perubahan: [`CHANGELOG.md`](CHANGELOG.md); prosedur build, checksum, rilis draf dan deploy: [`docs/RELEASING.md`](docs/RELEASING.md).
+
+Artefak tahap ini adalah arsip sumber dan paket frontend web yang membutuhkan backend `/api/*`; **belum ada installer Linux/Windows/macOS atau APK Android**. Tag rilis harus lolos CI sebelum menghasilkan draf GitHub Release. Publikasi draf dan deploy produksi adalah langkah terpisah.
+
+
 ## Local Development & Deployment
 
 ### Prerequisites
@@ -107,10 +114,18 @@ flowchart LR
 
 ### Test & Check
 ```bash
-cargo test -p flood-shared
-cargo check -p flood-worker --target wasm32-unknown-unknown
-cargo check -p flood-web --target wasm32-unknown-unknown
+cargo test -p flood-shared -p flood-worker --locked
+cargo clippy -p flood-shared -p flood-worker --target wasm32-unknown-unknown --locked -- -D warnings
+cargo check -p flood-web --target wasm32-unknown-unknown --locked
 ```
+
+Setelah `trunk build --release`, jalankan smoke test tanpa akses API produksi:
+```bash
+npm ci
+npx playwright install chromium
+npm run test:e2e
+```
+Data sintetis hanya berada di `tests/e2e/`, tidak disalin ke `dist/`.
 
 ### Build & Deploy to Cloudflare Workers
 1. Copy `crates/flood-worker/wrangler.toml.example` to `crates/flood-worker/wrangler.toml` (gitignored) and fill your Cloudflare `account_id` and domain routes.
@@ -132,4 +147,4 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the horizontal Durable Object shard
 ## License & Attribution
 
 * Code: **MIT License** ([`LICENSE`](LICENSE)).
-* Open datasets & bundled assets: see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`CITATION.cff`](CITATION.cff).
+* Open datasets & bundled assets: see [`DATA_LICENSES.md`](DATA_LICENSES.md), [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`CITATION.cff`](CITATION.cff). Lisensi MIT kode tidak melisensikan ulang data pihak ketiga.

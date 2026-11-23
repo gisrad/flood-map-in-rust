@@ -10,3 +10,6 @@ node_modules/
 docs/qa-*
 *.log
 __pycache__/
+
+# Browser reports, screenshots and traces are never production assets.
+tests/e2e/results/

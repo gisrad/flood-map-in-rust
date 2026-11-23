@@ -1,0 +1,118 @@
+name: Source and web release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions: {}
+
+# Publishing is serialized repository-wide, including separate version tags.
+concurrency:
+  group: source-web-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      source-sha: ${{ steps.tag.outputs.source-sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact checked-out tag
+        id: tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "Invalid release tag" >&2; exit 1; }
+          commit=$(git rev-parse --verify "refs/tags/${TAG}^{commit}")
+          test "$commit" = "$(git rev-parse HEAD)"
+          echo "source-sha=$commit" >> "$GITHUB_OUTPUT"
+          python3 scripts/package_release.py --check-only --tag "$TAG" --rev "$commit"
+
+  ci:
+    needs: verify
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.verify.outputs.source-sha }}
+      no-cache: true
+
+  package:
+    needs: [verify, ci]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.verify.outputs.source-sha }}
+          persist-credentials: false
+      - name: Confirm build provenance
+        env:
+          VERIFIED_SHA: ${{ needs.verify.outputs.source-sha }}
+          TESTED_SHA: ${{ needs.ci.outputs.source-sha }}
+        run: test "$VERIFIED_SHA" = "$TESTED_SHA"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.ci.outputs.web-artifact }}
+          path: crates/flood-web/dist
+          digest-mismatch: error
+      - name: Package tracked source and tested frontend
+        env:
+          TAG: ${{ github.ref_name }}
+          VERIFIED_SHA: ${{ needs.verify.outputs.source-sha }}
+        run: python3 scripts/package_release.py --tag "$TAG" --rev "$VERIFIED_SHA" --dist crates/flood-web/dist
+      - name: Preserve release downloads and notes
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-bundle
+          path: |
+            target/release-assets/*
+            target/release-notes.md
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
+
+  draft:
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    # No checkout or repository script runs with this write-capable token.
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-bundle
+          path: target
+          digest-mismatch: error
+      - name: Create draft for maintainer review (never publish automatically)
+        working-directory: target/release-assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          sha256sum --check --strict SHA256SUMS
+          # Refuse to overwrite a published release or edits to an existing draft.
+          existing=$(gh api --paginate "repos/${GH_REPO}/releases" | jq -s --arg tag "$TAG" 'add | any(.tag_name == $tag)')
+          test "$existing" = false || { echo "Release/draft already exists; inspect it manually before retrying." >&2; exit 1; }
+          gh release create "$TAG" \
+            --repo "$GH_REPO" --verify-tag --draft --latest=false \
+            --title "Hidrosentinel Nusantara ${TAG}" \
+            --notes-file ../release-notes.md \
+            "flood-map-in-rust-${TAG}-web.zip" \
+            "flood-map-in-rust-${TAG}-source.tar.gz" SHA256SUMS
+          echo "Draft created for ${TAG}; review archives, checksums, licenses and limitations before publishing." >> "$GITHUB_STEP_SUMMARY"

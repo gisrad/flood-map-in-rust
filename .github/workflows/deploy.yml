@@ -1,0 +1,206 @@
+name: Deploy published release (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Exact published non-draft release tag (vMAJOR.MINOR.PATCH)
+        required: true
+        type: string
+      dry_run:
+        description: Build and bundle only; do not upload to Cloudflare
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  RUST_TOOLCHAIN: "1.97.1"
+  WORKER_BUILD_VERSION: "0.9.0"
+  WRANGLER_VERSION: "4.166.0"
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      source-sha: ${{ steps.tag.outputs.source-sha }}
+    steps:
+      - name: Require dispatch from main and an exact version tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main || { echo "Dispatch this workflow from main only" >&2; exit 1; }
+          [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "Invalid release tag" >&2; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify checked-out tag and published release
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          commit=$(git rev-parse --verify "refs/tags/${TAG}^{commit}")
+          test "$commit" = "$(git rev-parse HEAD)"
+          echo "source-sha=$commit" >> "$GITHUB_OUTPUT"
+          python3 scripts/package_release.py --check-only --tag "$TAG" --rev "$commit"
+          gh api "repos/${GH_REPO}/releases/tags/${TAG}" > "$RUNNER_TEMP/release.json"
+          jq --exit-status --arg tag "$TAG" '.tag_name == $tag and .draft == false and .prerelease == false and .published_at != null' "$RUNNER_TEMP/release.json"
+          mkdir -p "$RUNNER_TEMP/published-release"
+          gh release download "$TAG" --repo "$GH_REPO" --dir "$RUNNER_TEMP/published-release" \
+            --pattern "flood-map-in-rust-${TAG}-web.zip" --pattern SHA256SUMS
+          # Bind the release assets to the commit, not merely a possibly moved tag.
+          python3 - <<'PY'
+          import hashlib, os, pathlib, subprocess, zipfile
+          tag = os.environ["TAG"]
+          root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "published-release"
+          name = f"flood-map-in-rust-{tag}-web.zip"
+          matches = [line.split()[0] for line in (root / "SHA256SUMS").read_text().splitlines() if len(line.split()) == 2 and line.split()[1] == name]
+          with (root / name).open("rb") as stream:
+              actual = hashlib.file_digest(stream, "sha256").hexdigest()
+          if matches != [actual]:
+              raise SystemExit("Published web archive checksum mismatch")
+          commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          with zipfile.ZipFile(root / name) as archive:
+              notice = archive.read(f"flood-map-in-rust-{tag}-web/RELEASE_NOTICE.txt").decode("utf-8")
+          if f"Tag: {tag}" not in notice.splitlines() or f"Commit: {commit}" not in notice.splitlines():
+              raise SystemExit("Published package does not match checked-out tag commit")
+          PY
+
+  ci:
+    needs: verify
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.verify.outputs.source-sha }}
+      no-cache: true
+
+  deploy:
+    needs: [verify, ci]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    # Configure required reviewers/branch protections in GitHub separately.
+    environment: production
+    steps:
+      - name: Require explicit Cloudflare destination
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ZONE_NAME: ${{ vars.CLOUDFLARE_ZONE_NAME }}
+          CLOUDFLARE_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
+          FLOOD_HOSTNAME: ${{ vars.FLOOD_HOSTNAME }}
+          HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          for setting in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_ZONE_NAME CLOUDFLARE_WORKER_NAME FLOOD_HOSTNAME; do
+            test -n "${!setting}" || { echo "Missing production variable: $setting" >&2; exit 1; }
+          done
+          if test "$DRY_RUN" != true && test "$HAS_TOKEN" != true; then
+            echo "Missing production secret: CLOUDFLARE_API_TOKEN" >&2
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.verify.outputs.source-sha }}
+          persist-credentials: false
+      - name: Verify tested artifact commit
+        env:
+          VERIFIED_SHA: ${{ needs.verify.outputs.source-sha }}
+          TESTED_SHA: ${{ needs.ci.outputs.source-sha }}
+        run: test "$VERIFIED_SHA" = "$TESTED_SHA"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.ci.outputs.web-artifact }}
+          path: crates/flood-web/dist
+          digest-mismatch: error
+      - name: Install pinned Rust and worker-build
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target wasm32-unknown-unknown --no-self-update
+          rustup default "$RUST_TOOLCHAIN"
+          cargo install worker-build --version "$WORKER_BUILD_VERSION" --locked
+          cargo fetch --locked
+      - name: Build backend without deployment credentials
+        working-directory: crates/flood-worker
+        env:
+          CARGO_NET_OFFLINE: "true"
+        run: |
+          worker-build --release
+          git diff --exit-code -- ../../Cargo.lock
+          test -s build/worker/shim.mjs
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - name: Install pinned deploy CLI without credentials
+        run: npm install --prefix "$RUNNER_TEMP/wrangler" --no-audit --no-fund --save-exact "wrangler@${WRANGLER_VERSION}"
+      - name: Generate isolated deploy config from public example
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ZONE_NAME: ${{ vars.CLOUDFLARE_ZONE_NAME }}
+          CLOUDFLARE_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
+          FLOOD_HOSTNAME: ${{ vars.FLOOD_HOSTNAME }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re, tomllib
+          account = os.environ["CLOUDFLARE_ACCOUNT_ID"]
+          zone = os.environ["CLOUDFLARE_ZONE_NAME"].lower()
+          host = os.environ["FLOOD_HOSTNAME"].lower()
+          name = os.environ["CLOUDFLARE_WORKER_NAME"]
+          domain = r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}"
+          if not re.fullmatch(r"[0-9a-f]{32}", account) or account == "0" * 32:
+              raise SystemExit("Invalid Cloudflare account ID")
+          if not re.fullmatch(domain, zone) or not re.fullmatch(domain, host) or not (host == zone or host.endswith("." + zone)):
+              raise SystemExit("Hostname must belong to the configured zone")
+          if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}", name):
+              raise SystemExit("Invalid Cloudflare Worker name")
+          root = pathlib.Path("crates/flood-worker")
+          config = tomllib.loads((root / "wrangler.toml.example").read_text())
+          config.pop("build", None)  # Prebuilt, so no child build inherits the token.
+          config.update(name=name, account_id=account)
+          config["routes"] = [{"pattern": host + "/*", "zone_name": zone}, {"pattern": host, "custom_domain": True}]
+          if config["assets"]["directory"] != "../flood-web/dist" or config["main"] != "build/worker/shim.mjs":
+              raise SystemExit("Review deploy workflow after changing the public example's paths")
+          (root / "wrangler.ci.json").write_text(json.dumps(config, indent=2) + "\n")
+          PY
+      - name: Bundle only (dry run)
+        if: inputs.dry_run
+        working-directory: crates/flood-worker
+        env:
+          WRANGLER_SEND_METRICS: "false"
+          CI: "true"
+        run: '"$RUNNER_TEMP/wrangler/node_modules/.bin/wrangler" deploy --config wrangler.ci.json --dry-run --outdir "$RUNNER_TEMP/worker-dry-run"'
+      - name: Deploy explicitly approved release
+        if: ${{ !inputs.dry_run }}
+        working-directory: crates/flood-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+          CI: "true"
+        run: '"$RUNNER_TEMP/wrangler/node_modules/.bin/wrangler" deploy --config wrangler.ci.json'
+      - name: Record result and manual production checks
+        env:
+          TAG: ${{ inputs.tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          VERIFIED_SHA: ${{ needs.verify.outputs.source-sha }}
+        run: |
+          printf 'Tag: `%s`\n\nCommit: `%s`\n\nDry run: `%s`\n\n' "$TAG" "$VERIFIED_SHA" "$DRY_RUN" >> "$GITHUB_STEP_SUMMARY"
+          echo 'For an actual deploy, inspect desktop/mobile/replay/Riset, CSP headers and API freshness manually. Do not force ingest or send test notifications. See docs/RELEASING.md. No automatic rollback or database deletion is performed.' >> "$GITHUB_STEP_SUMMARY"

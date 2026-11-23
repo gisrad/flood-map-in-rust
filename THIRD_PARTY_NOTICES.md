@@ -1,5 +1,7 @@
 # Third-Party Notices & Data Sources
 
+Code is MIT; data/assets retain their own licenses. See [`DATA_LICENSES.md`](DATA_LICENSES.md) for file-level scope. Release archives carry this notice, `DATA_LICENSES.md`, the MIT license, MapLibre's BSD notice and the font's OFL notice. No raw GRDC daily time series or live API snapshots are packaged.
+
 ## Software Libraries
 - **Rust / Cargo Crates**: `leptos` (MIT), `worker` / `workers-rs` (Apache-2.0 / MIT), `serde` / `serde_json` (MIT / Apache-2.0), `wasm-bindgen` / `web-sys` / `js-sys` (MIT / Apache-2.0), `gloo-net` / `gloo-timers` (MIT / Apache-2.0).
 - **MapLibre GL JS v5**: BSD-3-Clause (`crates/flood-web/vendor/LICENSE.txt`).

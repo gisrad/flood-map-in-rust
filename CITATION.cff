@@ -6,8 +6,7 @@ authors:
   - family-names: "Fajrianshah"
     given-names: "Evans Azka"
     affiliation: "National Research and Innovation Agency (BRIN); Graduate School, Universitas Gadjah Mada"
-version: 0.1.0
-date-released: "2026-11-22"
+version: 0.2.0
 license: MIT
 url: "https://flood.transbulent.id"
 repository-code: "https://github.com/gisrad/flood-map-in-rust"
