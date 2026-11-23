@@ -2,7 +2,7 @@
 //! intensitas hujan BMKG), dan rob (persentil muka laut model setempat).
 
 use crate::calibration::{rob_calibration, station_calibration};
-use crate::crosscheck::{grrr_check, inundation_exposure};
+use crate::crosscheck::{gauge_check, grrr_check, inundation_exposure};
 use crate::model::{
     CoastalRobStatic, CoastalRobTelemetry, ExceedProb, FloodMechanism, FloodSummaryKpis,
     HydrographPoint, IndicatorLevel, LevelCounts, RiverThresholds, RobThresholds, StationStatic,
@@ -309,6 +309,7 @@ pub fn evaluate_station(st: &StationStatic, inp: StationInputs) -> StationTeleme
         academic_note,
         hydrograph: inp.hydrograph,
         grrr_check: calibrated.then(|| grrr_check(st.id).cloned()).flatten(),
+        gauge_check: calibrated.then(|| gauge_check(st.id).cloned()).flatten(),
         inundation_history: inundation_exposure(st.id),
     }
 }

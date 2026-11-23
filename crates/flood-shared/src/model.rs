@@ -257,6 +257,10 @@ pub struct StationTelemetry {
     /// Uji kewajaran silang Q2 GloFAS terhadap GRRR (Google). `null` bila stasiun belum terkalibrasi.
     #[serde(default)]
     pub grrr_check: Option<GrrrCheck>,
+    /// Rerata debit sel GloFAS dibanding rerata terukur pos duga air GRDC di sungai yang sama.
+    /// `null` bila tidak ada pos GRDC yang mewakili (lihat METODOLOGI §11).
+    #[serde(default)]
+    pub gauge_check: Option<GaugeCheck>,
     /// Riwayat genangan Google (1999–2020) dalam radius sekitar pos.
     #[serde(default)]
     pub inundation_history: Option<InundationExposure>,
@@ -348,6 +352,35 @@ pub struct GrrrCheck {
     /// Q2 GloFAS / Q2 titik GRRR terdekat besarannya.
     #[serde(default)]
     pub ratio_q2: Option<f64>,
+}
+
+/// Putusan rasio rerata debit sel GloFAS / rerata terukur GRDC yang diskalakan ke luas DAS katalog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GaugeVerdict {
+    /// Rasio dalam 1/1,5–1,5.
+    Consistent,
+    GlofasHigh,
+    GlofasLow,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GaugeCheck {
+    pub grdc_no: u32,
+    /// Sungai · pos menurut katalog GRDC.
+    pub gauge: String,
+    /// Jarak pos GRDC–pos katalog; `null` bila koordinat GRDC tidak andal.
+    #[serde(default)]
+    pub distance_km: Option<f64>,
+    pub gauge_area_km2: f64,
+    pub gauge_mean_m3s: f64,
+    pub gauge_years: String,
+    /// Luas DAS katalog / luas DAS pos GRDC.
+    pub area_ratio: f64,
+    pub scaled_mean_m3s: f64,
+    pub cell_mean_m3s: f64,
+    pub ratio: f64,
+    pub verdict: GaugeVerdict,
 }
 
 /// Luas (km²) dalam radius yang tampak basah menurut citra satelit 1999–2020; kelas bersarang

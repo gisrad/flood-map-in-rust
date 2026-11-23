@@ -6,8 +6,8 @@ use crate::format::{
     parse_utc_ms, tz_label,
 };
 use flood_shared::model::{
-    Audience, CoastalRobTelemetry, FloodMechanism, GrrrCheck, GrrrVerdict, InundationExposure,
-    StationTelemetry,
+    Audience, CoastalRobTelemetry, FloodMechanism, GaugeCheck, GaugeVerdict, GrrrCheck,
+    GrrrVerdict, InundationExposure, StationTelemetry,
 };
 use leptos::prelude::*;
 use serde::Deserialize;
@@ -184,6 +184,32 @@ fn grrr_facts(g: &GrrrCheck) -> impl IntoView {
     }
 }
 
+/// Baris lensa Riset: rerata debit sel dibanding rerata terukur pos duga air GRDC.
+fn gauge_facts(g: &GaugeCheck) -> impl IntoView {
+    let verdict = match g.verdict {
+        GaugeVerdict::Consistent => "Sel GloFAS sesuai besaran sungai menurut pos duga air (rerata debit; periode berbeda)",
+        GaugeVerdict::GlofasHigh => "Rerata sel lebih dari 1,5× rerata terukur: sel mungkin mewakili DAS lebih besar atau model terlalu basah",
+        GaugeVerdict::GlofasLow => "Rerata sel kurang dari 1/1,5 rerata terukur: sel mungkin mewakili anak sungai atau model terlalu kering",
+    };
+    let where_ = match g.distance_km {
+        Some(d) => format!(
+            "{} · {} · {} km dari pos",
+            g.gauge,
+            g.gauge_years,
+            fmt_num(d, 0)
+        ),
+        None => format!("{} · {}", g.gauge, g.gauge_years),
+    };
+    view! {
+        <div><dt>"Pos duga air (GRDC)"</dt><dd>{where_}</dd></div>
+        <div><dt>"Rerata terukur"</dt><dd class="num">{format!(
+            "{} m³/s (DAS {} km²) → {} m³/s untuk DAS katalog",
+            fmt_q(g.gauge_mean_m3s), fmt_num(g.gauge_area_km2, 0), fmt_q(g.scaled_mean_m3s)
+        )}</dd></div>
+        <div><dt>"Sel / terukur"</dt><dd><span class="num">{fmt_ratio(g.ratio)}</span>{format!(" · {verdict}")}</dd></div>
+    }
+}
+
 #[component]
 pub fn StationDetail(
     station: StationTelemetry,
@@ -323,6 +349,7 @@ pub fn StationDetail(
                         })}
                         {st.ratio_q2.map(|r| view! { <div><dt>"Q / Q2"</dt><dd class="num">{fmt_ratio(r)}</dd></div> })}
                         {st.grrr_check.clone().map(|g| grrr_facts(&g))}
+                        {st.gauge_check.clone().map(|g| gauge_facts(&g))}
                         <div><dt>"Lengas tanah 0–7 / 28–100 cm"</dt><dd class="num">{format!("{} / {} m³/m³", fmt_num(st.soil_moisture_top, 2), fmt_num(st.soil_moisture_deep, 2))}</dd></div>
                     </dl>
                     <div class="btn-row">
@@ -376,6 +403,18 @@ pub fn StationDetail(
         GrrrVerdict::GlofasBelow => Some("Pembanding model Google (GRRR) memberi debit banjir 2 tahunan di sekitar pos yang jauh lebih tinggi; level sungai di sini perlu diverifikasi dengan pos duga air."),
         _ => None,
     });
+    let gauge_note = st.gauge_check.as_ref().and_then(|g| {
+        let how = match g.verdict {
+            GaugeVerdict::GlofasHigh => "terlalu tinggi",
+            GaugeVerdict::GlofasLow => "terlalu rendah",
+            GaugeVerdict::Consistent => return None,
+        };
+        Some(format!(
+            "Rerata debit model di sel ini {} rerata terukur pos duga air {} (GRDC); angka debit dapat {how}, sedangkan level tetap dihitung terhadap ambang model yang sama.",
+            fmt_ratio(g.ratio),
+            g.gauge
+        ))
+    });
     let floodhub = format!(
         "https://sites.research.google/floods/l/{:.4}/{:.4}/11",
         st.lat, st.lon
@@ -395,6 +434,7 @@ pub fn StationDetail(
             <p class="reason">{st.level_reason.clone()}</p>
             {offset_note.map(|n| view! { <p class="muted">{n}</p> })}
             {grrr_note.map(|n| view! { <p class="muted">{n}</p> })}
+            {gauge_note.map(|n| view! { <p class="muted">{n}</p> })}
 
             {if replay {
                 view! {

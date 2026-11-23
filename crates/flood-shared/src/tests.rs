@@ -705,6 +705,44 @@ fn grrr_crosscheck_is_consistent_with_current_calibration() {
 }
 
 #[test]
+fn gauge_validation_is_consistent_with_current_calibration_and_catalog() {
+    use crate::crosscheck::gauge_file;
+    use crate::model::GaugeVerdict;
+    let f = gauge_file();
+    assert!(!f.stations.is_empty());
+    for (id, chk) in &f.stations {
+        let st = RIVER_STATIONS
+            .iter()
+            .find(|s| s.id == id)
+            .unwrap_or_else(|| panic!("tidak ada di katalog: {id}"));
+        let cell = crate::calibration::station_calibration(id)
+            .filter(|c| c.accepted)
+            .and_then(|c| c.cell.as_ref())
+            .unwrap_or_else(|| panic!("{id}: sel tidak terkalibrasi"));
+        // Skrip harus dijalankan ulang bila kalibrasi sel atau luas DAS katalog berubah.
+        assert_eq!(chk.cell_mean_m3s, cell.mean_q_m3s, "{id}");
+        let area_ratio = st.basin_area_km2 as f64 / chk.gauge_area_km2;
+        assert!((chk.area_ratio - area_ratio).abs() < 0.006, "{id}");
+        assert!(
+            (1.0 / f.max_area_ratio..=f.max_area_ratio).contains(&area_ratio),
+            "{id}"
+        );
+        let ratio = cell.mean_q_m3s / (chk.gauge_mean_m3s * area_ratio);
+        assert!((chk.ratio - ratio).abs() < 0.006 + 0.002 * ratio, "{id}");
+        let expected = if ratio > f.tolerance {
+            GaugeVerdict::GlofasHigh
+        } else if ratio < 1.0 / f.tolerance {
+            GaugeVerdict::GlofasLow
+        } else {
+            GaugeVerdict::Consistent
+        };
+        assert_eq!(chk.verdict, expected, "{id}: rasio {ratio}");
+        let t = evaluate_station(st, StationInputs::default());
+        assert_eq!(t.gauge_check.as_ref(), Some(chk), "{id}");
+    }
+}
+
+#[test]
 fn inundation_exposure_covers_every_point_and_is_sane() {
     use crate::crosscheck::inundation_exposure;
     let ids = RIVER_STATIONS

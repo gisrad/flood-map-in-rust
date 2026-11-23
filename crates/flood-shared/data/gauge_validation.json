@@ -1,0 +1,137 @@
+{
+ "generated_at_utc": "2026-11-23T05:19:07Z",
+ "source": "The Global Runoff Data Centre, 56068 Koblenz, Germany (katalog stasiun GRDC, lta_discharge)",
+ "max_area_ratio": 3.0,
+ "tolerance": 1.5,
+ "summary": {
+  "n_pairs": 10,
+  "n_assessed": 5,
+  "verdicts": {
+   "consistent": 3,
+   "glofas_high": 2,
+   "glofas_low": 0
+  },
+  "islands": {
+   "Jawa": {
+    "n_gauges": 16,
+    "median_lps_km2": 58.0,
+    "n_large": 3,
+    "median_large_lps_km2": 25.7,
+    "assumption_lps_km2": 30.0
+   },
+   "Sulawesi": {
+    "n_gauges": 5,
+    "median_lps_km2": 28.1,
+    "n_large": 1,
+    "median_large_lps_km2": 21.5,
+    "assumption_lps_km2": 35.0
+   },
+   "Sumatera": {
+    "n_gauges": 5,
+    "median_lps_km2": 52.8,
+    "n_large": 1,
+    "median_large_lps_km2": 61.1,
+    "assumption_lps_km2": 40.0
+   }
+  }
+ },
+ "not_assessed": [
+  {
+   "id": "citarum-nanjung",
+   "gauge": "Ci Tarum · Majalaya",
+   "area_ratio": 9.73,
+   "calibrated": true
+  },
+  {
+   "id": "serayu-banyumas",
+   "gauge": "Kali Serayu · Banjarnegara",
+   "area_ratio": 5.26,
+   "calibrated": true
+  },
+  {
+   "id": "progo-bantul",
+   "gauge": "Kali Progo · Badran",
+   "area_ratio": 4.32,
+   "calibrated": true
+  },
+  {
+   "id": "way-sekampung",
+   "gauge": "Wai Sekampung · Kunyir",
+   "area_ratio": 6.67,
+   "calibrated": true
+  },
+  {
+   "id": "kampar-pelalawan",
+   "gauge": "Sungai Kampar Kiri · Lipat Kain",
+   "area_ratio": 7.14,
+   "calibrated": true
+  }
+ ],
+ "stations": {
+  "solo-bojonegoro": {
+   "grdc_no": 5141200,
+   "gauge": "Bengawan Solo · Bojonegoro",
+   "distance_km": 7.6,
+   "gauge_area_km2": 12804.0,
+   "gauge_mean_m3s": 361.19,
+   "gauge_years": "1983–1991",
+   "area_ratio": 1.23,
+   "scaled_mean_m3s": 445.7,
+   "cell_mean_m3s": 460.33,
+   "ratio": 1.03,
+   "verdict": "consistent"
+  },
+  "solo-sragen": {
+   "grdc_no": 5141201,
+   "gauge": "Bengawan Solo · Jurug",
+   "distance_km": 24.6,
+   "gauge_area_km2": 3207.0,
+   "gauge_mean_m3s": 82.39,
+   "gauge_years": "1975–2009",
+   "area_ratio": 1.89,
+   "scaled_mean_m3s": 155.99,
+   "cell_mean_m3s": 198.81,
+   "ratio": 1.27,
+   "verdict": "consistent"
+  },
+  "brantas-mojokerto": {
+   "grdc_no": 5141100,
+   "gauge": "Kali Brantas · Jabon",
+   "distance_km": 29.7,
+   "gauge_area_km2": 8650.0,
+   "gauge_mean_m3s": 183.92,
+   "gauge_years": "1951–1983",
+   "area_ratio": 1.36,
+   "scaled_mean_m3s": 250.9,
+   "cell_mean_m3s": 404.24,
+   "ratio": 1.61,
+   "verdict": "glofas_high"
+  },
+  "walanae-wajo": {
+   "grdc_no": 5148800,
+   "gauge": "Salo Walanae · Sempajeruk",
+   "distance_km": 20.6,
+   "gauge_area_km2": 2846.0,
+   "gauge_mean_m3s": 61.09,
+   "gauge_years": "1990–2009",
+   "area_ratio": 2.59,
+   "scaled_mean_m3s": 158.42,
+   "cell_mean_m3s": 163.45,
+   "ratio": 1.03,
+   "verdict": "consistent"
+  },
+  "tondano-manado": {
+   "grdc_no": 5148250,
+   "gauge": "Sungai Tondano · Kairagi",
+   "distance_km": null,
+   "gauge_area_km2": 421.4,
+   "gauge_mean_m3s": 11.83,
+   "gauge_years": "1991–2009",
+   "area_ratio": 1.28,
+   "scaled_mean_m3s": 15.16,
+   "cell_mean_m3s": 24.49,
+   "ratio": 1.62,
+   "verdict": "glofas_high"
+  }
+ }
+}

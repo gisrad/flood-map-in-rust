@@ -40,6 +40,7 @@ Field opsional (`?`) selalu ada dan bernilai `null` bila tidak tersedia.
 `fluvial_level, pluvial_level, level, mechanism, level_reason, public_advice, gov_action, academic_note`,
 `hydrograph[] { date, is_forecast, discharge_m3s, discharge_min_m3s?, discharge_p25_m3s?, discharge_p75_m3s?, discharge_max_m3s?, rain_mm? }` — 14 hari lalu, hari ini, 7 hari prakiraan (GMT). Statistik ensemble hanya untuk hari prakiraan,
 `grrr_check? { radius_km, n_outlets, verdict, q2_min_m3s?, q2_max_m3s?, closest? { id, distance_km, q2_m3s, q5_m3s, q20_m3s }, ratio_q2? }` — uji silang Q2 GloFAS terhadap Google GRRR (`verdict`: `within_range` | `glofas_above` | `glofas_below` | `no_outlets`; `null` untuk stasiun belum terkalibrasi; model terhadap model, lihat METODOLOGI §10.2),
+`gauge_check? { grdc_no, gauge, distance_km?, gauge_area_km2, gauge_mean_m3s, gauge_years, area_ratio, scaled_mean_m3s, cell_mean_m3s, ratio, verdict }` — rerata debit sel GloFAS 1997–2024 dibanding rerata terukur pos duga air GRDC di sungai yang sama, diskalakan ke luas DAS katalog (`verdict`: `consistent` | `glofas_high` | `glofas_low`, toleransi 1,5×; hanya 5 stasiun dengan pos yang mewakili; `distance_km` `null` bila koordinat GRDC tidak andal; METODOLOGI §11),
 `inundation_history? { radius_km, buffer_km2, low_km2, medium_km2, high_km2 }` — luas dalam radius 5 km yang basah ≥ 0,5% / ≥ 1% / ≥ 5% waktu menurut citra satelit 1999–2020 (Google Inundation History; kelas bersarang; riwayat, bukan prakiraan, METODOLOGI §10.1).
 
 ### `coastal_rob[]`
