@@ -417,6 +417,8 @@ a { color: var(--accent); text-underline-offset: 2px; }
   border-radius: 12px;
   box-shadow: var(--shadow);
   overflow: hidden;
+  /* Ruang bawah untuk tautan GitHub/X yang melayang di pojok kanan bawah (index.html). */
+  padding-bottom: 44px;
 }
 .inspector.is-closed { display: none; }
 .inspector:focus { outline: none; }
@@ -1013,6 +1015,7 @@ html[data-theme="dark"] .maplibregl-ctrl-attrib-button { filter: invert(1); }
     border-radius: 14px 14px 0 0;
     border-bottom: 0;
     transition: height 220ms ease;
+    padding-bottom: 0;
   }
   .inspector.snap-peek { height: var(--peek-h); }
   .inspector.snap-half { height: 56dvh; }
@@ -1034,7 +1037,7 @@ html[data-theme="dark"] .maplibregl-ctrl-attrib-button { filter: invert(1); }
   .peek-status { padding: 6px 16px 12px; cursor: pointer; }
   .peek-line { font-size: 13.5px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .tabs { border-top: 1px solid var(--line); }
-  .scroll { padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); }
+  .scroll { padding: 14px 14px calc(64px + env(safe-area-inset-bottom)); }
 
   /* Replay ringkas: peta tetap terlihat dan rel alat peta (38 px) di kanan tidak tertutup. */
   .replay {
